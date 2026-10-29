@@ -562,6 +562,298 @@ TEST_F(QuicControlFrameManagerTest, NumBufferedMaxStreams) {
   EXPECT_EQ(0, manager_->NumBufferedMaxStreams());
 }
 
+TEST_F(QuicControlFrameManagerTest, DonotRetransmitOldAckFrequency) {
+  SetQuicReloadableFlag(quic_no_stale_control_frames, true);
+  manager_ = std::make_unique<QuicControlFrameManager>(session_.get());
+
+  QuicAckFrequencyFrame frame1(
+      /*control_frame_id=*/1, /*sequence_number=*/1,
+      /*ack_eliciting_threshold=*/10, QuicTime::Delta::FromMilliseconds(24),
+      /*reordering_threshold=*/3);
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferAckFrequency(frame1);
+
+  QuicAckFrequencyFrame frame2(
+      /*control_frame_id=*/2, /*sequence_number=*/2,
+      /*ack_eliciting_threshold=*/5, QuicTime::Delta::FromMilliseconds(12),
+      /*reordering_threshold=*/2);
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferAckFrequency(frame2);
+
+  // Mark both AckFrequency frames as lost.
+  manager_->OnControlFrameLost(QuicFrame(&frame1));
+  manager_->OnControlFrameLost(QuicFrame(&frame2));
+  EXPECT_TRUE(manager_->HasPendingRetransmission());
+  EXPECT_TRUE(manager_->WillingToWrite());
+
+  // Verify only the latest AckFrequency frame gets retransmitted.
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce([&frame2](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(ACK_FREQUENCY_FRAME, frame.type);
+        EXPECT_EQ(frame2.control_frame_id,
+                  frame.ack_frequency_frame->control_frame_id);
+        EXPECT_EQ(frame2.sequence_number,
+                  frame.ack_frequency_frame->sequence_number);
+        EXPECT_EQ(frame2.ack_eliciting_threshold,
+                  frame.ack_frequency_frame->ack_eliciting_threshold);
+        EXPECT_EQ(frame2.requested_max_ack_delay,
+                  frame.ack_frequency_frame->requested_max_ack_delay);
+        EXPECT_EQ(frame2.reordering_threshold,
+                  frame.ack_frequency_frame->reordering_threshold);
+        ClearControlFrame(frame);
+        return true;
+      });
+  manager_->OnCanWrite();
+  EXPECT_FALSE(manager_->HasPendingRetransmission());
+  EXPECT_FALSE(manager_->WillingToWrite());
+}
+
+TEST_F(QuicControlFrameManagerTest, DonotRetransmitOldNewToken) {
+  SetQuicReloadableFlag(quic_no_stale_control_frames, true);
+  manager_ = std::make_unique<QuicControlFrameManager>(session_.get());
+
+  QuicNewTokenFrame frame1(1, "token1");
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferNewToken(frame1.token);
+
+  QuicNewTokenFrame frame2(2, "token2");
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferNewToken(frame2.token);
+
+  // Mark both NewToken frames as lost.
+  manager_->OnControlFrameLost(QuicFrame(&frame1));
+  manager_->OnControlFrameLost(QuicFrame(&frame2));
+  EXPECT_TRUE(manager_->HasPendingRetransmission());
+  EXPECT_TRUE(manager_->WillingToWrite());
+
+  // Verify only the latest NewToken frame gets retransmitted.
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce([&frame2](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(NEW_TOKEN_FRAME, frame.type);
+        EXPECT_EQ(frame2.control_frame_id,
+                  frame.new_token_frame->control_frame_id);
+        EXPECT_EQ(frame2.token, frame.new_token_frame->token);
+        ClearControlFrame(frame);
+        return true;
+      });
+  manager_->OnCanWrite();
+  EXPECT_FALSE(manager_->HasPendingRetransmission());
+  EXPECT_FALSE(manager_->WillingToWrite());
+}
+
+TEST_F(QuicControlFrameManagerTest, RetransmitOldNewTokenWhenFlagFalse) {
+  SetQuicReloadableFlag(quic_no_stale_control_frames, false);
+  manager_ = std::make_unique<QuicControlFrameManager>(session_.get());
+
+  QuicNewTokenFrame frame1(1, "token1");
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferNewToken(frame1.token);
+
+  QuicNewTokenFrame frame2(2, "token2");
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferNewToken(frame2.token);
+
+  manager_->OnControlFrameLost(QuicFrame(&frame1));
+  manager_->OnControlFrameLost(QuicFrame(&frame2));
+  EXPECT_TRUE(manager_->HasPendingRetransmission());
+
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .Times(2)
+      .WillRepeatedly(&ClearControlFrameWithTransmissionType);
+  manager_->OnCanWrite();
+  EXPECT_FALSE(manager_->HasPendingRetransmission());
+}
+
+TEST_F(QuicControlFrameManagerTest, DonotRetransmitBlocked) {
+  SetQuicReloadableFlag(quic_no_stale_control_frames, true);
+  manager_ = std::make_unique<QuicControlFrameManager>(session_.get());
+
+  QuicBlockedFrame blocked1(1, kTestStreamId, 100);
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferBlocked(blocked1.stream_id, blocked1.offset);
+
+  QuicBlockedFrame blocked2(2, kTestStreamId + 4, 50);
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferBlocked(blocked2.stream_id, blocked2.offset);
+
+  manager_->OnControlFrameLost(QuicFrame(blocked1));
+  manager_->OnControlFrameLost(QuicFrame(blocked2));
+  EXPECT_FALSE(manager_->HasPendingRetransmission());
+  EXPECT_FALSE(manager_->WillingToWrite());
+  EXPECT_EQ(0u, QuicControlFrameManagerPeer::QueueSize(manager_.get()));
+}
+
+TEST_F(QuicControlFrameManagerTest, DonotRetransmitOldStreamsBlocked) {
+  SetQuicReloadableFlag(quic_no_stale_control_frames, true);
+  manager_ = std::make_unique<QuicControlFrameManager>(session_.get());
+
+  QuicStreamsBlockedFrame bidi1(1, 10, /*unidirectional=*/false);
+  QuicStreamsBlockedFrame uni1(2, 5, /*unidirectional=*/true);
+  QuicStreamsBlockedFrame bidi2(3, 20, /*unidirectional=*/false);
+  QuicStreamsBlockedFrame uni2(4, 15, /*unidirectional=*/true);
+
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .Times(4)
+      .WillRepeatedly(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferStreamsBlocked(bidi1.stream_count,
+                                        bidi1.unidirectional);
+  manager_->WriteOrBufferStreamsBlocked(uni1.stream_count, uni1.unidirectional);
+  manager_->WriteOrBufferStreamsBlocked(bidi2.stream_count,
+                                        bidi2.unidirectional);
+  manager_->WriteOrBufferStreamsBlocked(uni2.stream_count, uni2.unidirectional);
+
+  manager_->OnControlFrameLost(QuicFrame(bidi1));
+  manager_->OnControlFrameLost(QuicFrame(uni1));
+  manager_->OnControlFrameLost(QuicFrame(bidi2));
+  manager_->OnControlFrameLost(QuicFrame(uni2));
+  EXPECT_TRUE(manager_->HasPendingRetransmission());
+
+  InSequence s;
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce([&bidi2](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(STREAMS_BLOCKED_FRAME, frame.type);
+        EXPECT_EQ(bidi2.control_frame_id,
+                  frame.streams_blocked_frame.control_frame_id);
+        EXPECT_EQ(bidi2.stream_count, frame.streams_blocked_frame.stream_count);
+        EXPECT_EQ(bidi2.unidirectional,
+                  frame.streams_blocked_frame.unidirectional);
+        ClearControlFrame(frame);
+        return true;
+      });
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce([&uni2](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(STREAMS_BLOCKED_FRAME, frame.type);
+        EXPECT_EQ(uni2.control_frame_id,
+                  frame.streams_blocked_frame.control_frame_id);
+        EXPECT_EQ(uni2.stream_count, frame.streams_blocked_frame.stream_count);
+        EXPECT_EQ(uni2.unidirectional,
+                  frame.streams_blocked_frame.unidirectional);
+        ClearControlFrame(frame);
+        return true;
+      });
+  manager_->OnCanWrite();
+  EXPECT_FALSE(manager_->HasPendingRetransmission());
+  EXPECT_FALSE(manager_->WillingToWrite());
+}
+
+TEST_F(QuicControlFrameManagerTest, DonotRetransmitOldGoAway) {
+  SetQuicReloadableFlag(quic_no_stale_control_frames, true);
+  manager_ = std::make_unique<QuicControlFrameManager>(session_.get());
+
+  QuicGoAwayFrame goaway1(1, QUIC_PEER_GOING_AWAY, kTestStreamId + 4, "first");
+  QuicGoAwayFrame goaway2(2, QUIC_PEER_GOING_AWAY, kTestStreamId, "second");
+
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .Times(2)
+      .WillRepeatedly(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferGoAway(goaway1.error_code, goaway1.last_good_stream_id,
+                                goaway1.reason_phrase);
+  manager_->WriteOrBufferGoAway(goaway2.error_code, goaway2.last_good_stream_id,
+                                goaway2.reason_phrase);
+
+  manager_->OnControlFrameLost(QuicFrame(&goaway1));
+  manager_->OnControlFrameLost(QuicFrame(&goaway2));
+  EXPECT_TRUE(manager_->HasPendingRetransmission());
+
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce([&goaway2](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(GOAWAY_FRAME, frame.type);
+        EXPECT_EQ(goaway2, *frame.goaway_frame);
+        ClearControlFrame(frame);
+        return true;
+      });
+  manager_->OnCanWrite();
+  EXPECT_FALSE(manager_->HasPendingRetransmission());
+  EXPECT_FALSE(manager_->WillingToWrite());
+}
+
+TEST_F(QuicControlFrameManagerTest,
+       DonotRetransmitLostFrameWhenNewerFrameIsBuffered) {
+  SetQuicReloadableFlag(quic_no_stale_control_frames, true);
+  manager_ = std::make_unique<QuicControlFrameManager>(session_.get());
+
+  // Send first NewToken frame.
+  QuicNewTokenFrame frame1(1, "token1");
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferNewToken(frame1.token);
+
+  // Connection is write-blocked when the newer NewToken frame is queued.
+  QuicNewTokenFrame frame2(2, "token2");
+  EXPECT_CALL(*session_, WriteControlFrame(_, _)).WillOnce(Return(false));
+  manager_->WriteOrBufferNewToken(frame2.token);
+  EXPECT_TRUE(manager_->WillingToWrite());
+
+  // Mark the first NewToken frame as lost while the second is still buffered.
+  manager_->OnControlFrameLost(QuicFrame(&frame1));
+  EXPECT_FALSE(manager_->HasPendingRetransmission());
+
+  // When connection becomes writable, only the newer buffered NewToken frame is
+  // sent, without retransmitting the stale lost one.
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce([&frame2](const QuicFrame& frame, TransmissionType type) {
+        EXPECT_EQ(NOT_RETRANSMISSION, type);
+        EXPECT_EQ(NEW_TOKEN_FRAME, frame.type);
+        EXPECT_EQ(frame2.control_frame_id,
+                  frame.new_token_frame->control_frame_id);
+        EXPECT_EQ(frame2.token, frame.new_token_frame->token);
+        ClearControlFrame(frame);
+        return true;
+      });
+  manager_->OnCanWrite();
+  EXPECT_FALSE(manager_->HasPendingRetransmission());
+  EXPECT_FALSE(manager_->WillingToWrite());
+}
+
+TEST_F(QuicControlFrameManagerTest,
+       DonotRetransmitLostFrameWhenNewerFrameQueuedAfterLoss) {
+  SetQuicReloadableFlag(quic_no_stale_control_frames, true);
+  manager_ = std::make_unique<QuicControlFrameManager>(session_.get());
+
+  // Send first NewToken frame.
+  QuicNewTokenFrame frame1(1, "token1");
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(&ClearControlFrameWithTransmissionType);
+  manager_->WriteOrBufferNewToken(frame1.token);
+
+  // Mark the first NewToken frame as lost before a newer one is queued.
+  manager_->OnControlFrameLost(QuicFrame(&frame1));
+  EXPECT_TRUE(manager_->HasPendingRetransmission());
+
+  // Connection is write-blocked when the newer NewToken frame is queued.
+  // Queuing the newer frame should immediately ack the lost stale frame and
+  // remove it from pending_retransmissions_.
+  QuicNewTokenFrame frame2(2, "token2");
+  EXPECT_CALL(*session_, WriteControlFrame(_, _)).WillOnce(Return(false));
+  manager_->WriteOrBufferNewToken(frame2.token);
+  EXPECT_FALSE(manager_->HasPendingRetransmission());
+  EXPECT_TRUE(manager_->WillingToWrite());
+
+  // When connection becomes writable, only the newer buffered NewToken frame is
+  // sent, without retransmitting the stale lost one.
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce([&frame2](const QuicFrame& frame, TransmissionType type) {
+        EXPECT_EQ(NOT_RETRANSMISSION, type);
+        EXPECT_EQ(NEW_TOKEN_FRAME, frame.type);
+        EXPECT_EQ(frame2.control_frame_id,
+                  frame.new_token_frame->control_frame_id);
+        EXPECT_EQ(frame2.token, frame.new_token_frame->token);
+        ClearControlFrame(frame);
+        return true;
+      });
+  manager_->OnCanWrite();
+  EXPECT_FALSE(manager_->HasPendingRetransmission());
+  EXPECT_FALSE(manager_->WillingToWrite());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

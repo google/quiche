@@ -173,6 +173,9 @@ class QUICHE_EXPORT QuicControlFrameManager {
   // frame.
   void WriteOrBufferQuicFrame(QuicFrame frame);
 
+  // Marks |last_frame_id| as acked if it has already been sent.
+  void MaybeAckPreviousFrame(QuicControlFrameId last_frame_id);
+
   quiche::QuicheCircularDeque<QuicFrame> control_frames_;
 
   // Id of latest saved control frame. 0 if no control frame has been saved.
@@ -195,8 +198,16 @@ class QUICHE_EXPORT QuicControlFrameManager {
   // Last sent window update frame for each stream.
   absl::flat_hash_map<QuicStreamId, QuicControlFrameId> window_update_frames_;
 
+  QuicControlFrameId last_goaway_ = kInvalidControlFrameId;
+  QuicControlFrameId last_uni_streams_blocked_ = kInvalidControlFrameId;
+  QuicControlFrameId last_bidi_streams_blocked_ = kInvalidControlFrameId;
+  QuicControlFrameId last_ack_frequency_ = kInvalidControlFrameId;
+  QuicControlFrameId last_new_token_ = kInvalidControlFrameId;
+
   // Number of MAX_STREAM frames which are currently buffered.
   size_t num_buffered_max_stream_frames_;
+
+  const bool no_stale_control_frames_;
 };
 
 }  // namespace quic

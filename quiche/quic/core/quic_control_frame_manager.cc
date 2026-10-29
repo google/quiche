@@ -36,7 +36,9 @@ QuicControlFrameManager::QuicControlFrameManager(QuicSession* session)
       least_unacked_(1),
       least_unsent_(1),
       delegate_(session),
-      num_buffered_max_stream_frames_(0) {}
+      num_buffered_max_stream_frames_(0),
+      no_stale_control_frames_(
+          GetQuicReloadableFlag(quic_no_stale_control_frames)) {}
 
 QuicControlFrameManager::~QuicControlFrameManager() {
   while (!control_frames_.empty()) {
@@ -83,8 +85,10 @@ void QuicControlFrameManager::WriteOrBufferGoAway(
     QuicErrorCode error, QuicStreamId last_good_stream_id,
     const std::string& reason) {
   QUIC_DVLOG(1) << "Writing GOAWAY_FRAME";
-  WriteOrBufferQuicFrame(QuicFrame(new QuicGoAwayFrame(
-      ++last_control_frame_id_, error, last_good_stream_id, reason)));
+  MaybeAckPreviousFrame(last_goaway_);
+  last_goaway_ = ++last_control_frame_id_;
+  WriteOrBufferQuicFrame(QuicFrame(
+      new QuicGoAwayFrame(last_goaway_, error, last_good_stream_id, reason)));
 }
 
 void QuicControlFrameManager::WriteOrBufferWindowUpdate(
@@ -105,8 +109,16 @@ void QuicControlFrameManager::WriteOrBufferStreamsBlocked(QuicStreamCount count,
                                                           bool unidirectional) {
   QUIC_DVLOG(1) << "Writing STREAMS_BLOCKED Frame";
   QUIC_CODE_COUNT(quic_streams_blocked_transmits);
-  WriteOrBufferQuicFrame(QuicFrame(QuicStreamsBlockedFrame(
-      ++last_control_frame_id_, count, unidirectional)));
+  const QuicControlFrameId control_frame_id = ++last_control_frame_id_;
+  if (unidirectional) {
+    MaybeAckPreviousFrame(last_uni_streams_blocked_);
+    last_uni_streams_blocked_ = control_frame_id;
+  } else {
+    MaybeAckPreviousFrame(last_bidi_streams_blocked_);
+    last_bidi_streams_blocked_ = control_frame_id;
+  }
+  WriteOrBufferQuicFrame(QuicFrame(
+      QuicStreamsBlockedFrame(control_frame_id, count, unidirectional)));
 }
 
 void QuicControlFrameManager::WriteOrBufferMaxStreams(QuicStreamCount count,
@@ -134,12 +146,13 @@ void QuicControlFrameManager::WriteOrBufferHandshakeDone() {
 void QuicControlFrameManager::WriteOrBufferAckFrequency(
     const QuicAckFrequencyFrame& ack_frequency_frame) {
   QUIC_DVLOG(1) << "Writing ACK_FREQUENCY frame";
-  QuicControlFrameId control_frame_id = ++last_control_frame_id_;
+  MaybeAckPreviousFrame(last_ack_frequency_);
+  last_ack_frequency_ = ++last_control_frame_id_;
   // Using the control_frame_id for sequence_number here leaves gaps in
   // sequence_number.
   WriteOrBufferQuicFrame(QuicFrame(
-      new QuicAckFrequencyFrame(control_frame_id,
-                                /*sequence_number=*/control_frame_id,
+      new QuicAckFrequencyFrame(last_ack_frequency_,
+                                /*sequence_number=*/last_ack_frequency_,
                                 ack_frequency_frame.ack_eliciting_threshold,
                                 ack_frequency_frame.requested_max_ack_delay,
                                 ack_frequency_frame.reordering_threshold)));
@@ -164,8 +177,10 @@ void QuicControlFrameManager::WriteOrBufferRetireConnectionId(
 
 void QuicControlFrameManager::WriteOrBufferNewToken(absl::string_view token) {
   QUIC_DVLOG(1) << "Writing NEW_TOKEN frame";
+  MaybeAckPreviousFrame(last_new_token_);
+  last_new_token_ = ++last_control_frame_id_;
   WriteOrBufferQuicFrame(
-      QuicFrame(new QuicNewTokenFrame(++last_control_frame_id_, token)));
+      QuicFrame(new QuicNewTokenFrame(last_new_token_, token)));
 }
 
 void QuicControlFrameManager::OnControlFrameSent(const QuicFrame& frame) {
@@ -238,6 +253,11 @@ void QuicControlFrameManager::OnControlFrameLost(const QuicFrame& frame) {
       GetControlFrameId(control_frames_.at(id - least_unacked_)) ==
           kInvalidControlFrameId) {
     // This frame has already been acked.
+    return;
+  }
+  if (no_stale_control_frames_ && frame.type == BLOCKED_FRAME) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_stale_control_frames, 1, 2);
+    OnControlFrameIdAcked(id);
     return;
   }
   if (!pending_retransmissions_.contains(id)) {
@@ -384,6 +404,14 @@ bool QuicControlFrameManager::OnControlFrameIdAcked(QuicControlFrameId id) {
 
 bool QuicControlFrameManager::HasBufferedFrames() const {
   return least_unsent_ < least_unacked_ + control_frames_.size();
+}
+
+void QuicControlFrameManager::MaybeAckPreviousFrame(
+    QuicControlFrameId last_frame_id) {
+  if (no_stale_control_frames_ && last_frame_id < least_unsent_ &&
+      OnControlFrameIdAcked(last_frame_id)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_stale_control_frames, 2, 2);
+  }
 }
 
 }  // namespace quic
