@@ -8,31 +8,28 @@
 // quiche/http2/core/http2_structures.h) using Http2StructureDecoder, which
 // handles buffering of structures split across input buffer boundaries, and in
 // turn uses DoDecode when it has all of a structure in a contiguous buffer.
-
-// NOTE: This tests the first pair of Start and Resume, which don't take
-// a remaining_payload parameter. The other pair are well tested via the
-// payload decoder tests, though...
-// TODO(jamessynge): Create type parameterized tests for Http2StructureDecoder
-// where the type is the type of structure, and with testing of both pairs of
-// Start and Resume methods; note that it appears that the first pair will be
-// used only for Http2FrameHeader, and the other pair only for structures in the
-// frame payload.
+// Tests both pairs of Start and Resume methods (with and without a
+// remaining_payload parameter).
 
 #include <stddef.h>
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/core/http2_constants.h"
+#include "quiche/http2/core/http2_structures.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/test_tools/http2_frame_builder.h"
+#include "quiche/http2/test_tools/http2_structure_decoder_test_util.h"
 #include "quiche/http2/test_tools/http2_structures_test_util.h"
 #include "quiche/http2/test_tools/random_decoder_test_base.h"
 #include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_text_utils.h"
 
 using ::testing::AssertionSuccess;
 
@@ -57,42 +54,118 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
     // decode the buffer, so that we can be confident that we really decoded
     // the structure every time.
     structure_ = std::make_unique<S>();
-    uint32_t old_remaining = b->Remaining();
-    if (structure_decoder_.Start(structure_.get(), b)) {
-      EXPECT_EQ(old_remaining - S::EncodedSize(), b->Remaining());
-      ++fast_decode_count_;
-      return DecodeStatus::kDecodeDone;
-    } else {
-      EXPECT_LT(structure_decoder_.offset(), S::EncodedSize());
-      EXPECT_EQ(0u, b->Remaining());
-      EXPECT_EQ(old_remaining - structure_decoder_.offset(), b->Remaining());
-      ++incomplete_start_count_;
-      return DecodeStatus::kDecodeInProgress;
+
+    // Do the same with the decoder so that we can be sure the decoder
+    // is not depending on or affected by the state from the previous
+    // decoding calls.
+    Http2StructureDecoderPeer::Randomize(&structure_decoder_, RandomPtr());
+
+    if (!use_remaining_payload_) {
+      uint32_t old_remaining = b->Remaining();
+      if (structure_decoder_.Start(structure_.get(), b)) {
+        EXPECT_EQ(old_remaining - S::EncodedSize(), b->Remaining());
+        ++fast_decode_count_;
+        return DecodeStatus::kDecodeDone;
+      } else {
+        EXPECT_LT(structure_decoder_.offset(), S::EncodedSize());
+        EXPECT_EQ(0u, b->Remaining());
+        EXPECT_EQ(old_remaining - structure_decoder_.offset(), b->Remaining());
+        ++incomplete_start_count_;
+        return DecodeStatus::kDecodeInProgress;
+      }
     }
+
+    const uint32_t avail = b->Remaining();
+
+    QUICHE_VLOG(2) << "StartDecoding, avail=" << b->Remaining()
+                   << "; needed=" << S::EncodedSize();
+
+    remaining_payload_ = remaining_payload_at_start_;
+    DecodeStatus status =
+        structure_decoder_.Start(structure_.get(), b, &remaining_payload_);
+
+    const uint32_t consumed_payload =
+        remaining_payload_at_start_ - remaining_payload_;
+    const uint32_t consumed_input = avail - b->Remaining();
+    EXPECT_EQ(consumed_payload, consumed_input);
+
+    if (status == DecodeStatus::kDecodeDone) {
+      EXPECT_EQ(consumed_payload, S::EncodedSize());
+      ++fast_decode_count_;
+    } else if (status == DecodeStatus::kDecodeInProgress) {
+      EXPECT_LT(avail, S::EncodedSize());
+      EXPECT_EQ(0u, b->Remaining());
+      EXPECT_EQ(avail, structure_decoder_.offset());
+      EXPECT_GT(remaining_payload_, 0u);
+      ++incomplete_start_count_;
+    } else {
+      EXPECT_EQ(status, DecodeStatus::kDecodeError);
+      EXPECT_EQ(remaining_payload_, 0u);
+      ++error_start_count_;
+    }
+    return status;
   }
 
   DecodeStatus ResumeDecoding(DecodeBuffer* b) override {
-    uint32_t old_offset = structure_decoder_.offset();
+    const uint32_t old_offset = structure_decoder_.offset();
     EXPECT_LT(old_offset, S::EncodedSize());
-    uint32_t avail = b->Remaining();
-    if (structure_decoder_.Resume(structure_.get(), b)) {
-      EXPECT_LE(S::EncodedSize(), old_offset + avail);
-      EXPECT_EQ(b->Remaining(), avail - (S::EncodedSize() - old_offset));
+    const uint32_t avail = b->Remaining();
+
+    if (!use_remaining_payload_) {
+      if (structure_decoder_.Resume(structure_.get(), b)) {
+        EXPECT_EQ(S::EncodedSize(), structure_decoder_.offset());
+        EXPECT_LE(S::EncodedSize(), old_offset + avail);
+        EXPECT_EQ(b->Remaining(), avail - (S::EncodedSize() - old_offset));
+        ++slow_decode_count_;
+        return DecodeStatus::kDecodeDone;
+      } else {
+        EXPECT_LT(structure_decoder_.offset(), S::EncodedSize());
+        EXPECT_EQ(0u, b->Remaining());
+        EXPECT_GT(S::EncodedSize(), old_offset + avail);
+        ++incomplete_resume_count_;
+        return DecodeStatus::kDecodeInProgress;
+      }
+    }
+
+    const uint32_t needed = S::EncodedSize() - old_offset;
+
+    QUICHE_VLOG(2) << "ResumeDecoding, avail=" << b->Remaining()
+                   << "; needed=" << needed;
+
+    const uint32_t old_remaining_payload = remaining_payload_;
+    if (structure_decoder_.Resume(structure_.get(), b, &remaining_payload_)) {
+      EXPECT_EQ(structure_decoder_.offset(), S::EncodedSize());
+      EXPECT_GT(old_remaining_payload, remaining_payload_);
+      const uint32_t consumed_payload =
+          old_remaining_payload - remaining_payload_;
+      const uint32_t consumed_input = avail - b->Remaining();
+      EXPECT_EQ(needed, consumed_payload);
+      EXPECT_EQ(needed, consumed_input);
       ++slow_decode_count_;
       return DecodeStatus::kDecodeDone;
+    } else if (remaining_payload_ == 0) {
+      EXPECT_GT(needed, old_remaining_payload);
+      ++error_resume_count_;
+      return DecodeStatus::kDecodeError;
     } else {
-      EXPECT_LT(structure_decoder_.offset(), S::EncodedSize());
+      // There is more payload to come, whether or not it is sufficient to
+      // meet the needs of decoding a Structure.
+      EXPECT_GE(old_remaining_payload, remaining_payload_);
       EXPECT_EQ(0u, b->Remaining());
-      EXPECT_GT(S::EncodedSize(), old_offset + avail);
+      const uint32_t consumed = old_remaining_payload - remaining_payload_;
+      const uint32_t copied = structure_decoder_.offset() - old_offset;
+      EXPECT_EQ(copied, avail);
+      EXPECT_EQ(copied, consumed);
+      EXPECT_LT(avail, needed);
+      EXPECT_LT(structure_decoder_.offset(), S::EncodedSize());
       ++incomplete_resume_count_;
       return DecodeStatus::kDecodeInProgress;
     }
   }
 
-  // Fully decodes the Structure at the start of data, and confirms it matches
-  // *expected (if provided).
-  AssertionResult DecodeLeadingStructure(const S* expected,
-                                         absl::string_view data) {
+  AssertionResult DecodeLeadingStructureWithoutRemainingPayload(
+      const S* expected, absl::string_view data) {
+    use_remaining_payload_ = false;
     HTTP2_VERIFY_LE(S::EncodedSize(), data.size());
     DecodeBuffer original(data);
 
@@ -120,7 +193,6 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
     HTTP2_VERIFY_SUCCESS(DecodeAndValidateSeveralWays(
         &original, kMayReturnZeroOnFirst, validator));
     HTTP2_VERIFY_FALSE(HasFailure());
-    HTTP2_VERIFY_EQ(S::EncodedSize(), structure_decoder_.offset());
     HTTP2_VERIFY_EQ(S::EncodedSize(), original.Offset());
     HTTP2_VERIFY_LT(0u, fast_decode_count_);
     HTTP2_VERIFY_LT(0u, slow_decode_count_);
@@ -137,6 +209,170 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
       QUICHE_DVLOG(1) << "DecodeLeadingStructure expected: " << *expected;
       QUICHE_DVLOG(1) << "DecodeLeadingStructure   actual: " << *structure_;
       HTTP2_VERIFY_EQ(*expected, *structure_);
+    }
+    return AssertionSuccess();
+  }
+
+  // Fully decodes the structure at the start of data, and confirms it matches
+  // *expected (if provided) if initial_remaining_payload is big enough. Note
+  // that data is expected to be big enough to include an instance of the
+  // Structure, and possibly more than that.
+  AssertionResult DecodeLeadingStructureWithRemainingPayload(
+      const S* expected, absl::string_view data,
+      size_t initial_remaining_payload) {
+    QUICHE_VLOG(2) << "DecodeLeadingStructure: " << data.size()
+                   << " bytes of data: "
+                   << quiche::QuicheTextUtils::HexDump(data)
+                   << "\n   initial_remaining_payload="
+                   << initial_remaining_payload
+                   << "\n   needed=" << S::EncodedSize();
+    if (expected != nullptr) {
+      QUICHE_VLOG(2) << "DecodeLeadingStructure: expected: " << *expected;
+    }
+
+    use_remaining_payload_ = true;
+    remaining_payload_at_start_ = initial_remaining_payload;
+
+    HTTP2_VERIFY_LE(S::EncodedSize(), data.size());
+
+    DecodeBuffer original(data.substr(0, initial_remaining_payload));
+
+    // The validator is called after each of the several times that the input
+    // DecodeBuffer is decoded, each with a different segmentation of the input.
+    // Create an appropriate validator based on whether the payload is big
+    // enough or not.
+
+    Validator validator;
+    if (initial_remaining_payload >= S::EncodedSize()) {
+      // We expect complete decoding.
+      NoArgValidator inner_validator = [expected, this]() -> AssertionResult {
+        // remaining_payload_at_start_ should have been large enough.
+        HTTP2_VERIFY_LE(S::EncodedSize(), remaining_payload_at_start_);
+
+        // remaining_payload_ should have dropped by S::EncodedSize().
+        HTTP2_VERIFY_EQ(remaining_payload_ + S::EncodedSize(),
+                        remaining_payload_at_start_);
+
+        // Validate that structure_ matches the expected value, if provided.
+        if (expected != nullptr) {
+          HTTP2_VERIFY_EQ(*expected, *structure_);
+        }
+        return AssertionSuccess();
+      };
+
+      // First validate that decoding is done and that we've advanced the cursor
+      // the expected amount (i.e. the size of the encoded structure).
+      validator =
+          ValidateDoneAndOffset(S::EncodedSize(), std::move(inner_validator));
+    } else {
+      // Not enough payload left, so decoding should fail.
+      HTTP2_VERIFY_LT(initial_remaining_payload, S::EncodedSize());
+
+      validator = [this](const DecodeBuffer& /*db*/,
+                         DecodeStatus status) -> AssertionResult {
+        HTTP2_VERIFY_EQ(status, DecodeStatus::kDecodeError);
+        HTTP2_VERIFY_GT(S::EncodedSize(), remaining_payload_at_start_);
+        HTTP2_VERIFY_EQ(0u, remaining_payload_);
+        // Should have filled the structure_decoder_'s buffer with all of the
+        // available data.
+        HTTP2_VERIFY_EQ(remaining_payload_at_start_,
+                        structure_decoder_.offset());
+        return AssertionSuccess();
+      };
+    }
+
+    // Decode several times, with several segmentations of the input buffer.
+    fast_decode_count_ = 0;
+    slow_decode_count_ = 0;
+    error_start_count_ = 0;
+    error_resume_count_ = 0;
+    incomplete_start_count_ = 0;
+    incomplete_resume_count_ = 0;
+
+    HTTP2_VERIFY_SUCCESS(DecodeAndValidateSeveralWays(
+        &original, kMayReturnZeroOnFirst, validator));
+    HTTP2_VERIFY_FALSE(HasFailure());
+
+    // Check that both the fast and slow decode or error paths have been tested,
+    // and if successful that the expected structure has been decoded.
+    if (initial_remaining_payload >= S::EncodedSize()) {
+      // Should have advanced the original DecodeBuffer to the end of the
+      // encoded structure.
+      HTTP2_VERIFY_EQ(S::EncodedSize(), original.Offset());
+
+      // Should have done both a fast decode, where StartDecoding was passed
+      // the entire input, and also a slow decode, where StartDecoding didn't
+      // get the whole thing, including an empty buffer.
+      HTTP2_VERIFY_LT(0u, fast_decode_count_);
+      HTTP2_VERIFY_LT(0u, slow_decode_count_);
+      HTTP2_VERIFY_LT(0u, incomplete_start_count_);
+
+      // There should have been no errors during decoding.
+      HTTP2_VERIFY_EQ(0u, error_start_count_);
+      HTTP2_VERIFY_EQ(0u, error_resume_count_);
+
+      // If the input is at least two bytes long, then at least one segmentation
+      // of the input will result in ResumeDecoding being called twice, so we
+      // should have counted at least one incomplete resume.
+      if (S::EncodedSize() >= 2) {
+        HTTP2_VERIFY_LE(0u, incomplete_resume_count_);
+      } else {
+        HTTP2_VERIFY_EQ(0u, incomplete_resume_count_);
+      }
+
+      // Double check that the decoded structure has the expected value.
+      if (expected != nullptr) {
+        HTTP2_VERIFY_EQ(*expected, *structure_);
+      }
+    } else {
+      // We didn't have enough remaining payload, so we should have buffered
+      // all that was available in the decoder, and reached the end of the
+      // payload.
+      HTTP2_VERIFY_EQ(initial_remaining_payload, structure_decoder_.offset());
+      HTTP2_VERIFY_EQ(0u, remaining_payload_);
+
+      // Should not have succeeded in decoding fast or slow.
+      HTTP2_VERIFY_EQ(0u, fast_decode_count_);
+      HTTP2_VERIFY_EQ(0u, slow_decode_count_);
+
+      // Should have determined there was an error during StartDecoding
+      // at least once.
+      HTTP2_VERIFY_LT(0u, error_start_count_);
+
+      // If the input is at least one byte long, then at least one segmentation
+      // will result in an empty buffer being passed to StartDecoding.
+      if (initial_remaining_payload >= 1) {
+        HTTP2_VERIFY_LT(0u, incomplete_start_count_);
+        HTTP2_VERIFY_LT(0u, error_resume_count_);
+
+        // And if the input is at least 2 bytes long, then at least one
+        // segmentation of the input will result in ResumeDecoding being called
+        // twice, so we should have counted at least one incomplete resume.
+        if (initial_remaining_payload >= 2) {
+          HTTP2_VERIFY_LT(0u, incomplete_resume_count_);
+        }
+      }
+    }
+    return AssertionSuccess();
+  }
+
+  // Fully decodes the Structure at the start of data using both pairs of Start
+  // and Resume methods, and confirms it matches *expected (if provided).
+  AssertionResult DecodeLeadingStructure(const S* expected,
+                                         absl::string_view data) {
+    HTTP2_VERIFY_SUCCESS(
+        DecodeLeadingStructureWithoutRemainingPayload(expected, data));
+    const S decoded_without_remaining_payload = *structure_;
+    const S* expected_for_remaining =
+        expected != nullptr ? expected : &decoded_without_remaining_payload;
+
+    // Decode with various sizes of remaining payload, from none,
+    // to insufficient, to enough, and finally more than enough.
+    for (size_t initial_remaining_payload = 0;
+         initial_remaining_payload <= S::EncodedSize() + 1;
+         ++initial_remaining_payload) {
+      HTTP2_VERIFY_SUCCESS(DecodeLeadingStructureWithRemainingPayload(
+          expected_for_remaining, data, initial_remaining_payload));
     }
     return AssertionSuccess();
   }
@@ -183,6 +419,13 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
   size_t slow_decode_count_ = 0;
   size_t incomplete_start_count_ = 0;
   size_t incomplete_resume_count_ = 0;
+  size_t error_start_count_ = 0;
+  size_t error_resume_count_ = 0;
+
+ private:
+  bool use_remaining_payload_ = false;
+  uint32_t remaining_payload_ = 0;
+  uint32_t remaining_payload_at_start_ = 0;
 };
 
 class Http2FrameHeaderDecoderTest
