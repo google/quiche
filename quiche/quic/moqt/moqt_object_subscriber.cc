@@ -49,9 +49,8 @@ LiveSubscriber::~LiveSubscriber() {
 }
 
 void LiveSubscriber::OnObjectOrOk(const SubscribeOkData& data) {
-  if (parameters().subscription_filter.has_value()) {
-    parameters().subscription_filter->OnLargestObject(
-        data.parameters.largest_object);
+  if (!request_stream()->CheckStatus(Update(data.parameters))) {
+    return;
   }
   publisher_object_delivery_timeout_ =
       data.properties.object_delivery_timeout();

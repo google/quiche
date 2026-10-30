@@ -130,11 +130,13 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
     Detach();
   }
 
-  // If `status` is not OK, terminates the connection with a fatal error.
-  void CheckStatus(absl::Status status) {
+  // If `status` is not OK, terminates the connection with a fatal error and
+  // returns false.
+  bool CheckStatus(absl::Status status) {
     if (!status.ok()) {
       OnFatalError(status);
     }
+    return status.ok();
   }
 
   // Returns the status of the stream, set from any incoming RESET_STREAM/

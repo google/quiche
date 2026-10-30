@@ -95,21 +95,11 @@ void LivePublisher::Update(const MessageParameters& parameters,
   // that are now outside the window. Also send PUBLISH_DONE if now done.
   MoqtPriority old_priority =
       parameters_.subscriber_priority.value_or(kDefaultSubscriberPriority);
-  // Does this update set forward to true?
-  bool forward_to_1 = !parameters_.forward() &&
-                      parameters.forward_has_value() && parameters.forward();
-  response.largest_object = track_publisher_->largest_location();
-  parameters_.largest_object = response.largest_object;
-  parameters_.Update(parameters);
-  if (parameters_.subscription_filter.has_value() &&
-      parameters_.largest_object.has_value() &&
-      (!parameters_.subscription_filter->WindowKnown() || forward_to_1)) {
-    // Initialize the filter if:
-    // - Forward is going 0->1 (this could be a re-initialization)
-    // - This the first LARGEST_OBJECT sent.
-    // - There's a new filter that has to be initialized from LARGEST_OBJECT.
-    parameters_.subscription_filter->OnLargestObject(response.largest_object);
+  if (!from_request_ok) {
+    response.largest_object = track_publisher_->largest_location();
+    parameters_.largest_object = response.largest_object;
   }
+  parameters_.Update(parameters);
   if (parameters.subscriber_priority.has_value()) {  // priority changed.
     MoqtPriority new_priority = *parameters.subscriber_priority;
     // Reprioritize all active streams.
@@ -163,7 +153,8 @@ void LivePublisher::OnSubscribeAccepted() {
   }
   established_ = true;
   parameters_.largest_object = track_publisher_->largest_location();
-  if (parameters_.subscription_filter.has_value()) {
+  if (parameters_.subscription_filter.has_value() &&
+      !parameters_.subscription_filter->WindowKnown()) {
     parameters_.subscription_filter->OnLargestObject(
         parameters_.largest_object);
   }

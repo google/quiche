@@ -449,6 +449,7 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishDuplicate) {
 
 TEST_F(MoqtPublishResponseStreamTest, ReceiveRequestUpdate) {
   MoqtPublish publish = DefaultPublish();
+  publish.parameters.largest_object = Location(1, 2);
   EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
       .WillOnce(Return(&mock_subscribe_visitor_));
   LiveSubscriber* captured_subscriber = nullptr;
@@ -465,7 +466,8 @@ TEST_F(MoqtPublishResponseStreamTest, ReceiveRequestUpdate) {
           });
   QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
 
-  // Now receive REQUEST_UPDATE.
+  // Now receive REQUEST_UPDATE (which cannot contain LARGEST_OBJECT even though
+  // PUBLISH had LARGEST_OBJECT set).
   MoqtRequestUpdate request_update;
   request_update.request_id = kRequestId + 2;
   request_update.parameters.authorization_tokens.emplace_back(
@@ -475,12 +477,13 @@ TEST_F(MoqtPublishResponseStreamTest, ReceiveRequestUpdate) {
       .WillOnce(Return(absl::OkStatus()));
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_update));
 
-  // Verify subscriber parameters were updated.
+  // Verify subscriber parameters were updated and largest_object was preserved.
   ASSERT_NE(captured_subscriber, nullptr);
   const MessageParameters& sub_params =
       LiveSubscriberPeer::parameters(*captured_subscriber);
   EXPECT_EQ(sub_params.authorization_tokens,
             request_update.parameters.authorization_tokens);
+  EXPECT_EQ(sub_params.largest_object, Location(1, 2));
   EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
 }
 

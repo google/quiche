@@ -35,6 +35,7 @@
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/test_tools/in_memory_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
@@ -872,7 +873,7 @@ TEST_F(IncomingDataStreamTest, OnObjectMessageNotInWindow) {
   ProcessAlias(2);
   MessageParameters parameters;
   parameters.set_forward(false);
-  track_->Update(parameters);
+  QUICHE_EXPECT_OK(track_->Update(parameters));
   EXPECT_CALL(visitor_, OnObjectFragment).Times(0);
   stream_->OnObjectMessage(kDefaultObject, "", true);
 }

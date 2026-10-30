@@ -132,8 +132,7 @@ absl::Status MoqtSubscribeRequestStream::OnControlMessage(
   if (message.parameters.expires.has_value()) {
     updated_parameters.expires = message.parameters.expires;
   }
-  track_->Update(updated_parameters);
-
+  QUICHE_RETURN_IF_ERROR(track_->Update(updated_parameters));
   return request_update_queue().OnControlMessage(message);
 }
 

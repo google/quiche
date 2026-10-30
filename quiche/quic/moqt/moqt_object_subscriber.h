@@ -70,9 +70,15 @@ class ObjectSubscriber {
 
   virtual bool is_fetch() const = 0;
 
-  // A REQUEST_UPDATE changes any field that is present in |parameters|.
-  void Update(const MessageParameters& parameters) {
+  // A REQUEST_UPDATE or PUBLISH_STATE_NOTIFY changes any field that is present
+  // in |parameters|. If status is not OK, there is a protocol violation.
+  absl::Status Update(const MessageParameters& parameters) {
+    if (parameters.largest_object.has_value() &&
+        parameters_.largest_object > parameters.largest_object) {
+      return absl::InvalidArgumentError("LARGEST_OBJECT cannot be decreased");
+    }
     parameters_.Update(parameters);
+    return absl::OkStatus();
   }
 
   MoqtBidiStreamBase* request_stream() { return request_stream_; }

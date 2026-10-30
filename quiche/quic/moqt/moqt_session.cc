@@ -1122,7 +1122,11 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
             if (it != session->subscribe_by_name_.end()) {
               // It's a pending SUBSCRIBE; kill it, but use the parameters and
               // visitor from the SUBSCRIBE.
-              track->Update(it->second->const_parameters());
+              if (!track->Update(it->second->const_parameters()).ok()) {
+                session->Error(MoqtError::kInternalError,
+                               "Failed to update parameters");
+                return false;
+              }
               track->set_visitor(it->second->ReleaseVisitor());
               session->Unsubscribe(it->second->full_track_name());
             }

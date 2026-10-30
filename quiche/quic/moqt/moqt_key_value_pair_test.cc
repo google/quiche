@@ -162,6 +162,43 @@ TEST_F(MessageParametersTest, Update) {
   EXPECT_EQ(p1.track_namespace_prefix, TrackNamespace({"bar"}));
 }
 
+TEST_F(MessageParametersTest, UpdateSubscriptionFilter) {
+  // 1. Uninitialized existing filter gets initialized on Update even if
+  // largest_object is not set.
+  MessageParameters params_no_largest(MoqtFilterType::kLargestObject);
+  EXPECT_FALSE(params_no_largest.subscription_filter->WindowKnown());
+  params_no_largest.Update(MessageParameters());
+  EXPECT_TRUE(params_no_largest.subscription_filter->WindowKnown());
+  EXPECT_EQ(params_no_largest.subscription_filter->start(), Location(0, 0));
+
+  // 2. Uninitialized existing filter gets initialized with largest_object on
+  // Update.
+  MessageParameters params(MoqtFilterType::kLargestObject);
+  params.set_forward(false);
+  EXPECT_FALSE(params.subscription_filter->WindowKnown());
+  MessageParameters update1;
+  update1.largest_object = Location(1, 2);
+  params.Update(update1);
+  EXPECT_TRUE(params.subscription_filter->WindowKnown());
+  EXPECT_EQ(params.subscription_filter->start(), Location(1, 3));
+
+  // 3. Once the filter window is known, subsequent Updates do not re-initialize
+  // it even if largest_object or forward changes.
+  MessageParameters update2;
+  update2.largest_object = Location(2, 4);
+  update2.set_forward(true);
+  params.Update(update2);
+  EXPECT_TRUE(params.forward());
+  EXPECT_EQ(params.subscription_filter->start(), Location(1, 3));
+
+  // 4. New filter in Update is initialized with largest_object.
+  MessageParameters update3(MoqtFilterType::kNextGroupStart);
+  update3.largest_object = Location(3, 1);
+  params.Update(update3);
+  EXPECT_TRUE(params.subscription_filter->WindowKnown());
+  EXPECT_EQ(params.subscription_filter->start(), Location(4, 0));
+}
+
 class TrackPropertiesTest : public quic::test::QuicTest {};
 
 TEST_F(TrackPropertiesTest, DefaultConstructor) {

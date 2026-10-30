@@ -74,12 +74,14 @@ void SubscriptionFilter::OnLargestObject(
 }
 
 void MessageParameters::Update(const MessageParameters& other) {
+  // In order of MessageParameter enum.
   if (other.object_delivery_timeout.has_value()) {
     object_delivery_timeout = other.object_delivery_timeout;
   }
   if (!other.authorization_tokens.empty()) {
     authorization_tokens = other.authorization_tokens;
   }
+  // RENDEZVOUS_TIMEOUT cannot be updated.
   if (other.subgroup_delivery_timeout.has_value()) {
     subgroup_delivery_timeout = other.subgroup_delivery_timeout;
   }
@@ -98,7 +100,7 @@ void MessageParameters::Update(const MessageParameters& other) {
   if (other.subscription_filter.has_value()) {
     subscription_filter = other.subscription_filter;
   }
-  // Group order cannot be updated.
+  // GROUP_ORDER cannot be updated.
   if (other.new_group_request.has_value()) {
     new_group_request = other.new_group_request;
   }
@@ -107,6 +109,9 @@ void MessageParameters::Update(const MessageParameters& other) {
   }
   if (other.oack_window_size.has_value()) {
     oack_window_size = other.oack_window_size;
+  }
+  if (subscription_filter.has_value() && !subscription_filter->WindowKnown()) {
+    subscription_filter->OnLargestObject(largest_object);
   }
 }
 

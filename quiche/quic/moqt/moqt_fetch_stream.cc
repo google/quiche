@@ -183,8 +183,8 @@ absl::Status MoqtFetchRequestStream::OnControlMessage(
   if (!old_parameters.ok()) {
     return old_parameters.status();
   }
-  Update(*old_parameters);
-  Update(message.parameters);
+  QUICHE_RETURN_IF_ERROR(Update(*old_parameters));
+  QUICHE_RETURN_IF_ERROR(Update(message.parameters));
   return request_update_queue().OnControlMessage(message);
 }
 

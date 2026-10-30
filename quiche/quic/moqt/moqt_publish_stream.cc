@@ -212,7 +212,11 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
                     if (!dg) {
                       update_parameters.new_group_request.reset();
                     }
-                    response_stream->subscriber_->Update(update_parameters);
+                    if (!response_stream->CheckStatus(
+                            response_stream->subscriber_->Update(
+                                update_parameters))) {
+                      return;
+                    }
                     response_stream->CheckStatus(response_stream->SendRequestOk(
                         update_parameters, MoqtMessageType::kPublish));
                   },
@@ -254,7 +258,7 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
     // Stream is already closing.
     return absl::OkStatus();
   }
-  subscriber_->Update(message.parameters);
+  QUICHE_RETURN_IF_ERROR(subscriber_->Update(message.parameters));
   CheckStatus(
       SendRequestOk(MessageParameters(), MoqtMessageType::kRequestUpdate));
   return absl::OkStatus();

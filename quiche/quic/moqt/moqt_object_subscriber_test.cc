@@ -16,6 +16,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
@@ -23,6 +24,7 @@
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_mem_slice.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 
 namespace moqt {
@@ -87,6 +89,49 @@ TEST_F(LiveSubscriberTest, AllowError) {
 TEST_F(LiveSubscriberTest, Windows) {
   EXPECT_TRUE(track_.InWindow(Location(2, 0)));
   EXPECT_FALSE(track_.InWindow(Location(1, 25)));
+}
+
+TEST_F(LiveSubscriberTest, UpdateLargestObjectValidation) {
+  MessageParameters update1;
+  update1.largest_object = Location(2, 5);
+  QUICHE_EXPECT_OK(track_.Update(update1));
+  EXPECT_EQ(track_.const_parameters().largest_object, Location(2, 5));
+
+  // Increasing LARGEST_OBJECT succeeds.
+  MessageParameters update2;
+  update2.largest_object = Location(3, 0);
+  QUICHE_EXPECT_OK(track_.Update(update2));
+  EXPECT_EQ(track_.const_parameters().largest_object, Location(3, 0));
+
+  // Omitting LARGEST_OBJECT once set is allowed and preserves the previous
+  // value.
+  MessageParameters omitted;
+  omitted.set_forward(false);
+  QUICHE_EXPECT_OK(track_.Update(omitted));
+  EXPECT_EQ(track_.const_parameters().largest_object, Location(3, 0));
+
+  // Decreasing LARGEST_OBJECT is rejected.
+  MessageParameters decreased;
+  decreased.largest_object = Location(2, 9);
+  EXPECT_FALSE(track_.Update(decreased).ok());
+  EXPECT_EQ(track_.const_parameters().largest_object, Location(3, 0));
+}
+
+TEST_F(LiveSubscriberTest, OnObjectOrOkAnchorsFilterWithLargestObject) {
+  MoqtSubscribe subscribe = {/*request_id=*/2, FullTrackName("foo", "bar"),
+                             MessageParameters(MoqtFilterType::kLargestObject)};
+  LiveSubscriber subscriber(subscribe, &visitor_, &stream_);
+  EXPECT_FALSE(
+      subscriber.const_parameters().subscription_filter->WindowKnown());
+
+  EXPECT_CALL(visitor_, OnReply);
+  SubscribeOkData ok_data;
+  ok_data.parameters.largest_object = Location(2, 3);
+  subscriber.OnObjectOrOk(ok_data);
+  EXPECT_TRUE(subscriber.const_parameters().subscription_filter->WindowKnown());
+  EXPECT_EQ(subscriber.const_parameters().subscription_filter->start(),
+            Location(2, 4));
+  EXPECT_CALL(visitor_, OnPublishDone).Times(testing::AtLeast(1));
 }
 
 TEST_F(LiveSubscriberTest, OnPublishDoneReadyToClose) {

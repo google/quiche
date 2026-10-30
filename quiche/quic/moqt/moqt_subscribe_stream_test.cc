@@ -193,6 +193,7 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceiveRequestOk) {
                   quic::QuicTimeDelta::FromSeconds(30));
       };
   parameters_.subscriber_priority = 20;
+  parameters_.subscription_filter.emplace(MoqtFilterType::kLargestObject);
   QUICHE_EXPECT_OK(stream_->SendRequestUpdate(kRequestId, parameters_,
                                               std::move(callback),
                                               MoqtMessageType::kSubscribe));
@@ -201,11 +202,33 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceiveRequestOk) {
             std::nullopt);
   MoqtRequestOk request_ok;
   request_ok.parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
+  request_ok.parameters.largest_object = Location(2, 4);
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
   EXPECT_EQ(stream_->track()->const_parameters().subscriber_priority, 20);
   EXPECT_EQ(stream_->track()->const_parameters().expires,
             quic::QuicTimeDelta::FromSeconds(30));
+  EXPECT_EQ(stream_->track()->const_parameters().largest_object,
+            Location(2, 4));
+  ASSERT_TRUE(
+      stream_->track()->const_parameters().subscription_filter.has_value());
+  EXPECT_EQ(stream_->track()->const_parameters().subscription_filter->start(),
+            Location(2, 5));
   EXPECT_TRUE(callback_called);
+
+  // A subsequent REQUEST_OK that decreases LARGEST_OBJECT is rejected.
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestUpdate), _))
+      .WillOnce(Return(absl::OkStatus()));
+  MessageParameters priority_update;
+  priority_update.subscriber_priority = 10;
+  QUICHE_EXPECT_OK(stream_->SendRequestUpdate(
+      kRequestId + 2, priority_update,
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {},
+      MoqtMessageType::kSubscribe));
+  MoqtRequestOk bad_ok;
+  bad_ok.parameters.largest_object = Location(2, 3);
+  EXPECT_FALSE(stream_->OnControlMessage(bad_ok).ok());
+
   // Test cleanup.
   EXPECT_CALL(mock_remove_callback_, Call);
 }
