@@ -9,12 +9,12 @@
 
 #include "absl/strings/str_format.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/common/quiche_data_writer.h"
 
 namespace moqt {
 
-inline constexpr uint64_t kMaxGroupId = quiche::kVarInt62MaxValue;
-inline constexpr uint64_t kMaxObjectId = quiche::kVarInt62MaxValue;
+inline constexpr uint64_t kMaxGroupId = std::numeric_limits<uint64_t>::max();
+inline constexpr uint64_t kMaxObjectId = std::numeric_limits<uint64_t>::max();
+
 // Location as defined in
 // https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure
 struct Location {
