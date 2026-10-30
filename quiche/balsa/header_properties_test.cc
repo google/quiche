@@ -122,6 +122,11 @@ TEST(HeaderPropertiesTest, HasInvalidPathChar) {
   EXPECT_TRUE(HasInvalidPathChar("/path\rwith\tother\nwhitespace"));
   EXPECT_TRUE(HasInvalidPathChar("/backtick`"));
   EXPECT_TRUE(HasInvalidPathChar("/angle<brackets>also/bad"));
+  // Bytes >= 0x80 are not valid path characters and must be rejected
+  // without indexing the lookup table out of bounds.
+  EXPECT_TRUE(HasInvalidPathChar("/caf\xc3\xa9"));
+  EXPECT_TRUE(HasInvalidPathChar(std::string(1, '\x80')));
+  EXPECT_TRUE(HasInvalidPathChar(std::string(1, '\xff')));
 }
 
 TEST(HeaderPropertiesTest, HasInvalidQueryChar) {
@@ -143,6 +148,11 @@ TEST(HeaderPropertiesTest, HasInvalidQueryChar) {
   EXPECT_TRUE(HasInvalidQueryChar("query with spaces"));
   EXPECT_TRUE(HasInvalidQueryChar("query\rwith\tother\nwhitespace"));
   EXPECT_TRUE(HasInvalidQueryChar("query_with_angle<brackets>also_bad"));
+  // Bytes >= 0x80 are not valid query characters and must be rejected
+  // without indexing the lookup table out of bounds.
+  EXPECT_TRUE(HasInvalidQueryChar("caf\xc3\xa9"));
+  EXPECT_TRUE(HasInvalidQueryChar(std::string(1, '\x80')));
+  EXPECT_TRUE(HasInvalidQueryChar(std::string(1, '\xff')));
 }
 
 TEST(HeaderPropertiesTest, IsValidTokenVsHasInvalidHeaderChars) {
