@@ -4110,6 +4110,605 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, ConnectionMigrationClientPortChangedTwiceInARow) {
+  // Tests that the client's port can change twice in a row when the server
+  // issues extra Connection IDs via active_connection_id_limit, without waiting
+  // for newly issued CIDs between migrations.
+  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{k3CID});
+  server_config_.set_max_num_of_active_connection_ids(
+      kMaxNumOfActiveConnectionIds);
+  ASSERT_TRUE(Initialize());
+
+  SendSynchronousFooRequestAndCheckResponse();
+  if (version_.IsIetfQuic()) {
+    WaitForNewConnectionIds();
+  }
+
+  QuicSocketAddress address0 =
+      client_->client()->network_helper()->GetLatestClientAddress();
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_NE(client_connection, nullptr);
+  QuicConnectionId server_cid0 = client_connection->connection_id();
+
+  // Hold the previous port open while the new socket binds to port 0 so the OS
+  // kernel cannot reassign the just-closed ephemeral port.
+  QuicSocketAddress prev_address = address0;
+  OwnedSocketFd reserved_old_port_socket;
+  client_->client()->mockable_network_helper()->set_socket_fd_configurator(
+      [&](SocketFd /*fd*/) {
+        absl::StatusOr<SocketFd> temp_fd =
+            socket_api::CreateSocket(prev_address.host().address_family(),
+                                     socket_api::SocketProtocol::kUdp);
+        if (temp_fd.ok() && socket_api::Bind(*temp_fd, prev_address).ok()) {
+          reserved_old_port_socket = OwnedSocketFd(*temp_fd);
+        }
+      });
+
+  // First port migration.
+  ASSERT_TRUE(client_->client()->MigrateSocket(address0.host()));
+  reserved_old_port_socket.reset();
+  QuicSocketAddress address1 =
+      client_->client()->network_helper()->GetLatestClientAddress();
+  EXPECT_EQ(address0.host(), address1.host());
+  EXPECT_NE(address0.port(), address1.port());
+  QuicConnectionId server_cid1 = client_connection->connection_id();
+  if (version_.IsIetfQuic()) {
+    EXPECT_NE(server_cid0, server_cid1);
+  }
+  SendSynchronousBarRequestAndCheckResponse();
+
+  // Second port migration immediately in a row without waiting for new CIDs.
+  prev_address = address1;
+  ASSERT_TRUE(client_->client()->MigrateSocket(address0.host()));
+  reserved_old_port_socket.reset();
+  client_->client()->mockable_network_helper()->set_socket_fd_configurator(
+      nullptr);
+  QuicSocketAddress address2 =
+      client_->client()->network_helper()->GetLatestClientAddress();
+  EXPECT_EQ(address0.host(), address2.host());
+  EXPECT_NE(address1.port(), address2.port());
+  QuicConnectionId server_cid2 = client_connection->connection_id();
+  if (version_.IsIetfQuic()) {
+    EXPECT_NE(server_cid0, server_cid2);
+    EXPECT_NE(server_cid1, server_cid2);
+  }
+  SendSynchronousBarRequestAndCheckResponse();
+
+  if (!version_.IsIetfQuic()) {
+    return;
+  }
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    EXPECT_FALSE(server_connection->HasPendingPathValidation());
+    EXPECT_EQ(2u, server_connection->GetStats().num_validated_peer_migration);
+    EXPECT_EQ(server_cid2, server_connection->connection_id());
+    EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+                    server_connection)
+                    .IsEmpty());
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest, ConnectionMigrationClientIPChangedTwiceInARow) {
+  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{k3CID});
+  server_config_.set_max_num_of_active_connection_ids(
+      kMaxNumOfActiveConnectionIds);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic() ||
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
+    return;
+  }
+  SendSynchronousFooRequestAndCheckResponse();
+  WaitForNewConnectionIds();
+
+  QuicIpAddress host0 =
+      client_->client()->network_helper()->GetLatestClientAddress().host();
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_NE(client_connection, nullptr);
+  QuicConnectionId server_cid0 = client_connection->connection_id();
+
+  // First IP migration to host1.
+  QuicIpAddress host1 = TestLoopback(2);
+  EXPECT_NE(host0, host1);
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  ASSERT_TRUE(client_->client()->MigrateSocket(host1));
+  QuicConnectionId server_cid1 = client_connection->connection_id();
+  EXPECT_FALSE(server_cid1.IsEmpty());
+  EXPECT_NE(server_cid0, server_cid1);
+  SendSynchronousBarRequestAndCheckResponse();
+  EXPECT_GE(client_connection->GetStats().num_connectivity_probing_received,
+            1u);
+
+  // Second IP migration to host2 immediately in a row without calling
+  // WaitForNewConnectionIds(), using the spare CID issued at handshake.
+  QuicIpAddress host2 = TestLoopback(3);
+  EXPECT_NE(host0, host2);
+  EXPECT_NE(host1, host2);
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  ASSERT_TRUE(client_->client()->MigrateSocket(host2));
+  QuicConnectionId server_cid2 = client_connection->connection_id();
+  EXPECT_FALSE(server_cid2.IsEmpty());
+  EXPECT_NE(server_cid0, server_cid2);
+  EXPECT_NE(server_cid1, server_cid2);
+  SendSynchronousBarRequestAndCheckResponse();
+  EXPECT_GE(client_connection->GetStats().num_connectivity_probing_received,
+            2u);
+
+  // Send one more request on host2 to ensure the server has processed the
+  // PATH_RESPONSE for the second migration.
+  SendSynchronousBarRequestAndCheckResponse();
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    EXPECT_FALSE(server_connection->HasPendingPathValidation());
+    EXPECT_EQ(2u, server_connection->GetStats().num_validated_peer_migration);
+    EXPECT_EQ(server_cid2, server_connection->connection_id());
+    EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+                    server_connection)
+                    .IsEmpty());
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest,
+       AsynchronousConnectionMigrationClientIPChangedTwiceInARow) {
+  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{k3CID});
+  server_config_.set_max_num_of_active_connection_ids(
+      kMaxNumOfActiveConnectionIds);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) {
+    return;
+  }
+  client_.reset(CreateQuicClient(nullptr));
+
+  SendSynchronousFooRequestAndCheckResponse();
+  WaitForNewConnectionIds();
+
+  QuicIpAddress host0 =
+      client_->client()->network_helper()->GetLatestClientAddress().host();
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_NE(client_connection, nullptr);
+  QuicConnectionId server_cid0 = client_connection->connection_id();
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+
+  // Validate and migrate to IP address #1.
+  QuicIpAddress host1 = TestLoopback(2);
+  EXPECT_NE(host0, host1);
+  ASSERT_TRUE(client_->client()->ValidateAndMigrateSocket(host1));
+  while (client_->client()->HasPendingPathValidation()) {
+    client_->client()->WaitForEvents();
+  }
+  EXPECT_EQ(host1, client_->client()->session()->self_address().host());
+  EXPECT_GE(client_connection->GetStats().num_connectivity_probing_received,
+            1u);
+  QuicConnectionId server_cid1 = client_connection->connection_id();
+  EXPECT_NE(server_cid0, server_cid1);
+  SendSynchronousBarRequestAndCheckResponse();
+
+  // Validate and migrate to IP address #2 immediately in a row without calling
+  // WaitForNewConnectionIds().
+  QuicIpAddress host2 = TestLoopback(3);
+  EXPECT_NE(host0, host2);
+  EXPECT_NE(host1, host2);
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  ASSERT_TRUE(client_->client()->ValidateAndMigrateSocket(host2));
+  while (client_->client()->HasPendingPathValidation()) {
+    client_->client()->WaitForEvents();
+  }
+  EXPECT_EQ(host2, client_->client()->session()->self_address().host());
+  EXPECT_GE(client_connection->GetStats().num_connectivity_probing_received,
+            2u);
+  QuicConnectionId server_cid2 = client_connection->connection_id();
+  EXPECT_NE(server_cid0, server_cid2);
+  EXPECT_NE(server_cid1, server_cid2);
+  EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+                  client_connection)
+                  .IsEmpty());
+
+  // Send a request on the final migrated path.
+  SendSynchronousBarRequestAndCheckResponse();
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    EXPECT_FALSE(server_connection->HasPendingPathValidation());
+    EXPECT_EQ(2u, server_connection->GetStats().num_validated_peer_migration);
+    EXPECT_EQ(server_cid2, server_connection->connection_id());
+    EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+                    server_connection)
+                    .IsEmpty());
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest, ProbingMultiplePathsCausesServerToForgetEarlyPaths) {
+  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{k4CID});
+  server_config_.set_max_num_of_active_connection_ids(
+      kMaxNumOfActiveConnectionIds);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic() ||
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
+    return;
+  }
+  client_.reset(CreateQuicClient(nullptr));
+
+  SendSynchronousFooRequestAndCheckResponse();
+  WaitForNewConnectionIds();
+
+  QuicIpAddress host0 =
+      client_->client()->network_helper()->GetLatestClientAddress().host();
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_NE(client_connection, nullptr);
+  QuicConnectionId server_cid0 = client_connection->connection_id();
+
+  // 1. Probe Path 1 (host1) without migrating, and wait for validation to
+  // complete so both client and server instantiate alternative_path_ for host1.
+  QuicIpAddress host1 = TestLoopback(2);
+  EXPECT_NE(host0, host1);
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  client_->client()->ValidateNewNetwork(host1);
+  while (client_->client()->HasPendingPathValidation() ||
+         client_connection->GetStats().num_connectivity_probing_received < 1u) {
+    client_->client()->WaitForEvents();
+  }
+  ASSERT_EQ(1u, client_->client()->validated_paths().size());
+  QuicConnectionId server_cid1 =
+      QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+          client_connection);
+  EXPECT_FALSE(server_cid1.IsEmpty());
+  EXPECT_NE(server_cid0, server_cid1);
+  SendSynchronousBarRequestAndCheckResponse();
+  QuicPacketCount probes_after_path1 =
+      client_connection->GetStats().num_connectivity_probing_received;
+  EXPECT_GE(probes_after_path1, 1u);
+
+  // 2. Probe Path 2 (host2) without migrating, overwriting host1 in
+  // alternative_path_ on both the client and the server.
+  QuicIpAddress host2 = TestLoopback(3);
+  EXPECT_NE(host0, host2);
+  EXPECT_NE(host1, host2);
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  client_->client()->ValidateNewNetwork(host2);
+  while (client_->client()->HasPendingPathValidation() ||
+         client_connection->GetStats().num_connectivity_probing_received <=
+             probes_after_path1) {
+    client_->client()->WaitForEvents();
+  }
+  ASSERT_EQ(2u, client_->client()->validated_paths().size());
+  QuicConnectionId server_cid2 =
+      QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+          client_connection);
+  EXPECT_FALSE(server_cid2.IsEmpty());
+  EXPECT_NE(server_cid0, server_cid2);
+  EXPECT_NE(server_cid1, server_cid2);
+  SendSynchronousBarRequestAndCheckResponse();
+  QuicPacketCount probes_after_path2 =
+      client_connection->GetStats().num_connectivity_probing_received;
+  EXPECT_GE(probes_after_path2, 2u);
+
+  server_thread_->ScheduleAndWaitForCompletion([&] {
+    QuicConnection* server_connection = GetServerConnection();
+    if (server_connection != nullptr) {
+      EXPECT_FALSE(server_connection->HasPendingPathValidation());
+      EXPECT_GE(server_connection->GetStats().num_connectivity_probing_received,
+                2u);
+      EXPECT_EQ(server_cid2,
+                QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+                    server_connection));
+    } else {
+      ADD_FAILURE() << "Missing server connection";
+    }
+  });
+
+  // 3. Migrate to Path 1 (host1). Because Path 2 overwrote Path 1 in
+  // alternative_path_ on both endpoints, this consumes the remaining spare CID
+  // and forces the server to run reverse path validation on host1 again.
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  ASSERT_TRUE(client_->client()->MigrateSocket(host1));
+  QuicConnectionId server_cid3 = client_connection->connection_id();
+  EXPECT_FALSE(server_cid3.IsEmpty());
+  EXPECT_NE(server_cid0, server_cid3);
+  EXPECT_NE(server_cid1, server_cid3);
+  EXPECT_NE(server_cid2, server_cid3);
+  SendSynchronousBarRequestAndCheckResponse();
+  EXPECT_GT(client_connection->GetStats().num_connectivity_probing_received,
+            probes_after_path2);
+  // Send one more request on host1 so the server processes the PATH_RESPONSE.
+  SendSynchronousBarRequestAndCheckResponse();
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    EXPECT_FALSE(server_connection->HasPendingPathValidation());
+    EXPECT_EQ(0u, server_connection->GetStats()
+                      .num_peer_migration_to_proactively_validated_address);
+    EXPECT_EQ(1u, server_connection->GetStats()
+                      .num_reverse_path_validtion_upon_migration);
+    EXPECT_EQ(1u, server_connection->GetStats().num_validated_peer_migration);
+    EXPECT_EQ(server_cid3, server_connection->connection_id());
+    EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+                    server_connection)
+                    .IsEmpty());
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest,
+       ConnectionMigrationReplenishesConnectionIdsAcrossMultipleMigrations) {
+  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{k4CID});
+  server_config_.set_max_num_of_active_connection_ids(
+      kMaxNumOfActiveConnectionIds);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic() ||
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
+    return;
+  }
+  client_.reset(CreateQuicClient(nullptr));
+
+  SendSynchronousFooRequestAndCheckResponse();
+  WaitForNewConnectionIds();
+
+  QuicIpAddress host0 =
+      client_->client()->network_helper()->GetLatestClientAddress().host();
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_NE(client_connection, nullptr);
+  ASSERT_TRUE(client_connection->client_connection_id().IsEmpty());
+  absl::flat_hash_set<QuicConnectionId> seen_server_cids;
+  QuicConnectionId server_cid0 = client_connection->connection_id();
+  seen_server_cids.insert(server_cid0);
+
+  QuicIpAddress host1 = TestLoopback(2);
+  QuicIpAddress host2 = TestLoopback(3);
+  EXPECT_NE(host0, host1);
+  EXPECT_NE(host0, host2);
+  EXPECT_NE(host1, host2);
+
+  // 1. Probe host1 without migrating (consumes spare CID #1, seq 3).
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  client_->client()->ValidateNewNetwork(host1);
+  while (client_->client()->HasPendingPathValidation() ||
+         client_connection->GetStats().num_connectivity_probing_received < 1u) {
+    client_->client()->WaitForEvents();
+  }
+  QuicPacketCount probes_after_path1 =
+      client_connection->GetStats().num_connectivity_probing_received;
+  QuicConnectionId server_cid1 =
+      QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+          client_connection);
+  EXPECT_FALSE(server_cid1.IsEmpty());
+  EXPECT_TRUE(seen_server_cids.insert(server_cid1).second);
+
+  // 2. Probe host2 without migrating (consumes spare CID #2, seq 2), which
+  // overwrites host1 on alternative_path_ and retires seq 3 out of order while
+  // seq 0 remains active on default_path_.
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  client_->client()->ValidateNewNetwork(host2);
+  while (client_->client()->HasPendingPathValidation() ||
+         client_connection->GetStats().num_connectivity_probing_received <=
+             probes_after_path1) {
+    client_->client()->WaitForEvents();
+  }
+  QuicConnectionId server_cid2 =
+      QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+          client_connection);
+  EXPECT_FALSE(server_cid2.IsEmpty());
+  EXPECT_TRUE(seen_server_cids.insert(server_cid2).second);
+
+  // 3. Migrate to host1 (consumes spare CID #3, seq 1), retiring seq 0 while
+  // seq 2 remains on the client's alternative_path_ and exhausting the initial
+  // 3 spare CIDs from the handshake.
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  ASSERT_TRUE(client_->client()->MigrateSocket(host1));
+  QuicConnectionId server_cid3 = client_connection->connection_id();
+  EXPECT_FALSE(server_cid3.IsEmpty());
+  EXPECT_TRUE(seen_server_cids.insert(server_cid3).second);
+  SendSynchronousBarRequestAndCheckResponse();
+  SendSynchronousBarRequestAndCheckResponse();
+  EXPECT_EQ(2u, client_connection->GetStats().num_retire_connection_id_sent);
+
+  // Wait for replenished CIDs from the server after retiring seq 3 and seq 0.
+  WaitForNewConnectionIds();
+  SendSynchronousBarRequestAndCheckResponse();
+
+  // 4. Validate and migrate to host2 using a replenished CID. Overwriting and
+  // clearing alternative_path_ retires both seq 2 and seq 1.
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  ASSERT_TRUE(client_->client()->ValidateAndMigrateSocket(host2));
+  while (client_->client()->HasPendingPathValidation()) {
+    client_->client()->WaitForEvents();
+  }
+  QuicConnectionId server_cid4 = client_connection->connection_id();
+  EXPECT_FALSE(server_cid4.IsEmpty());
+  EXPECT_TRUE(seen_server_cids.insert(server_cid4).second);
+  EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+                  client_connection)
+                  .IsEmpty());
+  SendSynchronousBarRequestAndCheckResponse();
+  SendSynchronousBarRequestAndCheckResponse();
+  EXPECT_EQ(4u, client_connection->GetStats().num_retire_connection_id_sent);
+
+  // 5. Perform two more IP migrations back-to-back without calling
+  // WaitForNewConnectionIds(), using the replenished CIDs from the server.
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  ASSERT_TRUE(client_->client()->MigrateSocket(host1));
+  QuicConnectionId server_cid5 = client_connection->connection_id();
+  EXPECT_FALSE(server_cid5.IsEmpty());
+  EXPECT_TRUE(seen_server_cids.insert(server_cid5).second);
+  SendSynchronousBarRequestAndCheckResponse();
+  SendSynchronousBarRequestAndCheckResponse();
+
+  ASSERT_TRUE(
+      QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+  ASSERT_TRUE(client_->client()->MigrateSocket(host2));
+  QuicConnectionId server_cid6 = client_connection->connection_id();
+  EXPECT_FALSE(server_cid6.IsEmpty());
+  EXPECT_TRUE(seen_server_cids.insert(server_cid6).second);
+  SendSynchronousBarRequestAndCheckResponse();
+  SendSynchronousBarRequestAndCheckResponse();
+
+  EXPECT_EQ(6u, client_connection->GetStats().num_retire_connection_id_sent);
+  EXPECT_EQ(7u, seen_server_cids.size());
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    EXPECT_FALSE(server_connection->HasPendingPathValidation());
+    EXPECT_EQ(4u, server_connection->GetStats().num_validated_peer_migration);
+    EXPECT_EQ(server_cid6, server_connection->connection_id());
+    EXPECT_EQ(9u, server_connection->GetStats().num_new_connection_id_sent);
+    EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+                    server_connection)
+                    .IsEmpty());
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest, ConnectionMigrationClientIPChangedFourTimesInARow) {
+  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{k5CID});
+  server_config_.set_max_num_of_active_connection_ids(
+      kMaxNumOfActiveConnectionIds);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic() ||
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
+    return;
+  }
+  SendSynchronousFooRequestAndCheckResponse();
+  WaitForNewConnectionIds();
+
+  QuicIpAddress host0 =
+      client_->client()->network_helper()->GetLatestClientAddress().host();
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_NE(client_connection, nullptr);
+  EXPECT_EQ(5u, QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(
+                    client_connection));
+  absl::flat_hash_set<QuicConnectionId> seen_server_cids;
+  seen_server_cids.insert(client_connection->connection_id());
+
+  QuicIpAddress host1 = TestLoopback(2);
+  QuicIpAddress host2 = TestLoopback(3);
+  EXPECT_NE(host0, host1);
+  EXPECT_NE(host0, host2);
+  EXPECT_NE(host1, host2);
+
+  // With k5CID, 4 consecutive migrations are not blocked without calling
+  // WaitForNewConnectionIds().
+  QuicConnectionId last_server_cid;
+  for (int i = 0; i < 4; ++i) {
+    QuicIpAddress next_host = (i % 2 == 0) ? host1 : host2;
+    ASSERT_TRUE(
+        QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+    ASSERT_TRUE(client_->client()->MigrateSocket(next_host));
+    last_server_cid = client_connection->connection_id();
+    EXPECT_FALSE(last_server_cid.IsEmpty());
+    EXPECT_TRUE(seen_server_cids.insert(last_server_cid).second);
+    SendSynchronousBarRequestAndCheckResponse();
+    EXPECT_GE(client_connection->GetStats().num_connectivity_probing_received,
+              static_cast<size_t>(i + 1));
+  }
+  EXPECT_EQ(5u, seen_server_cids.size());
+
+  // Send one more request on the final migrated path to ensure the server has
+  // processed the PATH_RESPONSE for the fourth migration.
+  SendSynchronousBarRequestAndCheckResponse();
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    EXPECT_EQ(5u, QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(
+                      server_connection));
+    EXPECT_FALSE(server_connection->HasPendingPathValidation());
+    EXPECT_EQ(4u, server_connection->GetStats().num_validated_peer_migration);
+    EXPECT_EQ(last_server_cid, server_connection->connection_id());
+    EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+                    server_connection)
+                    .IsEmpty());
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest, ConnectionMigrationExhaustsConnectionIdsWith5CID) {
+  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{k5CID});
+  server_config_.set_max_num_of_active_connection_ids(
+      kMaxNumOfActiveConnectionIds);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic() ||
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
+    return;
+  }
+  SendSynchronousFooRequestAndCheckResponse();
+  WaitForNewConnectionIds();
+
+  QuicIpAddress host0 =
+      client_->client()->network_helper()->GetLatestClientAddress().host();
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_NE(client_connection, nullptr);
+  EXPECT_EQ(5u, QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(
+                    client_connection));
+
+  QuicIpAddress host1 = TestLoopback(2);
+  QuicIpAddress host2 = TestLoopback(3);
+  EXPECT_NE(host0, host1);
+  EXPECT_NE(host0, host2);
+  EXPECT_NE(host1, host2);
+
+  // 1. 4 consecutive migrations are not blocked.
+  for (int i = 0; i < 4; ++i) {
+    QuicIpAddress next_host = (i % 2 == 0) ? host1 : host2;
+    ASSERT_TRUE(
+        QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
+    ASSERT_TRUE(client_->client()->MigrateSocket(next_host));
+    SendSynchronousBarRequestAndCheckResponse();
+  }
+
+  // 2. Subsequent consecutive migrations without waiting for new CIDs lead to
+  // exhausting of CIDs.
+  bool cid_exhausted = false;
+  for (int i = 4; i < 10; ++i) {
+    QuicIpAddress next_host = (i % 2 == 0) ? host1 : host2;
+    if (!client_->client()->MigrateSocket(next_host)) {
+      EXPECT_FALSE(QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(
+          client_connection));
+      cid_exhausted = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(cid_exhausted);
+}
+
 TEST_P(EndToEndTest, NegotiatedInitialCongestionWindow) {
   client_extra_copts_.push_back(kIW03);
 
