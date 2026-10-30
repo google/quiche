@@ -260,6 +260,13 @@ QUICHE_PROTOCOL_FLAG(
     "The fraction of a min_rtt when doing ack decimation, this fraction can be "
     "overridden by connection option AKD3.")
 
+QUICHE_PROTOCOL_FLAG(
+    uint32_t, quic_max_retransmittable_packets_before_ack, 10,
+    "Once ack decimation starts, the receiver sends an immediate ack after "
+    "this many retransmittable packets. Values below 2 are treated as 2, the "
+    "ack frequency before decimation starts. Has no effect with unlimited "
+    "ack decimation or after an ACK_FREQUENCY frame is received.")
+
 // Uses a 25ms delayed ack timer. Helps with better signaling
 // in low-bandwidth (< ~384 kbps), where an ack is sent per packet.
 // NOTE: If the flag value exceeds half of kMinRetransmissionTimeMs, it will be

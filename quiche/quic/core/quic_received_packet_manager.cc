@@ -284,9 +284,12 @@ void QuicReceivedPacketManager::MaybeEnableAckDecimation(
       PeerFirstSendingPacketNumber() + min_received_before_ack_decimation_) {
     return;
   }
-  ack_frequency_ = unlimited_ack_decimation_
-                       ? std::numeric_limits<size_t>::max()
-                       : kMaxRetransmittablePacketsBeforeAck;
+  ack_frequency_ =
+      unlimited_ack_decimation_
+          ? std::numeric_limits<size_t>::max()
+          : std::max<size_t>(
+                kDefaultRetransmittablePacketsBeforeAck,
+                GetQuicFlag(quic_max_retransmittable_packets_before_ack));
 }
 
 void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
