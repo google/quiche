@@ -3613,9 +3613,8 @@ TEST_P(QuicSessionTestServer, SetMinAckDelayDraft10) {
   if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
-  SetQuicReloadableFlag(quic_receive_ack_frequency, true);
   session_.Initialize();
-  if (GetQuicReloadableFlag(quic_receive_ack_frequency)) {
+  if (GetQuicReloadableFlag(quic_receive_ack_frequency2)) {
     EXPECT_EQ(session_.config()->GetMinAckDelayDraft10ToSendMs(),
               kDefaultMinAckDelayTimeMs);
   } else {

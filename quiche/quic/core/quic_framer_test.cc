@@ -5301,6 +5301,7 @@ TEST_P(QuicFramerTest, ParseAckFrequencyFrame) {
   if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
+  framer_.set_process_ack_frequency(true);
 
   QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
@@ -5317,6 +5318,156 @@ TEST_P(QuicFramerTest, ParseAckFrequencyFrame) {
   EXPECT_EQ(2u, frame->ack_eliciting_threshold);
   EXPECT_EQ(2'5000u, frame->requested_max_ack_delay.ToMicroseconds());
   EXPECT_EQ(0u, frame->reordering_threshold);
+}
+
+TEST_P(QuicFramerTest, ParseAckFrequencyFrameNotEnabled) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[] = {
+     // type (short header, 4 byte packet number)
+     0x43,
+     // connection_id
+     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+     // packet number
+     0x12, 0x34, 0x56, 0x78,
+
+     // ack frequency frame type
+     0x40, 0xAF,
+     // sequence_number
+     0x11,
+     // ack_eliciting_threshold
+     0x02,
+     // max_ack_delay_us = 2'5000 us
+     0x80, 0x00, 0x61, 0xA8,
+     // reordering_threshold = 0 (ignore order)
+     0x00
+  };
+  // clang-format on
+
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+  EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_FRAME_DATA));
+  EXPECT_EQ("ACK_FREQUENCY not enabled.", framer_.detailed_error());
+  EXPECT_TRUE(visitor_.ack_frequency_frames_.empty());
+}
+
+TEST_P(QuicFramerTest, ParseAckFrequencyFrameLargeMaxAckDelay) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char valid_packet[] = {
+     // type (short header, 4 byte packet number)
+     0x43,
+     // connection_id
+     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+     // packet number
+     0x12, 0x34, 0x56, 0x78,
+
+     // ack frequency frame type
+     0x40, 0xAF,
+     // sequence_number
+     0x11,
+     // ack_eliciting_threshold
+     0x02,
+     // max_ack_delay_us = 16'383'999 us ((1 << 14) * 1000 - 1 = 0x00F9FFFF,
+     // varint 0x80F9FFFF)
+     0x80, 0xF9, 0xFF, 0xFF,
+     // reordering_threshold = 1
+     0x01
+  };
+  unsigned char invalid_packet[] = {
+     // type (short header, 4 byte packet number)
+     0x43,
+     // connection_id
+     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+     // packet number
+     0x12, 0x34, 0x56, 0x79,
+
+     // ack frequency frame type
+     0x40, 0xAF,
+     // sequence_number
+     0x11,
+     // ack_eliciting_threshold
+     0x02,
+     // max_ack_delay_us = 16'384'000 us ((1 << 14) * 1000 = 0x00FA0000,
+     // varint 0x80FA0000)
+     0x80, 0xFA, 0x00, 0x00,
+     // reordering_threshold = 1
+     0x01
+  };
+  // clang-format on
+
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  framer_.set_process_ack_frequency(true);
+
+  QuicEncryptedPacket valid_encrypted(AsChars(valid_packet),
+                                      std::size(valid_packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(valid_encrypted));
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_EQ(1u, visitor_.ack_frequency_frames_.size());
+  EXPECT_EQ((1u << 14) * kNumMicrosPerMilli - 1,
+            visitor_.ack_frequency_frames_.front()
+                ->requested_max_ack_delay.ToMicroseconds());
+
+  QuicEncryptedPacket invalid_encrypted(AsChars(invalid_packet),
+                                        std::size(invalid_packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(invalid_encrypted));
+  EXPECT_THAT(framer_.error(), IsError(IETF_QUIC_PROTOCOL_VIOLATION));
+  EXPECT_EQ("Invalid max_ack_delay_us.", framer_.detailed_error());
+  EXPECT_EQ(1u, visitor_.ack_frequency_frames_.size());
+}
+
+TEST_P(QuicFramerTest, ParseAckFrequencyFrameInZeroRtt) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
+  framer_.set_process_ack_frequency(true);
+  // clang-format off
+  unsigned char packet[] = {
+    // public flags (long header with packet type ZERO_RTT_PROTECTED and
+    // 4-byte packet number)
+    0xD3,
+    // version
+    QUIC_VERSION_BYTES,
+    // destination connection ID length
+    0x08,
+    // destination connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // source connection ID length
+    0x08,
+    // source connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11,
+    // long header packet length (4-byte PN + 9-byte ACK_FREQUENCY frame = 13)
+    0x0D,
+    // packet number
+    0x12, 0x34, 0x56, 0x00,
+    // ack frequency frame type
+    0x40, 0xAF,
+    // sequence_number
+    0x11,
+    // ack_eliciting_threshold
+    0x02,
+    // max_ack_delay_us = 25'000 us
+    0x80, 0x00, 0x61, 0xA8,
+    // reordering_threshold = 1
+    0x01,
+  };
+  // clang-format on
+
+  ReviseFirstByteByVersion(packet);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+  EXPECT_THAT(framer_.error(), IsError(IETF_QUIC_PROTOCOL_VIOLATION));
+  EXPECT_EQ(
+      "ACK_FREQUENCY is unexpected at encryption level ENCRYPTION_ZERO_RTT",
+      framer_.detailed_error());
+  EXPECT_TRUE(visitor_.ack_frequency_frames_.empty());
 }
 
 TEST_P(QuicFramerTest, ParseImmediateAckFrame) {
@@ -5338,6 +5489,7 @@ TEST_P(QuicFramerTest, ParseImmediateAckFrame) {
   if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
+  framer_.set_process_ack_frequency(true);
 
   QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
@@ -5349,6 +5501,73 @@ TEST_P(QuicFramerTest, ParseImmediateAckFrame) {
       kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   ASSERT_EQ(1u, visitor_.immediate_ack_frames_.size());
+}
+
+TEST_P(QuicFramerTest, ParseImmediateAckFrameNotEnabled) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[] = {
+     // type (short header, 4 byte packet number)
+     0x43,
+     // connection_id
+     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+     // packet number
+     0x12, 0x34, 0x56, 0x78,
+
+     // immediate ack frame type
+     0x1F,
+  };
+  // clang-format on
+
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+  EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_FRAME_DATA));
+  EXPECT_EQ("IMMEDIATE_ACK not enabled.", framer_.detailed_error());
+  EXPECT_TRUE(visitor_.immediate_ack_frames_.empty());
+}
+
+TEST_P(QuicFramerTest, ParseImmediateAckFrameInZeroRtt) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
+  framer_.set_process_ack_frequency(true);
+  // clang-format off
+  unsigned char packet[] = {
+    // public flags (long header with packet type ZERO_RTT_PROTECTED and
+    // 4-byte packet number)
+    0xD3,
+    // version
+    QUIC_VERSION_BYTES,
+    // destination connection ID length
+    0x08,
+    // destination connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // source connection ID length
+    0x08,
+    // source connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11,
+    // long header packet length (4-byte PN + 1-byte IMMEDIATE_ACK frame = 5)
+    0x05,
+    // packet number
+    0x12, 0x34, 0x56, 0x00,
+    // immediate ack frame type
+    0x1F,
+  };
+  // clang-format on
+
+  ReviseFirstByteByVersion(packet);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+  EXPECT_THAT(framer_.error(), IsError(IETF_QUIC_PROTOCOL_VIOLATION));
+  EXPECT_EQ(
+      "IMMEDIATE_ACK is unexpected at encryption level ENCRYPTION_ZERO_RTT",
+      framer_.detailed_error());
+  EXPECT_TRUE(visitor_.immediate_ack_frames_.empty());
 }
 
 TEST_P(QuicFramerTest, ParseResetStreamAtFrame) {

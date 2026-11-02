@@ -1363,7 +1363,7 @@ class QUICHE_EXPORT QuicConnection
       PathValidationReason reason);
 
   void set_can_receive_ack_frequency_immediate_ack(bool can_receive) {
-    can_receive_ack_frequency_immediate_ack_ = can_receive;
+    framer_.set_process_ack_frequency(can_receive);
   }
 
   bool is_processing_packet() const { return framer_.is_processing_packet(); }
@@ -2530,8 +2530,6 @@ class QUICHE_EXPORT QuicConnection
   // True if next packet is intended to consume remaining space in the
   // coalescer.
   bool fill_coalesced_packet_ : 1 = false;
-  // True if AckFrequencyFrame is supported.
-  bool can_receive_ack_frequency_immediate_ack_ : 1 = false;
   // Indicate whether coalescing is done.
   bool coalescing_done_ : 1 = false;
   // Indicate whether any ENCRYPTION_HANDSHAKE packet has been sent.

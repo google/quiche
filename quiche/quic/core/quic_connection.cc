@@ -2271,10 +2271,6 @@ bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
     return false;
   }
 
-  if (!can_receive_ack_frequency_immediate_ack_) {
-    QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Get unexpected AckFrequencyFrame.";
-    return false;
-  }
   if (frame.requested_max_ack_delay < local_min_ack_delay_) {
     QUIC_LOG_EVERY_N_SEC(ERROR, 120)
         << "Received AckFrequencyFrame with requested_max_ack_delay "
@@ -2284,16 +2280,8 @@ bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 3, 7);
-  if (auto packet_number_space =
-          QuicUtils::GetPacketNumberSpace(
-              last_received_packet_info_.decrypted_level) == APPLICATION_DATA) {
-    uber_received_packet_manager_.OnAckFrequencyFrame(frame);
-  } else {
-    QUIC_LOG_EVERY_N_SEC(ERROR, 120)
-        << "Get AckFrequencyFrame in packet number space "
-        << packet_number_space;
-  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency2, 3, 8);
+  uber_received_packet_manager_.OnAckFrequencyFrame(frame);
   MaybeUpdateAckTimeout();
   return true;
 }
@@ -2309,19 +2297,8 @@ bool QuicConnection::OnImmediateAckFrame(const QuicImmediateAckFrame& frame) {
   if (!UpdatePacketContent(IMMEDIATE_ACK_FRAME)) {
     return false;
   }
-  if (!can_receive_ack_frequency_immediate_ack_) {
-    QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Got unexpected ImmediateAck Frame.";
-    return false;
-  }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 1, 7);
-  if (last_received_packet_info_.decrypted_level == ENCRYPTION_FORWARD_SECURE) {
-    uber_received_packet_manager_.OnImmediateAckFrame();
-  } else {
-    QUIC_LOG_EVERY_N_SEC(ERROR, 120)
-        << "Got ImmediateAckFrame at EncryptionLevel "
-        << EncryptionLevelToString(last_received_packet_info_.decrypted_level);
-    return false;
-  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency2, 1, 8);
+  uber_received_packet_manager_.OnImmediateAckFrame();
   should_last_packet_instigate_acks_ = false;
   MaybeUpdateAckTimeout();
   return true;
@@ -4293,7 +4270,7 @@ void QuicConnection::OnHandshakeComplete() {
     // This AckFrequencyFrame is meant to only update the max_ack_delay. All
     // other values are set to the default.
     ack_frequency_frame.ack_eliciting_threshold =
-        kDefaultRetransmittablePacketsBeforeAck;
+        kDefaultRetransmittablePacketsBeforeAck - 1;
     ack_frequency_frame.reordering_threshold = 1;
     visitor_->SendAckFrequency(ack_frequency_frame);
     if (!connected_) {

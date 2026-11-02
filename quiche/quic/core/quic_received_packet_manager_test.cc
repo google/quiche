@@ -1137,6 +1137,23 @@ TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdOneTriggersAck) {
   RecordPacketReceipt(99, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, 99);
   CheckAckTimeout(clock_.ApproximateNow());
+
+  // Packet 101 is missing; receiving Packet 102 hits reordering_threshold = 1
+  // and triggers a single immediate ACK via ReorderingExceedsThreshold().
+  RecordPacketReceipt(102, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 102);
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  // Packet 101 was already reported missing, so Packet 103 does not trigger
+  // another immediate ACK.
+  RecordPacketReceipt(103, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 103);
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+
+  // Filling the hole (Packet 101) triggers an immediate ACK.
+  RecordPacketReceipt(101, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 101);
+  CheckAckTimeout(clock_.ApproximateNow());
 }
 
 TEST_F(QuicReceivedPacketManagerTest,

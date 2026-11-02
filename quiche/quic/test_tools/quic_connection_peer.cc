@@ -628,7 +628,7 @@ void QuicConnectionPeer::OnForwardProgressMade(QuicConnection* connection) {
 // static
 bool QuicConnectionPeer::CanReceiveAckFrequencyFrames(
     QuicConnection* connection) {
-  return connection->can_receive_ack_frequency_immediate_ack_;
+  return QuicFramerPeer::process_ack_frequency(connection->framer_);
 }
 
 // static

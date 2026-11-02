@@ -52,6 +52,10 @@ class QuicFramerPeer {
       QuicFramer* framer, uint64_t current_received_frame_type) {
     framer->current_received_frame_type_ = current_received_frame_type;
   }
+
+  static bool process_ack_frequency(const QuicFramer& framer) {
+    return framer.process_ack_frequency_;
+  }
 };
 
 }  // namespace test

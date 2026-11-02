@@ -363,6 +363,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 SimpleQuicFramer::SimpleQuicFramer()
     : framer_(AllSupportedVersions(), QuicTime::Zero(), Perspective::IS_SERVER,
               kQuicDefaultConnectionIdLength) {
+  framer_.set_process_ack_frequency(true);
   framer_.set_process_reset_stream_at(true);
 }
 
@@ -370,6 +371,7 @@ SimpleQuicFramer::SimpleQuicFramer(
     const ParsedQuicVersionVector& supported_versions)
     : framer_(supported_versions, QuicTime::Zero(), Perspective::IS_SERVER,
               kQuicDefaultConnectionIdLength) {
+  framer_.set_process_ack_frequency(true);
   framer_.set_process_reset_stream_at(true);
 }
 
@@ -377,6 +379,7 @@ SimpleQuicFramer::SimpleQuicFramer(
     const ParsedQuicVersionVector& supported_versions, Perspective perspective)
     : framer_(supported_versions, QuicTime::Zero(), perspective,
               kQuicDefaultConnectionIdLength) {
+  framer_.set_process_ack_frequency(true);
   framer_.set_process_reset_stream_at(true);
 }
 

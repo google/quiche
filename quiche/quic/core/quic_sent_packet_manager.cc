@@ -685,7 +685,6 @@ bool QuicSentPacketManager::CanSendAckFrequency() const {
   return !peer_min_ack_delay_.IsInfinite() && handshake_finished_;
 }
 
-// TODO(martinduke): Update to include reordering threshold.
 QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
     const {
   QuicAckFrequencyFrame frame;
@@ -695,7 +694,7 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
     return frame;
   }
 
-  frame.ack_eliciting_threshold = kMaxRetransmittablePacketsBeforeAck;
+  frame.ack_eliciting_threshold = kMaxRetransmittablePacketsBeforeAck - 1;
   auto rtt = use_smoothed_rtt_in_ack_delay_ ? rtt_stats_.SmoothedOrInitialRtt()
                                             : rtt_stats_.MinOrInitialRtt();
   frame.requested_max_ack_delay = rtt * kPeerAckDecimationDelay;
@@ -706,6 +705,8 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
   frame.requested_max_ack_delay =
       std::max(frame.requested_max_ack_delay,
                QuicTime::Delta::FromMilliseconds(kDefaultMinAckDelayTimeMs));
+  frame.reordering_threshold =
+      uber_loss_algorithm_.GetPacketReorderingThreshold();
   return frame;
 }
 

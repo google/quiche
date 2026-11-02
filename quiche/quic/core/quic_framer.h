@@ -344,6 +344,11 @@ class QUICHE_EXPORT QuicFramer {
     peer_receive_timestamps_exponent_ = exponent;
   }
 
+  // Allows enabling ACK_FREQUENCY and IMMEDIATE_ACK frame processing.
+  void set_process_ack_frequency(bool process_ack_frequency) {
+    process_ack_frequency_ = process_ack_frequency;
+  }
+
   bool process_reset_stream_at() const { return process_reset_stream_at_; }
 
   // Allows enabling RESET_STREAM_AT frame processing.
@@ -1153,6 +1158,8 @@ class QUICHE_EXPORT QuicFramer {
   mutable uint32_t peer_receive_timestamps_exponent_;
   // The exponent to use when reading ACK receive timestamps.
   mutable uint32_t local_receive_timestamps_exponent_;
+  // If true, process ACK_FREQUENCY and IMMEDIATE_ACK frames.
+  bool process_ack_frequency_;
   // If true, process RESET_STREAM_AT frames.
   bool process_reset_stream_at_;
   // The creation time of the connection, used to calculate timestamps.

@@ -2011,12 +2011,12 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
        frame.type != PATH_RESPONSE_FRAME &&
        frame.type != PATH_CHALLENGE_FRAME && frame.type != STOP_SENDING_FRAME &&
        frame.type != DATAGRAM_FRAME && frame.type != NEW_TOKEN_FRAME &&
-       frame.type != RETIRE_CONNECTION_ID_FRAME &&
-       frame.type != ACK_FREQUENCY_FRAME))
+       frame.type != RETIRE_CONNECTION_ID_FRAME))
       << ENDPOINT << frame.type << " not allowed at "
       << packet_.encryption_level;
-  QUICHE_DCHECK(packet_.encryption_level == ENCRYPTION_FORWARD_SECURE ||
-                frame.type != IMMEDIATE_ACK_FRAME);
+  QUICHE_DCHECK(
+      packet_.encryption_level == ENCRYPTION_FORWARD_SECURE ||
+      (frame.type != ACK_FREQUENCY_FRAME && frame.type != IMMEDIATE_ACK_FRAME));
 
   if (frame.type == STREAM_FRAME) {
     if (MaybeCoalesceStreamFrame(frame.stream_frame)) {

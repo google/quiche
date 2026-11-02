@@ -13491,7 +13491,7 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {
   // Send packet 101.
   SendStreamDataToPeer(/*id=*/1, "bar", /*offset=*/3, NO_FIN, nullptr);
 
-  EXPECT_EQ(captured_frame.ack_eliciting_threshold, 10u);
+  EXPECT_EQ(captured_frame.ack_eliciting_threshold, 9u);
   EXPECT_EQ(captured_frame.requested_max_ack_delay,
             QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs()));
 
@@ -13530,7 +13530,7 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrameUponHandshakeCompletion) {
 
   connection_.OnHandshakeComplete();
 
-  EXPECT_EQ(captured_frame.ack_eliciting_threshold, 2u);
+  EXPECT_EQ(captured_frame.ack_eliciting_threshold, 1u);
   EXPECT_EQ(captured_frame.requested_max_ack_delay,
             QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs()));
 }
@@ -17101,6 +17101,118 @@ TEST_P(QuicConnectionTest, ImmediateAckOverridesOtherFrame) {
   EXPECT_TRUE(writer_->ack_frames().empty());
   ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_FORWARD_SECURE);
   EXPECT_FALSE(writer_->ack_frames().empty());
+}
+
+TEST_P(QuicConnectionTest, AckFrequencyDoesNotDoubleCountPacket) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.set_can_receive_ack_frequency_immediate_ack(true);
+  QuicAckFrequencyFrame ack_frequency_frame;
+  ack_frequency_frame.sequence_number = 0;
+  ack_frequency_frame.ack_eliciting_threshold = 2;
+  ack_frequency_frame.requested_max_ack_delay =
+      QuicTime::Delta::FromMilliseconds(25);
+  ack_frequency_frame.reordering_threshold = 1;
+  // A PING frame followed by ACK_FREQUENCY(ack_eliciting_threshold=2) in a
+  // single packet counts as one ack-eliciting packet and updates the threshold
+  // for subsequent packets.
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicPingFrame()));
+  frames.push_back(QuicFrame(&ack_frequency_frame));
+  writer_->framer()->Reset();
+  ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_TRUE(writer_->ack_frames().empty());
+
+  // The second ack-eliciting packet still delays the ACK because
+  // ack_eliciting_threshold=2 requires 3 ack-eliciting packets.
+  ProcessFramePacketAtLevel(2, QuicFrame(QuicPingFrame()),
+                            ENCRYPTION_FORWARD_SECURE);
+  EXPECT_TRUE(writer_->ack_frames().empty());
+
+  // The third ack-eliciting packet reaches ack_eliciting_threshold=2 and
+  // triggers an immediate ACK.
+  ProcessFramePacketAtLevel(3, QuicFrame(QuicPingFrame()),
+                            ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(writer_->ack_frames().empty());
+}
+
+TEST_P(QuicConnectionTest, UnexpectedAckFrequencyClosesConnection) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.set_can_receive_ack_frequency_immediate_ack(false);
+  QuicAckFrequencyFrame ack_frequency_frame;
+  EXPECT_CALL(visitor_,
+              OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
+  ProcessFramePacketAtLevel(1, QuicFrame(&ack_frequency_frame),
+                            ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(QUIC_INVALID_FRAME_DATA);
+}
+
+TEST_P(QuicConnectionTest, UnexpectedImmediateAckClosesConnection) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.set_can_receive_ack_frequency_immediate_ack(false);
+  EXPECT_CALL(visitor_,
+              OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
+  ProcessFramePacketAtLevel(1, QuicFrame(QuicImmediateAckFrame()),
+                            ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(QUIC_INVALID_FRAME_DATA);
+}
+
+TEST_P(QuicConnectionTest, AckFrequencyMaxAckDelayTooLargeClosesConnection) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.set_can_receive_ack_frequency_immediate_ack(true);
+  QuicAckFrequencyFrame ack_frequency_frame;
+  ack_frequency_frame.requested_max_ack_delay =
+      QuicTime::Delta::FromMilliseconds(1u << 14);
+  EXPECT_CALL(visitor_,
+              OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
+  ProcessFramePacketAtLevel(1, QuicFrame(&ack_frequency_frame),
+                            ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
+}
+
+TEST_P(QuicConnectionTest, AckFrequencyAtWrongEncryptionLevelClosesConnection) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  connection_.set_can_receive_ack_frequency_immediate_ack(true);
+  QuicAckFrequencyFrame ack_frequency_frame;
+  EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  EXPECT_CALL(visitor_,
+              OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
+  ProcessFramePacketAtLevel(1, QuicFrame(&ack_frequency_frame),
+                            ENCRYPTION_ZERO_RTT);
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
+}
+
+TEST_P(QuicConnectionTest, ImmediateAckAtWrongEncryptionLevelClosesConnection) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  connection_.set_can_receive_ack_frequency_immediate_ack(true);
+  EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  EXPECT_CALL(visitor_,
+              OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
+  ProcessFramePacketAtLevel(1, QuicFrame(QuicImmediateAckFrame()),
+                            ENCRYPTION_ZERO_RTT);
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
 }
 
 TEST_P(QuicConnectionTest, ReceivedChloAndAck) {

@@ -88,10 +88,7 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
   virtual bool HasNewMissingPackets() const;
 
   // Returns true if the lowest packet number beyond largest_acked_ is more
-  // than reordering_threshold_ behind largest_unacked. Used only when
-  // reordering_threshold_ > 1.
-  // TODO(martinduke): This code can be used for reordering_threshold_ == 1
-  // as well, once we have full confidence in it.
+  // than reordering_threshold_ behind largest_unacked.
   bool ReorderingExceedsThreshold() const;
 
   virtual bool ack_frame_updated() const;

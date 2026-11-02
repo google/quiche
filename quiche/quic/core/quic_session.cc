@@ -249,8 +249,9 @@ void QuicSession::Initialize() {
         config()->SetActiveConnectionIdLimitToSend(5);
       }
     }
-  } else if (GetQuicReloadableFlag(quic_receive_ack_frequency) &&
+  } else if (GetQuicReloadableFlag(quic_receive_ack_frequency2) &&
              connection_->version().IsIetfQuic()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency2, 8, 8);
     config()->SetMinAckDelayDraft10Ms(kDefaultMinAckDelayTimeMs);
   }
   connection_->CreateConnectionIdManager();

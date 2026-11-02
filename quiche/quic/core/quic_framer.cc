@@ -439,6 +439,7 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       local_max_receive_timestamps_per_ack_(0),
       peer_receive_timestamps_exponent_(0),
       local_receive_timestamps_exponent_(0),
+      process_ack_frequency_(false),
       process_reset_stream_at_(false),
       creation_time_(creation_time),
       support_key_update_for_connection_(false),
@@ -2823,6 +2824,9 @@ bool QuicFramer::IsIetfFrameTypeExpectedForEncryptionLevel(
              frame_type == IETF_ACK_ECN || frame_type == IETF_PING ||
              frame_type == IETF_PADDING || frame_type == IETF_CONNECTION_CLOSE;
     case ENCRYPTION_ZERO_RTT:
+      // IETF_ACK_FREQUENCY and IETF_IMMEDIATE_ACK are also disallowed in 0-RTT,
+      // and are checked in ProcessIetfFrameData after checking
+      // process_ack_frequency_.
       return !(
           IsIetfAckFrame(frame_type) || frame_type == IETF_HANDSHAKE_DONE ||
           frame_type == IETF_NEW_TOKEN || frame_type == IETF_PATH_RESPONSE ||
@@ -3187,9 +3191,23 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           break;
         }
         case IETF_ACK_FREQUENCY: {
+          if (!process_ack_frequency_) {
+            set_detailed_error("ACK_FREQUENCY not enabled.");
+            return RaiseError(QUIC_INVALID_FRAME_DATA);
+          }
+          if (decrypted_level != ENCRYPTION_FORWARD_SECURE) {
+            set_detailed_error(
+                absl::StrCat("ACK_FREQUENCY is unexpected at encryption level ",
+                             EncryptionLevelToString(decrypted_level)));
+            return RaiseError(IETF_QUIC_PROTOCOL_VIOLATION);
+          }
           QuicAckFrequencyFrame frame;
           if (!ProcessAckFrequencyFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_FRAME_DATA);
+          }
+          if (frame.requested_max_ack_delay >= kMaxAckFrequencyMaxAckDelay) {
+            set_detailed_error("Invalid max_ack_delay_us.");
+            return RaiseError(IETF_QUIC_PROTOCOL_VIOLATION);
           }
           QUIC_DVLOG(2) << ENDPOINT << "Processing IETF ack frequency frame "
                         << frame;
@@ -3201,6 +3219,16 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           break;
         }
         case IETF_IMMEDIATE_ACK: {
+          if (!process_ack_frequency_) {
+            set_detailed_error("IMMEDIATE_ACK not enabled.");
+            return RaiseError(QUIC_INVALID_FRAME_DATA);
+          }
+          if (decrypted_level != ENCRYPTION_FORWARD_SECURE) {
+            set_detailed_error(
+                absl::StrCat("IMMEDIATE_ACK is unexpected at encryption level ",
+                             EncryptionLevelToString(decrypted_level)));
+            return RaiseError(IETF_QUIC_PROTOCOL_VIOLATION);
+          }
           // IMMEDIATE_ACK has no payload.
           QuicImmediateAckFrame frame;
           QUIC_DVLOG(2) << ENDPOINT << "Processing IETF immediate ack frame "
@@ -3422,11 +3450,6 @@ bool QuicFramer::ProcessAckFrequencyFrame(QuicDataReader* reader,
   uint64_t max_ack_delay_us;
   if (!reader->ReadVarInt62(&max_ack_delay_us)) {
     set_detailed_error("Unable to read max_ack_delay_us.");
-    return false;
-  }
-  constexpr uint64_t kMaxAckDelayUsBound = 1u << 24;
-  if (max_ack_delay_us > kMaxAckDelayUsBound) {
-    set_detailed_error("Invalid max_ack_delay_us.");
     return false;
   }
   frame->requested_max_ack_delay =

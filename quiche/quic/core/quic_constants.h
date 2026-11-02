@@ -151,6 +151,11 @@ inline constexpr int64_t kDefaultPeerDelayedAckTimeMs = 25;
 // frequency).
 inline constexpr uint32_t kDefaultMinAckDelayTimeMs = 5;
 
+// Exclusive upper bound on the requested max_ack_delay in an ACK_FREQUENCY
+// frame, matching the 2^14 ms limit on the max_ack_delay transport parameter.
+inline constexpr QuicTime::Delta kMaxAckFrequencyMaxAckDelay =
+    QuicTime::Delta::FromMilliseconds(1 << 14);
+
 // Default shift of the ACK delay in the IETF QUIC ACK frame.
 inline constexpr uint32_t kDefaultAckDelayExponent = 3;
 

@@ -304,7 +304,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
 
   if (ack_now_) {
     // An IMMEDIATE_ACK frame arrived. Send an ack immediately.
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 2, 7);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency2, 2, 8);
     ack_timeout_ = now;
     return;
   }
@@ -314,8 +314,8 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
       last_sent_largest_acked_ >= QuicPacketNumber(reordering_threshold_) &&
       (last_received_packet_number <=
        last_sent_largest_acked_ - reordering_threshold_)) {
-    if (reordering_threshold_ > 1) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 7, 7);
+    if (AckFrequencyFrameReceived()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency2, 7, 8);
     }
     // Ack immediately if the received packet number is less than or equal to
     // largest acked - reordering threshold.
@@ -344,7 +344,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
-  if (reordering_threshold_ == 1) {
+  if (!AckFrequencyFrameReceived()) {
     // Default behavior, not updated by ACK_FREQUENCY.
     if (HasNewMissingPackets()) {
       ack_timeout_ = now;
@@ -358,12 +358,12 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
       // on the next packet arrival, send an ACK.
       // This is an extreme case; it would be unsurprising if it never happened
       // in production.
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 6, 7);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency2, 6, 8);
       ack_timeout_ = now;
       return;
     }
     if (ReorderingExceedsThreshold()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 5, 7);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency2, 5, 8);
       ack_timeout_ = now;
       return;
     }
@@ -404,12 +404,12 @@ bool QuicReceivedPacketManager::HasNewMissingPackets() const {
 }
 
 bool QuicReceivedPacketManager::ReorderingExceedsThreshold() const {
-  if (reordering_threshold_ <= 1) {  // flag is not enabled, or there is no
-                                     // threshold.
+  QUICHE_DCHECK(AckFrequencyFrameReceived());
+  if (reordering_threshold_ == 0) {
     return false;
   }
   // Cannot get here unless an ACK_FREQUENCY frame was received.
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 4, 7);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency2, 4, 8);
   if (!HasMissingPackets() ||
       GetLargestObserved() < QuicPacketNumber(reordering_threshold_)) {
     return false;
@@ -417,9 +417,9 @@ bool QuicReceivedPacketManager::ReorderingExceedsThreshold() const {
   // Find the next missing packet.
   QuicPacketNumber smallest_unreported_missing;
   if (last_sent_largest_acked_.IsInitialized() &&
-      last_sent_largest_acked_ >= QuicPacketNumber(reordering_threshold_)) {
+      last_sent_largest_acked_ + 1 >= QuicPacketNumber(reordering_threshold_)) {
     smallest_unreported_missing =
-        last_sent_largest_acked_ - reordering_threshold_ + 1;
+        last_sent_largest_acked_ + 1 - reordering_threshold_;
   }
   // All ACK ranges before peer_least_packet_awaiting_ack_ have already been
   // deleted, so this is the lowest packet number that has receive state.
