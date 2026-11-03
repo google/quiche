@@ -4494,8 +4494,43 @@ TEST_F(HTTPBalsaFrameTest, TrailerMissingColon) {
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::TRAILER_MISSING_COLON, balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().header_missing_colon);
   ExpectCodeCount(code_counts_, "header_missing_colon_detected", 1);
   ExpectCodeCount(code_counts_, "require_header_colon_enforced", 0);
+}
+
+TEST_F(HTTPBalsaFrameTest, TrailerMissingColonRejected) {
+  HttpValidationPolicy http_validation_policy{.require_header_colon = true};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  std::string headers =
+      "HTTP/1.0 302 Redirect\r\n"
+      "transfer-encoding: chunked\r\n"
+      "\r\n";
+
+  std::string chunks =
+      "3\r\n"
+      "123\r\n"
+      "0\r\n";
+  std::string trailer =
+      "crass_monkeys\n"
+      "\r\n";
+
+  balsa_frame_.set_is_request(false);
+  EXPECT_CALL(visitor_mock_,
+              HandleError(BalsaFrameEnums::TRAILER_MISSING_COLON));
+  ASSERT_EQ(headers.size(),
+            balsa_frame_.ProcessInput(headers.data(), headers.size()));
+  ASSERT_EQ(chunks.size(),
+            balsa_frame_.ProcessInput(chunks.data(), chunks.size()));
+  balsa_frame_.ProcessInput(trailer.data(), trailer.size());
+
+  EXPECT_FALSE(balsa_frame_.MessageFullyRead());
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::TRAILER_MISSING_COLON, balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().header_missing_colon);
+  ExpectCodeCount(code_counts_, "header_missing_colon_detected", 1);
+  ExpectCodeCount(code_counts_, "require_header_colon_enforced", 1);
 }
 
 // This tests multiple headers in trailer. We currently do not and have no plan
