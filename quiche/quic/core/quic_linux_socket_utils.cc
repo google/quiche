@@ -265,8 +265,7 @@ size_t QuicLinuxSocketUtils::SetIpInfoInCmsg(const QuicIpAddress& self_address,
 }
 
 // static
-WriteResult QuicLinuxSocketUtils::WritePacket(int fd, const QuicMsgHdr& hdr,
-                                              bool enobufs_blocked) {
+WriteResult QuicLinuxSocketUtils::WritePacket(int fd, const QuicMsgHdr& hdr) {
   int rc;
   do {
     rc = GetGlobalSyscallWrapper()->Sendmsg(fd, hdr.hdr(), 0);
@@ -276,11 +275,7 @@ WriteResult QuicLinuxSocketUtils::WritePacket(int fd, const QuicMsgHdr& hdr,
   }
   if (errno == ENOBUFS) {
     QUIC_CODE_COUNT(quic_sendmsg_enobufs);
-    if (enobufs_blocked) {
-      return WriteResult(WRITE_STATUS_BLOCKED, errno);
-    } else {
-      errno = ENOBUFS;
-    }
+    return WriteResult(WRITE_STATUS_BLOCKED, errno);
   }
   return WriteResult((errno == EAGAIN || errno == EWOULDBLOCK)
                          ? WRITE_STATUS_BLOCKED

@@ -44,8 +44,7 @@ QuicGsoBatchWriter::QuicGsoBatchWriter(int fd,
       supports_release_time_(
           GetQuicRestartFlag(quic_support_release_time_for_gso) &&
           QuicLinuxSocketUtils::EnableReleaseTime(fd,
-                                                  clockid_for_release_time)),
-      enobufs_blocked_(GetQuicReloadableFlag(quic_enobufs_blocked)) {
+                                                  clockid_for_release_time)) {
   if (supports_release_time_) {
     QUIC_RESTART_FLAG_COUNT(quic_support_release_time_for_gso);
   }

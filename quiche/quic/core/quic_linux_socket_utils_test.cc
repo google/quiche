@@ -330,9 +330,7 @@ TEST_F(QuicLinuxSocketUtilsTest, WriteReturnsEnobufs) {
   EXPECT_CALL(mock_syscalls_, Sendmsg)
       .WillRepeatedly(SetErrnoAndReturn(ENOBUFS, -1));
   EXPECT_EQ(WriteResult(WRITE_STATUS_BLOCKED, ENOBUFS),
-            QuicLinuxSocketUtils::WritePacket(/*fd=*/1, hdr, true));
-  EXPECT_EQ(WriteResult(WRITE_STATUS_ERROR, ENOBUFS),
-            QuicLinuxSocketUtils::WritePacket(/*fd=*/1, hdr, false));
+            QuicLinuxSocketUtils::WritePacket(/*fd=*/1, hdr));
 }
 
 }  // namespace

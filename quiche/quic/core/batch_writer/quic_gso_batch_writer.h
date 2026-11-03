@@ -85,8 +85,7 @@ class QUICHE_EXPORT QuicGsoBatchWriter : public QuicUdpBatchWriter {
     cmsg_builder(&hdr, first.self_address, gso_size, first.release_time,
                  first.params.ecn_codepoint, first.params.flow_label);
 
-    write_result =
-        QuicLinuxSocketUtils::WritePacket(fd(), hdr, enobufs_blocked_);
+    write_result = QuicLinuxSocketUtils::WritePacket(fd(), hdr);
     QUIC_DVLOG(1) << "Write GSO packet result: " << write_result
                   << ", fd: " << fd()
                   << ", self_address: " << first.self_address.ToString()
@@ -119,8 +118,6 @@ class QUICHE_EXPORT QuicGsoBatchWriter : public QuicUdpBatchWriter {
 
   const clockid_t clockid_for_release_time_;
   const bool supports_release_time_;
-
-  const bool enobufs_blocked_ = false;
 };
 
 }  // namespace quic
