@@ -1510,8 +1510,10 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
           // Right after the chunk should be a \r then a \n.
           if (c == '\r') {
             if (saw_slash_r_after_chunk_) {
-              QUICHE_CODE_COUNT(stray_data_after_chunk_detected);
-              protocol_defects_.stray_data_after_chunk = true;
+              if (!protocol_defects_.stray_data_after_chunk) {
+                protocol_defects_.stray_data_after_chunk = true;
+                QUICHE_CODE_COUNT(stray_data_after_chunk_detected);
+              }
               if (http_validation_policy().disallow_stray_data_after_chunk) {
                 QUICHE_CODE_COUNT(disallow_stray_data_after_chunk_enforced);
                 HandleError(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);
@@ -1525,8 +1527,10 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             // Can't use last_char_was_slash_r_ because a \r might've been part
             // of the chunk data.
             if (!saw_slash_r_after_chunk_) {
-              QUICHE_CODE_COUNT(stray_data_after_chunk_detected);
-              protocol_defects_.stray_data_after_chunk = true;
+              if (!protocol_defects_.stray_data_after_chunk) {
+                protocol_defects_.stray_data_after_chunk = true;
+                QUICHE_CODE_COUNT(stray_data_after_chunk_detected);
+              }
               if (http_validation_policy().disallow_stray_data_after_chunk) {
                 QUICHE_CODE_COUNT(disallow_stray_data_after_chunk_enforced);
                 HandleError(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);
@@ -1537,8 +1541,10 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             }
             break;
           } else {
-            QUICHE_CODE_COUNT(stray_data_after_chunk_detected);
-            protocol_defects_.stray_data_after_chunk = true;
+            if (!protocol_defects_.stray_data_after_chunk) {
+              protocol_defects_.stray_data_after_chunk = true;
+              QUICHE_CODE_COUNT(stray_data_after_chunk_detected);
+            }
             if (http_validation_policy().disallow_stray_data_after_chunk) {
               QUICHE_CODE_COUNT(disallow_stray_data_after_chunk_enforced);
               HandleError(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);

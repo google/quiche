@@ -2510,7 +2510,7 @@ TEST_F(HTTPBalsaFrameTest,
 
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
-  ExpectCodeCount(code_counts_, "stray_data_after_chunk_detected", 48);
+  ExpectCodeCount(code_counts_, "stray_data_after_chunk_detected", 1);
   ExpectCodeCount(code_counts_, "disallow_stray_data_after_chunk_enforced", 0);
 }
 
