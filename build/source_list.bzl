@@ -793,6 +793,7 @@ quiche_tool_support_srcs = [
     "quic/tools/web_transport_only_backend.cc",
 ]
 quiche_test_support_hdrs = [
+    "common/platform/api/quiche_code_count_reader.h",
     "common/platform/api/quiche_expect_bug.h",
     "common/platform/api/quiche_fuzztest.h",
     "common/platform/api/quiche_test.h",
@@ -1570,6 +1571,7 @@ default_platform_impl_tool_support_srcs = [
     "common/platform/default/quiche_platform_impl/quiche_file_utils_impl.cc",
 ]
 default_platform_impl_test_support_hdrs = [
+    "common/platform/default/quiche_platform_impl/quiche_code_count_reader_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_expect_bug_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_fuzztest_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_test_impl.h",
