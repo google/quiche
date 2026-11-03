@@ -32,6 +32,7 @@
 #include "quiche/balsa/http_validation_policy.h"
 #include "quiche/balsa/noop_balsa_visitor.h"
 #include "quiche/balsa/simple_buffer.h"
+#include "quiche/common/platform/api/quiche_code_count_reader.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_flags.h"
@@ -88,6 +89,16 @@ class BalsaHeadersTestPeer {
 };
 
 namespace {
+
+// Expects that the QUICHE_CODE_COUNT(name) code point has fired `count` times
+// since `reader` was constructed or last queried for `name`. When code counts
+// are not supported on the current platform, this is a no-op.
+void ExpectCodeCount(QuicheCodeCountReader& reader, absl::string_view name,
+                     int64_t count) {
+  if (QuicheCodeCountReader::IsSupported()) {
+    EXPECT_EQ(reader.Delta(name), count) << " for counter: " << name;
+  }
+}
 
 // This class encapsulates the policy of seed selection. If user supplies a
 // valid use via the --randseed flag, GetSeed will only return the user
@@ -600,6 +611,7 @@ class HTTPBalsaFrameTest : public QuicheTest {
   BalsaHeaders headers_;
   BalsaFrame balsa_frame_;
   NiceMock<BalsaVisitorMock> visitor_mock_;
+  QuicheCodeCountReader code_counts_;
 };
 
 // Test correct return value for HeaderFramingFound.
@@ -742,6 +754,7 @@ TEST(HTTPBalsaFrame, InvalidMethodTestWithoutPolicy) {
     framer.set_http_validation_policy(policy);
     framer.set_is_request(true);
     framer.set_balsa_headers(&headers);
+    QuicheCodeCountReader code_counts;
     framer.ProcessInput(first_line_with_char.data(),
                         first_line_with_char.size());
 
@@ -773,6 +786,11 @@ TEST(HTTPBalsaFrame, InvalidMethodTestWithoutPolicy) {
     } else {
       FAIL() << "Unexpected character: " << c;
     }
+    ExpectCodeCount(
+        code_counts, "invalid_method_in_request_first_line_detected",
+        framer.protocol_defects().invalid_method_in_request_first_line ? 1 : 0);
+    ExpectCodeCount(code_counts, "disallow_invalid_request_methods_enforced",
+                    0);
   }
 }
 
@@ -789,6 +807,7 @@ TEST(HTTPBalsaFrame, InvalidMethodTestWithPolicy) {
     framer.set_http_validation_policy(policy);
     framer.set_is_request(true);
     framer.set_balsa_headers(&headers);
+    QuicheCodeCountReader code_counts;
     framer.ProcessInput(first_line_with_char.data(),
                         first_line_with_char.size());
 
@@ -816,6 +835,13 @@ TEST(HTTPBalsaFrame, InvalidMethodTestWithPolicy) {
     } else {
       FAIL() << "Unexpected character: " << c;
     }
+    const int expected_count =
+        framer.ErrorCode() == BalsaFrameEnums::INVALID_REQUEST_METHOD ? 1 : 0;
+    ExpectCodeCount(code_counts,
+                    "invalid_method_in_request_first_line_detected",
+                    expected_count);
+    ExpectCodeCount(code_counts, "disallow_invalid_request_methods_enforced",
+                    expected_count);
   }
 }
 
@@ -888,6 +914,7 @@ TEST(HTTPBalsaFrame, RequestLineSanitizedProperly) {
     framer.set_http_validation_policy(policy);
     framer.set_is_request(true);
     framer.set_balsa_headers(&headers);
+    QuicheCodeCountReader code_counts;
     framer.ProcessInput(input.data(), input.size());
     EXPECT_EQ(headers.first_line(), tc.parsed);
     EXPECT_EQ(framer.ErrorCode(), tc.expected_error);
@@ -895,6 +922,16 @@ TEST(HTTPBalsaFrame, RequestLineSanitizedProperly) {
               tc.expected_tab_or_cr_defect);
     EXPECT_EQ(framer.protocol_defects().tab_or_cr_found_in_firstline_sanitized,
               tc.tab_or_cr_sanitized);
+    ExpectCodeCount(code_counts, "tab_or_cr_found_in_firstline_detected",
+                    tc.expected_tab_or_cr_defect ? 1 : 0);
+    ExpectCodeCount(
+        code_counts, "sanitize_cr_tab_in_first_line_rejected",
+        tc.expected_error == BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE ? 1
+                                                                         : 0);
+    ExpectCodeCount(code_counts, "sanitize_cr_tab_in_first_line_sanitized",
+                    tc.tab_or_cr_sanitized ? 1 : 0);
+    ExpectCodeCount(code_counts, "tab_or_cr_found_in_firstline_sanitized",
+                    tc.tab_or_cr_sanitized ? 1 : 0);
   }
 }
 
@@ -991,6 +1028,7 @@ TEST(HTTPBalsaFrame, LargeAndSmallStatusCodes) {
         "\r\n",
         tcase.status_code);
     SCOPED_TRACE(absl::StrCat("Input: ", absl::CEscape(firstline)));
+    QuicheCodeCountReader code_counts;
 
     if (tcase.expected_error == BalsaFrameEnums::BALSA_NO_ERROR) {
       EXPECT_EQ(framer.ProcessInput(firstline.data(), firstline.size()),
@@ -1006,6 +1044,9 @@ TEST(HTTPBalsaFrame, LargeAndSmallStatusCodes) {
 
     EXPECT_EQ(framer.protocol_defects().invalid_response_code,
               tcase.expected_invalid_response_code);
+    ExpectCodeCount(code_counts, "invalid_response_code_detected",
+                    tcase.expected_invalid_response_code ? 1 : 0);
+    ExpectCodeCount(code_counts, "disallow_invalid_response_codes_enforced", 0);
   }
 }
 
@@ -1043,6 +1084,7 @@ TEST(HTTPBalsaFrame, LargeAndSmallStatusCodesWithPolicy) {
         "\r\n",
         tcase.status_code);
     SCOPED_TRACE(absl::StrCat("Input: ", absl::CEscape(firstline)));
+    QuicheCodeCountReader code_counts;
 
     if (tcase.expected_error == BalsaFrameEnums::BALSA_NO_ERROR) {
       EXPECT_EQ(framer.ProcessInput(firstline.data(), firstline.size()),
@@ -1055,6 +1097,12 @@ TEST(HTTPBalsaFrame, LargeAndSmallStatusCodesWithPolicy) {
       EXPECT_EQ(framer.ErrorCode(), tcase.expected_error);
       EXPECT_FALSE(framer.MessageFullyRead());
     }
+    const int expected_count =
+        tcase.expected_error == BalsaFrameEnums::INVALID_STATUS_CODE ? 1 : 0;
+    ExpectCodeCount(code_counts, "invalid_response_code_detected",
+                    expected_count);
+    ExpectCodeCount(code_counts, "disallow_invalid_response_codes_enforced",
+                    expected_count);
   }
 }
 
@@ -1068,43 +1116,58 @@ TEST(HTTPBalsaFrame, StatusLineSanitizedProperly) {
     const absl::string_view parsed;    // Expected output.
     FirstLineValidationOption option;  // Whether to sanitize/reject.
     BalsaFrameEnums::ErrorCode expected_error;
+    bool has_cr_or_tab;
+    bool sanitized;
   };
   const std::vector<TestCase> cases = {
       // No invalid whitespace.
       {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK",
-       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR,
+       /*has_cr_or_tab=*/false, /*sanitized=*/false},
       {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK",
-       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
+       /*has_cr_or_tab=*/false, /*sanitized=*/false},
       {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK",
-       FirstLineValidationOption::REJECT, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::REJECT, BalsaFrameEnums::BALSA_NO_ERROR,
+       /*has_cr_or_tab=*/false, /*sanitized=*/false},
 
       // Illegal CR in the status-line.
       {"HTTP/1.1 200\rOK\r\n", "HTTP/1.1 200\rOK",
-       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR,
+       /*has_cr_or_tab=*/true, /*sanitized=*/false},
       {"HTTP/1.1 200\rOK\r\n", "HTTP/1.1 200 OK",
-       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
+       /*has_cr_or_tab=*/true, /*sanitized=*/true},
       {"HTTP/1.1 200\rOK\r\n", "", FirstLineValidationOption::REJECT,
-       BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE},
+       BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE, /*has_cr_or_tab=*/true,
+       /*sanitized=*/false},
 
       // Invalid tab in the status-line.
       {"HTTP/1.1 \t200 OK\r\n", "HTTP/1.1 \t200 OK",
-       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR,
+       /*has_cr_or_tab=*/true, /*sanitized=*/false},
       {"HTTP/1.1 \t200 OK\r\n", "HTTP/1.1  200 OK",
-       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
+       /*has_cr_or_tab=*/true, /*sanitized=*/true},
       {"HTTP/1.1 \t200 OK\r\n", "", FirstLineValidationOption::REJECT,
-       BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE},
+       BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE, /*has_cr_or_tab=*/true,
+       /*sanitized=*/false},
 
       // Both CR and tab in the request-line.
       {"HTTP/1.1 \t200\rOK \r\n", "HTTP/1.1 \t200\rOK",
-       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR,
+       /*has_cr_or_tab=*/true, /*sanitized=*/false},
       {"HTTP/1.1 \t200\rOK \r\n", "HTTP/1.1  200 OK",
-       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
+       /*has_cr_or_tab=*/true, /*sanitized=*/true},
       {"HTTP/1.1 \t200\rOK \r\n", "", FirstLineValidationOption::REJECT,
-       BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE},
+       BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE, /*has_cr_or_tab=*/true,
+       /*sanitized=*/false},
   };
   const absl::string_view kHeaderLineAndEnding =
       "Foo: bar\r\nContent-Length: 0\r\n\r\n";
-  for (auto& [firstline, parsed, ws_option, expected_error] : cases) {
+  for (const auto& [firstline, parsed, ws_option, expected_error, has_cr_or_tab,
+                    sanitized] : cases) {
     SCOPED_TRACE(
         absl::StrCat("Input: ", absl::CEscape(firstline),
                      " Expected output: ", absl::CEscape(parsed),
@@ -1118,9 +1181,19 @@ TEST(HTTPBalsaFrame, StatusLineSanitizedProperly) {
     framer.set_http_validation_policy(policy);
     framer.set_is_request(false);
     framer.set_balsa_headers(&headers);
+    QuicheCodeCountReader code_counts;
     framer.ProcessInput(input.data(), input.size());
     EXPECT_EQ(headers.first_line(), parsed);
     EXPECT_EQ(framer.ErrorCode(), expected_error);
+    ExpectCodeCount(code_counts, "tab_or_cr_found_in_firstline_detected",
+                    has_cr_or_tab ? 1 : 0);
+    ExpectCodeCount(
+        code_counts, "sanitize_cr_tab_in_first_line_rejected",
+        expected_error == BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE ? 1 : 0);
+    ExpectCodeCount(code_counts, "sanitize_cr_tab_in_first_line_sanitized",
+                    sanitized ? 1 : 0);
+    ExpectCodeCount(code_counts, "tab_or_cr_found_in_firstline_sanitized",
+                    sanitized ? 1 : 0);
   }
 }
 
@@ -1180,6 +1253,7 @@ TEST(HTTPBalsaFrame, RequestLinesParsedProperly) {
 }
 
 TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaders) {
+  QuicheCodeCountReader code_counts;
   HttpValidationPolicy policy{.disallow_lone_cr_in_request_headers = true};
   BalsaHeaders balsa_headers;
   BalsaFrame framer;
@@ -1196,11 +1270,15 @@ TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaders) {
   framer.ProcessInput(message.data(), message.size());
   EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
   EXPECT_TRUE(framer.protocol_defects().lone_cr_in_request_headers);
+  ExpectCodeCount(code_counts, "lone_cr_in_request_headers_detected", 1);
+  ExpectCodeCount(code_counts, "disallow_lone_cr_in_request_headers_enforced",
+                  1);
 }
 
 // Test that lone '\r' detection works correctly in the firstline
 // even if it is the last character of fractional input.
 TEST(HTTPBalsaFrame, CarriageReturnIllegalInFirstLineOnInputBoundary) {
+  QuicheCodeCountReader code_counts;
   HttpValidationPolicy policy{.disallow_lone_cr_in_request_headers = true};
   BalsaHeaders balsa_headers;
   BalsaFrame framer;
@@ -1215,11 +1293,15 @@ TEST(HTTPBalsaFrame, CarriageReturnIllegalInFirstLineOnInputBoundary) {
   EXPECT_EQ(message2.size(),
             framer.ProcessInput(message2.data(), message2.size()));
   EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
+  ExpectCodeCount(code_counts, "lone_cr_in_request_headers_detected", 1);
+  ExpectCodeCount(code_counts, "disallow_lone_cr_in_request_headers_enforced",
+                  1);
 }
 
 // Test that lone '\r' detection works correctly in header values
 // even if it is the last character of fractional input.
 TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderValueOnInputBoundary) {
+  QuicheCodeCountReader code_counts;
   HttpValidationPolicy policy{.disallow_lone_cr_in_request_headers = true};
   BalsaHeaders balsa_headers;
   BalsaFrame framer;
@@ -1235,9 +1317,13 @@ TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderValueOnInputBoundary) {
             framer.ProcessInput(message2.data(), message2.size()));
   EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
   EXPECT_TRUE(framer.protocol_defects().lone_cr_in_request_headers);
+  ExpectCodeCount(code_counts, "lone_cr_in_request_headers_detected", 1);
+  ExpectCodeCount(code_counts, "disallow_lone_cr_in_request_headers_enforced",
+                  1);
 }
 
 TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderKey) {
+  QuicheCodeCountReader code_counts;
   BalsaHeaders balsa_headers;
   BalsaFrame framer;
   framer.set_is_request(true);
@@ -1251,6 +1337,9 @@ TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderKey) {
   framer.ProcessInput(message.data(), message.size());
   EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
   EXPECT_TRUE(framer.protocol_defects().lone_cr_in_request_headers);
+  ExpectCodeCount(code_counts, "lone_cr_in_request_headers_detected", 1);
+  ExpectCodeCount(code_counts, "disallow_lone_cr_in_request_headers_enforced",
+                  0);
 }
 
 TEST(HTTPBalsaFrame, ResponseLinesParsedProperly) {
@@ -1296,6 +1385,7 @@ TEST(HTTPBalsaFrame, ResponseLinesParsedProperly) {
 void WhitespaceHeaderTestHelper(
     const std::string& message, bool is_request,
     BalsaFrameEnums::ErrorCode expected_error_code) {
+  QuicheCodeCountReader code_counts;
   BalsaHeaders balsa_headers;
   BalsaFrame framer;
   framer.set_is_request(is_request);
@@ -1312,6 +1402,14 @@ void WhitespaceHeaderTestHelper(
     EXPECT_EQ(true, framer.Error());
   }
   EXPECT_EQ(expected_error_code, framer.ErrorCode());
+  // Each obs-fold test case contains exactly one continuation line.
+  ExpectCodeCount(
+      code_counts, "obs_fold_in_header_values_detected",
+      expected_error_code == BalsaFrameEnums::OBS_FOLD_IN_HEADERS ? 1 : 0);
+  ExpectCodeCount(code_counts, "sanitize_obs_fold_in_header_values_enforced",
+                  0);
+  ExpectCodeCount(code_counts, "disallow_header_continuation_lines_enforced",
+                  0);
 }
 
 TEST(HTTPBalsaFrame, WhitespaceInRequestsProcessedProperly) {
@@ -1555,6 +1653,14 @@ TEST_F(HTTPBalsaFrameTest, BothTransferEncodingAndContentLengthAllowed) {
       balsa_frame_.protocol_defects().transfer_encoding_and_content_length);
   // Content-Length is provided to callers when Transfer-Encoding is present.
   EXPECT_EQ(headers_.content_length(), 5);
+  ExpectCodeCount(code_counts_, "transfer_encoding_and_content_length_detected",
+                  1);
+  ExpectCodeCount(code_counts_,
+                  "disallow_transfer_encoding_with_content_length_enforced", 0);
+  ExpectCodeCount(code_counts_,
+                  "chunked_transfer_encoding_and_content_length_detected", 1);
+  ExpectCodeCount(code_counts_,
+                  "chunked_transfer_encoding_and_content_length_sanitized", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, BothTransferEncodingAndContentLengthDisallowed) {
@@ -1578,6 +1684,14 @@ TEST_F(HTTPBalsaFrameTest, BothTransferEncodingAndContentLengthDisallowed) {
             BalsaFrameEnums::BOTH_TRANSFER_ENCODING_AND_CONTENT_LENGTH);
   EXPECT_TRUE(
       balsa_frame_.protocol_defects().transfer_encoding_and_content_length);
+  ExpectCodeCount(code_counts_, "transfer_encoding_and_content_length_detected",
+                  1);
+  ExpectCodeCount(code_counts_,
+                  "disallow_transfer_encoding_with_content_length_enforced", 1);
+  ExpectCodeCount(code_counts_,
+                  "chunked_transfer_encoding_and_content_length_detected", 0);
+  ExpectCodeCount(code_counts_,
+                  "chunked_transfer_encoding_and_content_length_sanitized", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -2174,6 +2288,12 @@ TEST_F(HTTPBalsaFrameTest, EmptyChunkExtensionDetectedAsDefect) {
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_TRUE(
       balsa_frame_.protocol_defects().missing_semicolon_in_chunk_extension);
+  ExpectCodeCount(code_counts_, "missing_semicolon_in_chunk_extension_detected",
+                  1);
+  ExpectCodeCount(code_counts_,
+                  "token_before_semicolon_in_chunk_extension_detected", 0);
+  ExpectCodeCount(code_counts_,
+                  "require_semicolon_delimited_chunk_extension_enforced", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, InvalidChunkExtensionWithCarriageReturn) {
@@ -2390,6 +2510,8 @@ TEST_F(HTTPBalsaFrameTest,
 
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
+  ExpectCodeCount(code_counts_, "stray_data_after_chunk_detected", 48);
+  ExpectCodeCount(code_counts_, "disallow_stray_data_after_chunk_enforced", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, StrayDataAfterChunkRejected) {
@@ -2410,6 +2532,8 @@ TEST_F(HTTPBalsaFrameTest, StrayDataAfterChunkRejected) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK, balsa_frame_.ErrorCode());
   EXPECT_TRUE(balsa_frame_.protocol_defects().stray_data_after_chunk);
+  ExpectCodeCount(code_counts_, "stray_data_after_chunk_detected", 1);
+  ExpectCodeCount(code_counts_, "disallow_stray_data_after_chunk_enforced", 1);
 }
 
 // A LF character preceded by CR is allowed even if separated into multiple
@@ -2474,6 +2598,10 @@ TEST_F(HTTPBalsaFrameTest,
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_TRUE(
       balsa_frame_.protocol_defects().chunked_body_does_not_end_with_crlf_crlf);
+  ExpectCodeCount(code_counts_,
+                  "chunked_body_does_not_end_with_crlf_crlf_detected", 1);
+  ExpectCodeCount(code_counts_,
+                  "require_chunked_body_end_with_crlf_crlf_enforced", 0);
 }
 
 TEST_F(
@@ -2513,6 +2641,10 @@ TEST_F(
   EXPECT_FALSE(balsa_frame_.MessageFullyRead());
   EXPECT_TRUE(
       balsa_frame_.protocol_defects().chunked_body_does_not_end_with_crlf_crlf);
+  ExpectCodeCount(code_counts_,
+                  "chunked_body_does_not_end_with_crlf_crlf_detected", 1);
+  ExpectCodeCount(code_counts_,
+                  "require_chunked_body_end_with_crlf_crlf_enforced", 1);
 }
 
 TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesAllowed) {
@@ -2533,6 +2665,9 @@ TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesAllowed) {
 
   EXPECT_EQ("GET  / HTTP/1.1", headers_.first_line());
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 0);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesRejected) {
@@ -2552,6 +2687,9 @@ TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesRejected) {
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_SPACES_IN_REQUEST_LINE,
             balsa_frame_.ErrorCode());
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 1);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesSanitized) {
@@ -2576,6 +2714,10 @@ TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesSanitized) {
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
   EXPECT_TRUE(
       balsa_frame_.protocol_defects().multiple_spaces_in_firstline_sanitized);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 0);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 1);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_sanitized", 1);
 }
 
 TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesAllowed) {
@@ -2597,6 +2739,9 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesAllowed) {
 
   EXPECT_EQ("HTTP/1.1 200  OK", headers_.first_line());
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 0);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesRejected) {
@@ -2617,6 +2762,9 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesRejected) {
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_SPACES_IN_STATUS_LINE,
             balsa_frame_.ErrorCode());
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 1);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesSanitized) {
@@ -2642,6 +2790,10 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesSanitized) {
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
   EXPECT_TRUE(
       balsa_frame_.protocol_defects().multiple_spaces_in_firstline_sanitized);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 0);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 1);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_sanitized", 1);
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -2808,6 +2960,8 @@ TEST_F(HTTPBalsaFrameTest, InvalidAbsoluteFormTargetUri) {
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
   EXPECT_EQ("-pwn/index.html", balsa_frame_.headers()->request_uri());
   EXPECT_EQ("example.com", balsa_frame_.headers()->GetHeader("host"));
+  ExpectCodeCount(code_counts_, "invalid_target_uri_bad_path", 1);
+  ExpectCodeCount(code_counts_, "disallow_invalid_target_uris_enforced", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, RejectInvalidAbsoluteFormTargetUri) {
@@ -2826,6 +2980,8 @@ TEST_F(HTTPBalsaFrameTest, RejectInvalidAbsoluteFormTargetUri) {
   EXPECT_FALSE(balsa_frame_.MessageFullyRead());
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::INVALID_TARGET_URI, balsa_frame_.ErrorCode());
+  ExpectCodeCount(code_counts_, "invalid_target_uri_bad_path", 1);
+  ExpectCodeCount(code_counts_, "disallow_invalid_target_uris_enforced", 1);
 }
 
 TEST_F(HTTPBalsaFrameTest, RejectStarForNonOptions) {
@@ -2845,6 +3001,8 @@ TEST_F(HTTPBalsaFrameTest, RejectStarForNonOptions) {
   EXPECT_FALSE(balsa_frame_.MessageFullyRead());
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::INVALID_TARGET_URI, balsa_frame_.ErrorCode());
+  ExpectCodeCount(code_counts_, "invalid_target_uri_asterisk_not_options", 1);
+  ExpectCodeCount(code_counts_, "disallow_invalid_target_uris_enforced", 1);
 }
 
 TEST_F(HTTPBalsaFrameTest, AllowStarForOptions) {
@@ -2863,6 +3021,8 @@ TEST_F(HTTPBalsaFrameTest, AllowStarForOptions) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
+  ExpectCodeCount(code_counts_, "invalid_target_uri_asterisk_not_options", 0);
+  ExpectCodeCount(code_counts_, "disallow_invalid_target_uris_enforced", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, RejectConnectWithNoPort) {
@@ -2882,6 +3042,8 @@ TEST_F(HTTPBalsaFrameTest, RejectConnectWithNoPort) {
   EXPECT_FALSE(balsa_frame_.MessageFullyRead());
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::INVALID_TARGET_URI, balsa_frame_.ErrorCode());
+  ExpectCodeCount(code_counts_, "invalid_target_uri_connect_missing_port", 1);
+  ExpectCodeCount(code_counts_, "disallow_invalid_target_uris_enforced", 1);
 }
 
 TEST_F(HTTPBalsaFrameTest, RejectConnectWithInvalidPort) {
@@ -2901,6 +3063,8 @@ TEST_F(HTTPBalsaFrameTest, RejectConnectWithInvalidPort) {
   EXPECT_FALSE(balsa_frame_.MessageFullyRead());
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::INVALID_TARGET_URI, balsa_frame_.ErrorCode());
+  ExpectCodeCount(code_counts_, "invalid_target_uri_connect_bad_port", 1);
+  ExpectCodeCount(code_counts_, "disallow_invalid_target_uris_enforced", 1);
 }
 
 TEST_F(HTTPBalsaFrameTest, AllowConnectWithValidPort) {
@@ -2917,6 +3081,9 @@ TEST_F(HTTPBalsaFrameTest, AllowConnectWithValidPort) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
+  ExpectCodeCount(code_counts_, "invalid_target_uri_connect_missing_port", 0);
+  ExpectCodeCount(code_counts_, "invalid_target_uri_connect_bad_port", 0);
+  ExpectCodeCount(code_counts_, "disallow_invalid_target_uris_enforced", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -3850,6 +4017,8 @@ TEST_F(HTTPBalsaFrameTest, TwoContentLengthFirstValidSecondOverflow) {
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS,
             balsa_frame_.ErrorCode());
   EXPECT_FALSE(balsa_frame_.protocol_defects().multiple_content_length_keys);
+  ExpectCodeCount(code_counts_, "multiple_content_length_keys_detected", 0);
+  ExpectCodeCount(code_counts_, "disallow_multiple_content_length_enforced", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, TwoDifferentContentLengthHeadersIsAnError) {
@@ -3864,6 +4033,8 @@ TEST_F(HTTPBalsaFrameTest, TwoDifferentContentLengthHeadersIsAnError) {
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS,
             balsa_frame_.ErrorCode());
   EXPECT_FALSE(balsa_frame_.protocol_defects().multiple_content_length_keys);
+  ExpectCodeCount(code_counts_, "multiple_content_length_keys_detected", 0);
+  ExpectCodeCount(code_counts_, "disallow_multiple_content_length_enforced", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsNotAnError) {
@@ -3882,6 +4053,8 @@ TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsNotAnError) {
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_THAT(headers_.GetAllOfHeaderAsString("Content-Length"), "1,1");
+  ExpectCodeCount(code_counts_, "multiple_content_length_keys_detected", 1);
+  ExpectCodeCount(code_counts_, "disallow_multiple_content_length_enforced", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsAnError) {
@@ -3900,6 +4073,8 @@ TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsAnError) {
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS,
             balsa_frame_.ErrorCode());
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_content_length_keys);
+  ExpectCodeCount(code_counts_, "multiple_content_length_keys_detected", 1);
+  ExpectCodeCount(code_counts_, "disallow_multiple_content_length_enforced", 1);
 }
 
 TEST_F(HTTPBalsaFrameTest, ChunkedTransferEncodingWithContentLength) {
@@ -3920,6 +4095,14 @@ TEST_F(HTTPBalsaFrameTest, ChunkedTransferEncodingWithContentLength) {
             BalsaHeadersEnums::VALID_CONTENT_LENGTH);
   EXPECT_EQ(headers_.content_length(), 3);
   EXPECT_TRUE(headers_.transfer_encoding_is_chunked());
+  ExpectCodeCount(code_counts_, "transfer_encoding_and_content_length_detected",
+                  1);
+  ExpectCodeCount(code_counts_,
+                  "disallow_transfer_encoding_with_content_length_enforced", 0);
+  ExpectCodeCount(code_counts_,
+                  "chunked_transfer_encoding_and_content_length_detected", 1);
+  ExpectCodeCount(code_counts_,
+                  "chunked_transfer_encoding_and_content_length_sanitized", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingHeadersIsAnError) {
@@ -3935,6 +4118,9 @@ TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingHeadersIsAnError) {
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_TRANSFER_ENCODING_KEYS,
             balsa_frame_.ErrorCode());
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_transfer_encoding_keys);
+  ExpectCodeCount(code_counts_, "multiple_transfer_encoding_keys_rejected", 1);
+  ExpectCodeCount(code_counts_, "transfer_encoding_and_content_length_detected",
+                  0);
 }
 
 TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingHeaders) {
@@ -3954,6 +4140,13 @@ TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingHeaders) {
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_transfer_encoding_keys);
+  ExpectCodeCount(code_counts_, "multiple_transfer_encoding_keys_rejected", 0);
+  ExpectCodeCount(code_counts_, "transfer_encoding_and_content_length_detected",
+                  1);
+  ExpectCodeCount(code_counts_,
+                  "disallow_transfer_encoding_with_content_length_enforced", 0);
+  ExpectCodeCount(code_counts_,
+                  "chunked_transfer_encoding_and_content_length_detected", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingTokensIsAnError) {
@@ -4046,6 +4239,9 @@ TEST_F(HTTPBalsaFrameTest, MultipleTransferEncodingsWithMissingContentLength) {
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::MAYBE_BODY_BUT_NO_CONTENT_LENGTH,
             balsa_frame_.ErrorCode());
+  ExpectCodeCount(code_counts_, "multiple_transfer_encoding_keys_rejected", 0);
+  ExpectCodeCount(code_counts_, "transfer_encoding_and_content_length_detected",
+                  0);
 }
 
 class DetachOnDoneFramer : public NoOpBalsaVisitor {
@@ -4240,6 +4436,10 @@ TEST_F(HTTPBalsaFrameTest, KeyHasDoubleQuote) {
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
   EXPECT_TRUE(headers_.HasHeader("key\"hasquote"));
+  ExpectCodeCount(code_counts_, "header_name_contains_double_quote_detected",
+                  1);
+  ExpectCodeCount(code_counts_, "disallow_double_quote_in_header_name_enforced",
+                  0);
 }
 
 TEST_F(HTTPBalsaFrameTest, KeyHasDisallowedDoubleQuote) {
@@ -4256,6 +4456,10 @@ TEST_F(HTTPBalsaFrameTest, KeyHasDisallowedDoubleQuote) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER,
             balsa_frame_.ErrorCode());
+  ExpectCodeCount(code_counts_, "header_name_contains_double_quote_detected",
+                  1);
+  ExpectCodeCount(code_counts_, "disallow_double_quote_in_header_name_enforced",
+                  1);
 }
 
 // Missing colon is a warning, not an error.
@@ -4290,6 +4494,8 @@ TEST_F(HTTPBalsaFrameTest, TrailerMissingColon) {
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::TRAILER_MISSING_COLON, balsa_frame_.ErrorCode());
+  ExpectCodeCount(code_counts_, "header_missing_colon_detected", 1);
+  ExpectCodeCount(code_counts_, "require_header_colon_enforced", 0);
 }
 
 // This tests multiple headers in trailer. We currently do not and have no plan
@@ -5132,6 +5338,9 @@ TEST_F(HTTPBalsaFrameTest, ContinuationAllowed) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_TRUE(balsa_frame_.protocol_defects().obs_fold_in_header_values);
+  ExpectCodeCount(code_counts_, "obs_fold_in_header_values_detected", 3);
+  ExpectCodeCount(code_counts_, "disallow_header_continuation_lines_enforced",
+                  0);
 }
 
 // A.k.a., ObsFoldDisallowed.
@@ -5148,6 +5357,9 @@ TEST_F(HTTPBalsaFrameTest, ContinuationDisallowed) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::INVALID_HEADER_FORMAT, balsa_frame_.ErrorCode());
+  ExpectCodeCount(code_counts_, "disallow_header_continuation_lines_enforced",
+                  1);
+  ExpectCodeCount(code_counts_, "obs_fold_in_header_values_detected", 0);
 }
 
 // Tests that continuation lines are sanitized according to RFC7230 Section
@@ -5190,6 +5402,12 @@ TEST_F(HTTPBalsaFrameTest, ContinuationLinesSanitized) {
   EXPECT_TRUE(balsa_frame_.protocol_defects().obs_fold_in_header_values);
   EXPECT_TRUE(
       balsa_frame_.protocol_defects().obs_fold_in_header_values_sanitized);
+  ExpectCodeCount(code_counts_, "obs_fold_in_header_values_detected", 8);
+  ExpectCodeCount(code_counts_, "disallow_header_continuation_lines_enforced",
+                  0);
+  ExpectCodeCount(code_counts_, "sanitize_obs_fold_in_header_values_enforced",
+                  9);
+  ExpectCodeCount(code_counts_, "obs_fold_in_header_values_sanitized", 8);
 }
 
 TEST_F(HTTPBalsaFrameTest, NullAtBeginningOrEndOfValue) {
@@ -5260,6 +5478,8 @@ TEST_F(HTTPBalsaFrameTest, ObsTextNotFoundIfNotPresent) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_FALSE(balsa_frame_.protocol_defects().obs_text_found_in_header_name);
+  ExpectCodeCount(code_counts_, "obs_text_found_in_header_name_detected", 0);
+  ExpectCodeCount(code_counts_, "disallow_obs_text_in_field_names_enforced", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextButPolicyDisabled) {
@@ -5283,6 +5503,8 @@ TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextButPolicyDisabled) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_TRUE(balsa_frame_.protocol_defects().obs_text_found_in_header_name);
+  ExpectCodeCount(code_counts_, "obs_text_found_in_header_name_detected", 1);
+  ExpectCodeCount(code_counts_, "disallow_obs_text_in_field_names_enforced", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextAndPolicyEnabled) {
@@ -5304,6 +5526,8 @@ TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextAndPolicyEnabled) {
   EXPECT_EQ(message.size(),
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_TRUE(balsa_frame_.Error());
+  ExpectCodeCount(code_counts_, "obs_text_found_in_header_name_detected", 1);
+  ExpectCodeCount(code_counts_, "disallow_obs_text_in_field_names_enforced", 1);
 }
 
 TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextAtEndRejected) {
@@ -5322,6 +5546,8 @@ TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextAtEndRejected) {
   EXPECT_EQ(message.size(),
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_TRUE(balsa_frame_.Error());
+  ExpectCodeCount(code_counts_, "obs_text_found_in_header_name_detected", 1);
+  ExpectCodeCount(code_counts_, "disallow_obs_text_in_field_names_enforced", 1);
 }
 
 TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextInMiddleRejected) {
@@ -5340,6 +5566,8 @@ TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextInMiddleRejected) {
   EXPECT_EQ(message.size(),
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_TRUE(balsa_frame_.Error());
+  ExpectCodeCount(code_counts_, "obs_text_found_in_header_name_detected", 1);
+  ExpectCodeCount(code_counts_, "disallow_obs_text_in_field_names_enforced", 1);
 }
 
 // This case is specifically allowed by RFC 9112 Section 4.
@@ -5367,6 +5595,8 @@ TEST_F(HTTPBalsaFrameTest, ObsTextInReasonPhraseAllowed) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  ExpectCodeCount(code_counts_, "obs_text_found_in_header_name_detected", 0);
+  ExpectCodeCount(code_counts_, "disallow_obs_text_in_field_names_enforced", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, MoreChunkExtensions) {
@@ -5376,6 +5606,10 @@ TEST_F(HTTPBalsaFrameTest, MoreChunkExtensions) {
     std::vector<absl::string_view> expected_chunk_extensions;
     HttpValidationPolicy policy;
     BalsaFrameEnums::ErrorCode expected_error;
+    // Expected code counts when `require_semicolon_delimited_chunk_extension`
+    // is not set (the defect is only recorded when it is not enforced).
+    bool expected_missing_semicolon = false;
+    bool expected_token_before_semicolon = false;
   };
 
   HttpValidationPolicy strict_chunks_policy;
@@ -5432,7 +5666,9 @@ TEST_F(HTTPBalsaFrameTest, MoreChunkExtensions) {
        {1, 1, 0},
        {";ext1", ";ext2", " ext3"},
        strict_chunks_policy,
-       BalsaFrameEnums::BALSA_NO_ERROR},
+       BalsaFrameEnums::BALSA_NO_ERROR,
+       /*expected_missing_semicolon=*/true,
+       /*expected_token_before_semicolon=*/false},
 
       // Trailing WS before semicolon
       {"1 \t;ext\r\n"  // BWS before semicolon is valid
@@ -5452,7 +5688,9 @@ TEST_F(HTTPBalsaFrameTest, MoreChunkExtensions) {
        {1, 0},
        {" \tnon-bws;ext", ""},
        strict_chunks_policy,
-       BalsaFrameEnums::BALSA_NO_ERROR},
+       BalsaFrameEnums::BALSA_NO_ERROR,
+       /*expected_missing_semicolon=*/false,
+       /*expected_token_before_semicolon=*/true},
 
       // Non BWS before semicolon
       {"1 \tnon-bws;ext\r\n"
@@ -5482,7 +5720,9 @@ TEST_F(HTTPBalsaFrameTest, MoreChunkExtensions) {
        {1, 0},
        {" \t ", ""},
        strict_chunks_policy,
-       BalsaFrameEnums::BALSA_NO_ERROR},
+       BalsaFrameEnums::BALSA_NO_ERROR,
+       /*expected_missing_semicolon=*/true,
+       /*expected_token_before_semicolon=*/false},
 
       // Trailing BWS after semicolon
       {"1; \t ext\r\n"
@@ -5522,7 +5762,9 @@ TEST_F(HTTPBalsaFrameTest, MoreChunkExtensions) {
        {10, 0},
        {";", ""},
        strict_chunks_policy,
-       BalsaFrameEnums::BALSA_NO_ERROR},
+       BalsaFrameEnums::BALSA_NO_ERROR,
+       /*expected_missing_semicolon=*/true,
+       /*expected_token_before_semicolon=*/false},
 
       // Bare semicolon is invalid under strict chunk and ext validation
       {"A;\r\n"
@@ -5575,6 +5817,21 @@ TEST_F(HTTPBalsaFrameTest, MoreChunkExtensions) {
       EXPECT_TRUE(balsa_frame.MessageFullyRead());
       EXPECT_FALSE(balsa_frame.Error());
     }
+    // INVALID_CHUNK_EXTENSION is only expected in cases where
+    // `require_semicolon_delimited_chunk_extension` is enforced.
+    ExpectCodeCount(
+        code_counts_, "require_semicolon_delimited_chunk_extension_enforced",
+        test.expected_error == BalsaFrameEnums::INVALID_CHUNK_EXTENSION ? 1
+                                                                        : 0);
+    ExpectCodeCount(code_counts_,
+                    "missing_semicolon_in_chunk_extension_detected",
+                    test.expected_missing_semicolon ? 1 : 0);
+    ExpectCodeCount(code_counts_,
+                    "token_before_semicolon_in_chunk_extension_detected",
+                    test.expected_token_before_semicolon ? 1 : 0);
+    ExpectCodeCount(code_counts_, "stray_data_after_chunk_detected", 0);
+    ExpectCodeCount(code_counts_,
+                    "chunked_body_does_not_end_with_crlf_crlf_detected", 0);
 
     Mock::VerifyAndClearExpectations(&visitor_mock);
   }
@@ -5621,6 +5878,23 @@ TEST_F(HTTPBalsaFrameTest, MostRestrictiveTest) {
   EXPECT_TRUE(balsa_frame.MessageFullyRead());
   EXPECT_FALSE(balsa_frame.Error());
   EXPECT_EQ(balsa_frame.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
+  // The first line contains tabs and (after sanitization) multiple spaces,
+  // both of which are sanitized by the most strict policy.
+  ExpectCodeCount(code_counts_, "tab_or_cr_found_in_firstline_detected", 1);
+  ExpectCodeCount(code_counts_, "sanitize_cr_tab_in_first_line_sanitized", 1);
+  ExpectCodeCount(code_counts_, "tab_or_cr_found_in_firstline_sanitized", 1);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
+  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 1);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_sanitized", 1);
+  // All chunk extensions are well-formed.
+  ExpectCodeCount(code_counts_,
+                  "require_semicolon_delimited_chunk_extension_enforced", 0);
+  ExpectCodeCount(code_counts_, "invalid_chunk_extension_character_detected",
+                  0);
+  ExpectCodeCount(code_counts_,
+                  "chunk_extension_quotes_contain_line_endings_detected", 0);
+  ExpectCodeCount(code_counts_,
+                  "chunked_body_does_not_end_with_crlf_crlf_detected", 0);
 }
 
 }  // namespace
