@@ -926,6 +926,7 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
     }
     if (absl::EqualsIgnoreCase(key, kTransferEncoding)) {
       if (transfer_encoding_idx != 0) {
+        QUICHE_CODE_COUNT(balsa_multiple_transfer_encoding_detected);
         protocol_defects_.multiple_transfer_encoding_keys = true;
         if (http_validation_policy().validate_transfer_encoding) {
           QUICHE_CODE_COUNT(multiple_transfer_encoding_keys_rejected);
