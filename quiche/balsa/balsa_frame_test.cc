@@ -928,8 +928,6 @@ TEST(HTTPBalsaFrame, RequestLineSanitizedProperly) {
         code_counts, "sanitize_cr_tab_in_first_line_rejected",
         tc.expected_error == BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE ? 1
                                                                          : 0);
-    ExpectCodeCount(code_counts, "sanitize_cr_tab_in_first_line_sanitized",
-                    tc.tab_or_cr_sanitized ? 1 : 0);
     ExpectCodeCount(code_counts, "tab_or_cr_found_in_firstline_sanitized",
                     tc.tab_or_cr_sanitized ? 1 : 0);
   }
@@ -1190,8 +1188,6 @@ TEST(HTTPBalsaFrame, StatusLineSanitizedProperly) {
     ExpectCodeCount(
         code_counts, "sanitize_cr_tab_in_first_line_rejected",
         expected_error == BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE ? 1 : 0);
-    ExpectCodeCount(code_counts, "sanitize_cr_tab_in_first_line_sanitized",
-                    sanitized ? 1 : 0);
     ExpectCodeCount(code_counts, "tab_or_cr_found_in_firstline_sanitized",
                     sanitized ? 1 : 0);
   }
@@ -1406,8 +1402,7 @@ void WhitespaceHeaderTestHelper(
   ExpectCodeCount(
       code_counts, "obs_fold_in_header_values_detected",
       expected_error_code == BalsaFrameEnums::OBS_FOLD_IN_HEADERS ? 1 : 0);
-  ExpectCodeCount(code_counts, "sanitize_obs_fold_in_header_values_enforced",
-                  0);
+  ExpectCodeCount(code_counts, "obs_fold_in_header_values_sanitized", 0);
   ExpectCodeCount(code_counts, "disallow_header_continuation_lines_enforced",
                   0);
 }
@@ -2667,7 +2662,7 @@ TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesAllowed) {
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
   ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
   ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 0);
-  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 0);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_sanitized", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesRejected) {
@@ -2689,7 +2684,7 @@ TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesRejected) {
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
   ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
   ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 1);
-  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 0);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_sanitized", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesSanitized) {
@@ -2716,7 +2711,6 @@ TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesSanitized) {
       balsa_frame_.protocol_defects().multiple_spaces_in_firstline_sanitized);
   ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
   ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 0);
-  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 1);
   ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_sanitized", 1);
 }
 
@@ -2741,7 +2735,7 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesAllowed) {
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
   ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
   ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 0);
-  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 0);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_sanitized", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesRejected) {
@@ -2764,7 +2758,7 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesRejected) {
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
   ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
   ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 1);
-  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 0);
+  ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_sanitized", 0);
 }
 
 TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesSanitized) {
@@ -2792,7 +2786,6 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesSanitized) {
       balsa_frame_.protocol_defects().multiple_spaces_in_firstline_sanitized);
   ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
   ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_rejected", 0);
-  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 1);
   ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_sanitized", 1);
 }
 
@@ -5445,8 +5438,6 @@ TEST_F(HTTPBalsaFrameTest, ContinuationLinesSanitized) {
   ExpectCodeCount(code_counts_, "obs_fold_in_header_values_detected", 8);
   ExpectCodeCount(code_counts_, "disallow_header_continuation_lines_enforced",
                   0);
-  ExpectCodeCount(code_counts_, "sanitize_obs_fold_in_header_values_enforced",
-                  9);
   ExpectCodeCount(code_counts_, "obs_fold_in_header_values_sanitized", 8);
 }
 
@@ -5921,10 +5912,8 @@ TEST_F(HTTPBalsaFrameTest, MostRestrictiveTest) {
   // The first line contains tabs and (after sanitization) multiple spaces,
   // both of which are sanitized by the most strict policy.
   ExpectCodeCount(code_counts_, "tab_or_cr_found_in_firstline_detected", 1);
-  ExpectCodeCount(code_counts_, "sanitize_cr_tab_in_first_line_sanitized", 1);
   ExpectCodeCount(code_counts_, "tab_or_cr_found_in_firstline_sanitized", 1);
   ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_detected", 1);
-  ExpectCodeCount(code_counts_, "sanitize_firstline_spaces_sanitized", 1);
   ExpectCodeCount(code_counts_, "multiple_spaces_in_firstline_sanitized", 1);
   // All chunk extensions are well-formed.
   ExpectCodeCount(code_counts_,

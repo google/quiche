@@ -187,7 +187,6 @@ bool ParseHTTPFirstLine(char*& begin, char* end, bool is_request,
         return false;
       }
       QUICHE_DCHECK(whitespace_option == FirstLineValidationOption::SANITIZE);
-      QUICHE_CODE_COUNT(sanitize_cr_tab_in_first_line_sanitized);
       std::replace_if(
           pos, end, [](char c) { return c == '\r' || c == '\t'; }, ' ');
       cr_tab_sanitized = true;
@@ -281,7 +280,6 @@ bool ParseHTTPFirstLine(char*& begin, char* end, bool is_request,
         begin + headers->non_whitespace_3_idx_,
         headers->whitespace_4_idx_ - headers->non_whitespace_3_idx_);
 
-    QUICHE_CODE_COUNT(sanitize_firstline_spaces_sanitized);
     headers->SetRequestFirstlineFromStringPieces(part1, part2, part3);
     begin = headers->BeginningOfFirstLine();
     multiple_spaces_sanitized = true;
@@ -588,7 +586,6 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
         protocol_defects_.obs_fold_in_header_values = true;
       }
       if (http_validation_policy().sanitize_obs_fold_in_header_values) {
-        QUICHE_CODE_COUNT(sanitize_obs_fold_in_header_values_enforced);
         *has_continuation_lines = true;
         header_has_continuation_line = true;
         if (is_trailer) {
@@ -856,7 +853,6 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
   }
   if (http_validation_policy().sanitize_obs_fold_in_header_values &&
       has_continuation_lines) {
-    QUICHE_CODE_COUNT(sanitize_obs_fold_in_header_values_enforced);
     headers->FoldContinuationLines();
   }
   // At this point, we've parsed all of the headers/trailers.  Time to look
