@@ -353,6 +353,14 @@ class QUICHE_EXPORT Dictionary {
   Dictionary() noexcept;
   Dictionary(const Dictionary&);
   Dictionary(Dictionary&&) noexcept;
+  // NOTE(b/580863224): |members| should not contain duplicate keys. This
+  // constructor currently stores |members| without deduplicating, causing
+  // key-based accessors (find(), at(), operator[]) to return the first entry
+  // for a duplicate key while SerializeDictionary() emits all entries (which
+  // resolves to the last entry when re-parsed per RFC 8941 Section 4.2.2).
+  // Use operator[](absl::string_view) when duplicate keys need to overwrite
+  // earlier values or when you cannot statically guarantee that the keys are
+  // unique.
   explicit Dictionary(std::vector<DictionaryMember> members) noexcept;
   ~Dictionary();
   Dictionary& operator=(const Dictionary&);
