@@ -16,6 +16,7 @@
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/quiche_callbacks.h"
 
 #ifndef UDP_GRO
 #define UDP_GRO 104
@@ -37,9 +38,15 @@ enum class QuicUdpPacketInfoBit : uint8_t {
   TTL,                   // Read & Write
   ECN,                   // Read
   GOOGLE_PACKET_HEADER,  // Read
-  IS_GRO,                // Read
-  V6_FLOW_LABEL,         // Read & Write
-  TOS,                   // Read
+  // Note: When IS_GRO is set, each ReadPacketResult returned from ReadPacket /
+  // ReadMultiplePackets may contain a train of GRO coalesced packets. Consumers
+  // must check and possibly segment these trains into individual packets.
+  // ReadPacketResults must be large enough to accommodate a full GRO train, or
+  // risk data loss due to MSG_TRUNC.
+  // See ForEachGroSegment.
+  IS_GRO,         // Read
+  V6_FLOW_LABEL,  // Read & Write
+  TOS,            // Read
 
   // Must be the last value.
   NUM_BITS
@@ -88,7 +95,7 @@ class QUICHE_EXPORT QuicUdpPacketInfo {
     bitmask_.Set(QuicUdpPacketInfoBit::IS_GRO);
   }
 
-  size_t gso_size() { return gso_size_; }
+  size_t gso_size() const { return gso_size_; }
 
   const QuicIpAddress& self_v4_ip() const {
     QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::V4_SELF_IP));
@@ -284,6 +291,21 @@ class QUICHE_EXPORT QuicUdpSocketApi {
   size_t ReadMultiplePackets(QuicUdpSocketFd fd,
                              QuicUdpPacketInfoBitMask packet_info_interested,
                              ReadPacketResults* results);
+
+  // Slices a single datagram read result (which may be a coalesced UDP GRO
+  // train when `QuicUdpPacketInfoBit::IS_GRO` is set) into individual packet
+  // segments and invokes `packet_sink` on each segment in order.
+  //
+  // If `IS_GRO` is not set on `result.packet_info`, invokes `packet_sink` once
+  // on `result` directly. Returns the number of segments dispatched (0 if
+  // `!result.ok` or if `gso_size` is invalid).
+  //
+  // !!NOTE!! Dispatching GRO trains may result in unaligned packet buffers
+  // e.g., if gso_size is an odd value. `packet_sink` and any downstream code
+  // must be prepared for the ReadPacketResult buffer to be unaligned.
+  size_t ForEachGroSegment(
+      const ReadPacketResult& result,
+      quiche::UnretainedCallback<void(const ReadPacketResult&)> packet_sink);
 
   // Write a packet to |fd|.
   // packet_buffer, packet_buffer_len:  The packet buffer to write.

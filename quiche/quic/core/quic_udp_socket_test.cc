@@ -7,10 +7,14 @@
 #include <netinet/in.h>
 #include <stdint.h>
 
+#include <string>
+#include <vector>
+
 #include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/common/quiche_ip_address.h"
@@ -154,6 +158,101 @@ TEST_F(QuicUdpSocketTest, FlowLabel) {
   EXPECT_FALSE(
       read_result.packet_info.HasValue(QuicUdpPacketInfoBit::V6_FLOW_LABEL));
 #endif
+}
+
+TEST_F(QuicUdpSocketTest, ForEachGroSegmentNonGroPacket) {
+  QuicUdpSocketApi socket_api;
+  std::string payload = "hello";
+  QuicUdpSocketApi::ReadPacketResult result;
+  result.ok = true;
+  result.packet_buffer = {payload.data(), payload.size()};
+
+  std::vector<std::string> segments;
+  size_t count = socket_api.ForEachGroSegment(
+      result, [&](const QuicUdpSocketApi::ReadPacketResult& slice) {
+        EXPECT_FALSE(slice.packet_info.HasValue(QuicUdpPacketInfoBit::IS_GRO));
+        segments.emplace_back(slice.packet_buffer.buffer,
+                              slice.packet_buffer.buffer_len);
+      });
+  EXPECT_EQ(count, 1u);
+  EXPECT_THAT(segments, ::testing::ElementsAre("hello"));
+}
+
+TEST_F(QuicUdpSocketTest, ForEachGroSegmentSlicesExactMultipleTrain) {
+  QuicUdpSocketApi socket_api;
+  std::string payload = "aaaaabbbbbccccc";
+  QuicUdpSocketApi::ReadPacketResult result;
+  result.ok = true;
+  result.packet_buffer = {payload.data(), payload.size()};
+  result.packet_info.set_gso_size(5);
+
+  std::vector<std::string> segments;
+  size_t count = socket_api.ForEachGroSegment(
+      result, [&](const QuicUdpSocketApi::ReadPacketResult& slice) {
+        EXPECT_TRUE(slice.packet_info.HasValue(QuicUdpPacketInfoBit::IS_GRO));
+        EXPECT_EQ(slice.packet_info.gso_size(), 5u);
+        segments.emplace_back(slice.packet_buffer.buffer,
+                              slice.packet_buffer.buffer_len);
+      });
+  EXPECT_EQ(count, 3u);
+  EXPECT_THAT(segments, ::testing::ElementsAre("aaaaa", "bbbbb", "ccccc"));
+}
+
+TEST_F(QuicUdpSocketTest, ForEachGroSegmentSlicesTrainWithTrailingSmallPacket) {
+  QuicUdpSocketApi socket_api;
+  std::string payload = "aaaaabbbbbcccccdd";
+  QuicUdpSocketApi::ReadPacketResult result;
+  result.ok = true;
+  result.packet_buffer = {payload.data(), payload.size()};
+  result.packet_info.set_gso_size(5);
+
+  std::vector<std::string> segments;
+  size_t count = socket_api.ForEachGroSegment(
+      result, [&](const QuicUdpSocketApi::ReadPacketResult& slice) {
+        EXPECT_TRUE(slice.packet_info.HasValue(QuicUdpPacketInfoBit::IS_GRO));
+        EXPECT_EQ(slice.packet_info.gso_size(), 5u);
+        segments.emplace_back(slice.packet_buffer.buffer,
+                              slice.packet_buffer.buffer_len);
+      });
+  EXPECT_EQ(count, 4u);
+  EXPECT_THAT(segments,
+              ::testing::ElementsAre("aaaaa", "bbbbb", "ccccc", "dd"));
+}
+
+TEST_F(QuicUdpSocketTest, ForEachGroSegmentZeroGsoSize) {
+  QuicUdpSocketApi socket_api;
+  std::string payload = "aaaaabbbbb";
+  QuicUdpSocketApi::ReadPacketResult result;
+  result.ok = true;
+  result.packet_buffer = {payload.data(), payload.size()};
+  result.packet_info.set_gso_size(0);
+
+  bool called = false;
+  size_t count = 0;
+  EXPECT_QUIC_BUG(count = socket_api.ForEachGroSegment(
+                      result,
+                      [&](const QuicUdpSocketApi::ReadPacketResult& /*slice*/) {
+                        called = true;
+                      }),
+                  "Invalid gso size of zero.");
+  EXPECT_EQ(count, 0u);
+  EXPECT_FALSE(called);
+}
+
+TEST_F(QuicUdpSocketTest, ForEachGroSegmentSkipsFailedResult) {
+  QuicUdpSocketApi socket_api;
+  std::string payload = "hello";
+  QuicUdpSocketApi::ReadPacketResult result;
+  result.ok = false;
+  result.packet_buffer = {payload.data(), payload.size()};
+
+  bool called = false;
+  size_t count = socket_api.ForEachGroSegment(
+      result, [&](const QuicUdpSocketApi::ReadPacketResult& /*slice*/) {
+        called = true;
+      });
+  EXPECT_EQ(count, 0u);
+  EXPECT_FALSE(called);
 }
 
 }  // namespace

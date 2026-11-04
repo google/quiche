@@ -9,12 +9,15 @@
 
 #include "quiche/quic/core/quic_udp_socket.h"
 
+#include <algorithm>
 #include <string>
 
 #include "absl/base/optimization.h"
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/quiche_callbacks.h"
 
 // Common cmsg-related functions are defined below.
 // Windows and POSIX cmsg formats are actually fairly similar, except the
@@ -203,6 +206,50 @@ bool QuicUdpSocketApi::EnableReceiveTtlForV6(QuicUdpSocketFd fd) {
   (void)fd;
   return false;
 #endif
+}
+
+size_t QuicUdpSocketApi::ForEachGroSegment(
+    const ReadPacketResult& result,
+    quiche::UnretainedCallback<void(const ReadPacketResult&)> packet_sink) {
+  if (!result.ok) {
+    return 0;
+  }
+  if (!result.packet_info.HasValue(QuicUdpPacketInfoBit::IS_GRO)) {
+    QUIC_DVLOG(3) << "Dispatching non-coalesced packet with size: "
+                  << result.packet_buffer.buffer_len;
+    packet_sink(result);
+    return 1;
+  }
+
+  const size_t gso_total_size = result.packet_buffer.buffer_len;
+  const size_t gso_size = result.packet_info.gso_size();
+  QUIC_DVLOG(2) << "Read GRO train with total size: " << gso_total_size
+                << " and gso size: " << gso_size;
+  if (gso_size == 0) {
+    QUIC_BUG(quic_udp_socket_zero_gso_size) << "Invalid gso size of zero.";
+    return 0;
+  }
+
+  // Slice the coalesced UDP GRO train into individual segments. All segments
+  // are `gso_size` bytes, except the trailing segment which may be smaller.
+  ReadPacketResult gro_slice = result;
+  size_t num_segments = 0;
+  size_t bytes_processed = 0;
+  while (bytes_processed < gso_total_size) {
+    gro_slice.packet_buffer.buffer =
+        result.packet_buffer.buffer + bytes_processed;
+    gro_slice.packet_buffer.buffer_len =
+        std::min(gso_size, gso_total_size - bytes_processed);
+    QUIC_DVLOG(3) << "Dispatching GRO segment #" << num_segments
+                  << " with size: " << gro_slice.packet_buffer.buffer_len;
+    packet_sink(gro_slice);
+    bytes_processed += gro_slice.packet_buffer.buffer_len;
+    ++num_segments;
+  }
+
+  QUIC_DVLOG(2) << "Dispatched " << num_segments
+                << " GRO segments with total size: " << bytes_processed;
+  return num_segments;
 }
 
 }  // namespace quic
