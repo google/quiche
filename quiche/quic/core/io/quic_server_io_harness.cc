@@ -34,10 +34,7 @@ absl::StatusOr<OwnedSocketFd> CreateAndBindServerSocket(
     return absl::InternalError("Failed to create socket");
   }
 
-  bool success = QuicUdpSocketApi().Bind(*fd, bind_address);
-  if (!success) {
-    return socket_api::GetSocketError(*fd);
-  }
+  QUICHE_RETURN_IF_ERROR(socket_api::Bind(*fd, bind_address));
 
   return fd;
 }

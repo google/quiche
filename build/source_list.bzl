@@ -1439,6 +1439,7 @@ io_tests_srcs = [
     "quic/core/io/event_loop_connecting_client_socket_test.cc",
     "quic/core/io/quic_all_event_loops_test.cc",
     "quic/core/io/quic_poll_event_loop_test.cc",
+    "quic/core/io/quic_server_io_harness_test.cc",
     "quic/core/io/socket_test.cc",
     "quic/core/quic_udp_socket_test.cc",
     "quic/tools/quic_default_client_test.cc",
