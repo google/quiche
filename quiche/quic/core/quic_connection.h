@@ -1544,6 +1544,14 @@ class QUICHE_EXPORT QuicConnection
     return framer_.process_reset_stream_at();
   }
 
+  // Enables parsing of ACK_RECEIVE_TIMESTAMPS frames if `max_timestamps > 0`.
+  // Assumes that the supplied values are valid.
+  void EnableIncomingReceiveTimestamps(uint32_t max_timestamps,
+                                       uint32_t exponent = 0);
+  // Enables generating ACK_RECEIVE_TIMESTAMPS frames  if `max_timestamps > 0`.
+  void EnableOutgoingReceiveTimestamps(uint32_t max_timestamps,
+                                       uint32_t exponent = 0);
+
   // Returns true if the spin bit should be enabled per the RFC 9000 spin
   // participation guidance.
   bool ShouldEnableSpinBit() const;

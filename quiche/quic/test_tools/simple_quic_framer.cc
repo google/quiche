@@ -116,8 +116,11 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  bool OnAckTimestamp(QuicPacketNumber /*packet_number*/,
-                      QuicReceiveTime /*timestamp*/) override {
+  bool OnAckTimestamp(QuicPacketNumber packet_number,
+                      QuicReceiveTime timestamp) override {
+    QUICHE_DCHECK(!ack_frames_.empty());
+    ack_frames_.back().received_packet_times.push_back(
+        {packet_number, timestamp});
     return true;
   }
 

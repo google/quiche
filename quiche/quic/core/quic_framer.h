@@ -323,24 +323,21 @@ class QUICHE_EXPORT QuicFramer {
 
   QuicErrorCode error() const { return error_; }
 
-  // TODO(b/132632465): Remove the const in timestamp-related setters once
-  // timestamps are negotiated via transport params.
-
   // Sets the max number of receive timestamps to parse per ACK frame.
-  void set_local_max_receive_timestamps_per_ack(uint32_t max_timestamps) const {
+  void set_local_max_receive_timestamps_per_ack(uint32_t max_timestamps) {
     local_max_receive_timestamps_per_ack_ = max_timestamps;
   }
   // Sets the max number of receive timestamps to send per ACK frame.
-  void set_peer_max_receive_timestamps_per_ack(uint32_t max_timestamps) const {
+  void set_peer_max_receive_timestamps_per_ack(uint32_t max_timestamps) {
     peer_max_receive_timestamps_per_ack_ = max_timestamps;
   }
 
   // Sets the exponent to use when reading ACK receive timestamps.
-  void set_local_receive_timestamps_exponent(uint32_t exponent) const {
+  void set_local_receive_timestamps_exponent(uint32_t exponent) {
     local_receive_timestamps_exponent_ = exponent;
   }
   // Sets the exponent to use when writing ACK receive timestamps.
-  void set_peer_receive_timestamps_exponent(uint32_t exponent) const {
+  void set_peer_receive_timestamps_exponent(uint32_t exponent) {
     peer_receive_timestamps_exponent_ = exponent;
   }
 
@@ -1151,13 +1148,13 @@ class QUICHE_EXPORT QuicFramer {
   // The diversification nonce from the last received packet.
   DiversificationNonce last_nonce_;
   // The max number of receive timestamps to send per ACK frame.
-  mutable uint32_t peer_max_receive_timestamps_per_ack_;
+  uint32_t peer_max_receive_timestamps_per_ack_;
   // The max number of receive timestamps to allow in an incoming ACK frame.
-  mutable uint32_t local_max_receive_timestamps_per_ack_;
+  uint32_t local_max_receive_timestamps_per_ack_;
   // The exponent to use when writing ACK receive timestamps.
-  mutable uint32_t peer_receive_timestamps_exponent_;
+  uint32_t peer_receive_timestamps_exponent_;
   // The exponent to use when reading ACK receive timestamps.
-  mutable uint32_t local_receive_timestamps_exponent_;
+  uint32_t local_receive_timestamps_exponent_;
   // If true, process ACK_FREQUENCY and IMMEDIATE_ACK frames.
   bool process_ack_frequency_;
   // If true, process RESET_STREAM_AT frames.

@@ -1789,16 +1789,14 @@ TEST_P(EndToEndTest, ReceiveTimestampsStats) {
 
   QuicConnection* client_connection = GetClientConnection();
   ASSERT_NE(client_connection, nullptr);
-  client_connection->framer().set_local_max_receive_timestamps_per_ack(1024);
-  client_connection->received_packet_manager().set_save_timestamps(true);
-  client_connection->framer().set_peer_max_receive_timestamps_per_ack(1024);
+  client_connection->EnableIncomingReceiveTimestamps(1024);
+  client_connection->EnableOutgoingReceiveTimestamps(1024);
 
   server_thread_->Pause();
   QuicConnection* server_connection = GetServerConnection();
   if (server_connection != nullptr) {
-    server_connection->framer().set_local_max_receive_timestamps_per_ack(1024);
-    server_connection->received_packet_manager().set_save_timestamps(true);
-    server_connection->framer().set_peer_max_receive_timestamps_per_ack(1024);
+    server_connection->EnableIncomingReceiveTimestamps(1024);
+    server_connection->EnableOutgoingReceiveTimestamps(1024);
   } else {
     ADD_FAILURE() << "Missing server connection";
   }

@@ -6397,6 +6397,52 @@ bool QuicConnection::SupportsMultiplePacketNumberSpaces() const {
   return sent_packet_manager_.supports_multiple_packet_number_spaces();
 }
 
+void QuicConnection::EnableIncomingReceiveTimestamps(uint32_t max_timestamps,
+                                                     uint32_t exponent) {
+  if (max_timestamps == 0) {
+    return;
+  }
+  if (!version().IsIetfQuic()) {
+    QUIC_BUG(incoming_receive_timestamps_with_gquic)
+        << "Trying to enable QUIC receive timestamps for non-IETF QUIC";
+    return;
+  }
+  // `exponent` here is the value we are asking the peer to use; log an error if
+  // that value is too high, but still pass it downstream (since we have already
+  // sent it to peer).
+  QUIC_BUG_IF(receive_ts_exponent_too_high,
+              exponent > kMaxReceiveTimestampsUsefulExponent)
+      << "Trying to configure QUIC Receive Timestamps with worse than "
+         "millisecond precision; this is likely to cause issues with "
+         "congestion control.";
+
+  framer_.set_local_max_receive_timestamps_per_ack(max_timestamps);
+  framer_.set_local_receive_timestamps_exponent(exponent);
+}
+
+void QuicConnection::EnableOutgoingReceiveTimestamps(uint32_t max_timestamps,
+                                                     uint32_t exponent) {
+  if (max_timestamps == 0) {
+    return;
+  }
+  if (!version().IsIetfQuic()) {
+    QUIC_BUG(outgoing_receive_timestamps_with_gquic)
+        << "Trying to enable QUIC receive timestamps for non-IETF QUIC";
+    return;
+  }
+  if (exponent > kMaxReceiveTimestampsExponent) {
+    QUIC_BUG(outgoing_receive_timestamps_with_bad_exponent)
+        << "Trying to enable sending receive timestamps with an invalid "
+           "exponent";
+    return;
+  }
+  max_timestamps = std::min(max_timestamps, kMaxReceiveTimestampsToSend);
+
+  uber_received_packet_manager_.set_save_timestamps(true);
+  framer_.set_peer_max_receive_timestamps_per_ack(max_timestamps);
+  framer_.set_peer_receive_timestamps_exponent(exponent);
+}
+
 void QuicConnection::SetLargestReceivedPacketWithAck(
     QuicPacketNumber new_value) {
   if (SupportsMultiplePacketNumberSpaces()) {

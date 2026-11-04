@@ -339,6 +339,20 @@ inline constexpr size_t kMaxDuplicatedPacketsSentToServerPreferredAddress = 5;
 // Explicit Congestion Notification is the last two bits of the TOS byte.
 constexpr uint8_t kEcnMask = 0x03;
 
+// The maximum number of receive timestamps we are ever willing to send in a
+// single ACK.  This limit is enforced in addition to the peer-specified limit.
+inline constexpr uint32_t kMaxReceiveTimestampsToSend = 32;
+
+// The largest value of the receive timestamp exponent allowed by the
+// specification.
+inline constexpr uint32_t kMaxReceiveTimestampsExponent = 20;
+
+// The largest value of the receive timestamp exponent that is useful for QUICHE
+// congestion control.  QUIC_BUG will occur is a higher value is configured.
+// Only applied to the local values, not the one from the peer.
+inline constexpr uint32_t kMaxReceiveTimestampsUsefulExponent =
+    10;  // 2^10 us ≈ 1ms
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_CONSTANTS_H_

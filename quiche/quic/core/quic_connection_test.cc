@@ -20136,6 +20136,350 @@ TEST_P(QuicConnectionTest, SendAcksAfterOnCanWriteBundlesAckWithCryptoData) {
   EXPECT_GE(writer_->crypto_frames().size(), 1u);
 }
 
+TEST_P(QuicConnectionTest,
+       EnableOutgoingReceiveTimestampsSerializesWithExponent) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.EnableOutgoingReceiveTimestamps(/*max_timestamps=*/16,
+                                              /*exponent=*/6);
+  writer_->framer()->framer()->set_local_max_receive_timestamps_per_ack(16);
+  writer_->framer()->framer()->set_local_receive_timestamps_exponent(6);
+
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(2);
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(100));
+  ProcessDataPacket(1);
+  clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(150));
+  ProcessDataPacket(2);
+
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  const QuicAckFrame& ack = writer_->ack_frames()[0];
+  // 250us rounds up to 4 * 64us = 256us.
+  // Delta 256us - 100us = 156us truncates to 2 * 64us = 128us; 256us - 128us =
+  // 128us.
+  EXPECT_THAT(
+      ack.received_packet_times,
+      ElementsAre(testing::Pair(QuicPacketNumber(2),
+                                *QuicReceiveTime::FromPeerTime(
+                                    QuicTime::Delta::FromMicroseconds(256))),
+                  testing::Pair(QuicPacketNumber(1),
+                                *QuicReceiveTime::FromPeerTime(
+                                    QuicTime::Delta::FromMicroseconds(128)))));
+}
+
+TEST_P(QuicConnectionTest,
+       EnableOutgoingReceiveTimestampsRespectsMaxTimestamps) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.EnableOutgoingReceiveTimestamps(/*max_timestamps=*/4,
+                                              /*exponent=*/0);
+  writer_->framer()->framer()->set_local_max_receive_timestamps_per_ack(100);
+
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+
+  for (size_t i = 1; i <= 7; ++i) {
+    clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(10));
+    ProcessFramePacketAtLevel(i, QuicFrame(QuicPaddingFrame(100)),
+                              ENCRYPTION_FORWARD_SECURE);
+  }
+  clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(10));
+  ProcessFramePacketAtLevel(8, QuicFrame(QuicPingFrame()),
+                            ENCRYPTION_FORWARD_SECURE);
+  if (connection_.GetAckAlarm()->IsSet()) {
+    connection_.GetAckAlarm()->Fire();
+  }
+
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  const QuicAckFrame& ack = writer_->ack_frames()[0];
+  EXPECT_THAT(ack.received_packet_times,
+              ElementsAre(testing::Pair(QuicPacketNumber(8), _),
+                          testing::Pair(QuicPacketNumber(7), _),
+                          testing::Pair(QuicPacketNumber(6), _),
+                          testing::Pair(QuicPacketNumber(5), _)));
+}
+
+TEST_P(QuicConnectionTest, EnableOutgoingReceiveTimestampsClampsToMaxToSend) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.EnableOutgoingReceiveTimestamps(/*max_timestamps=*/100,
+                                              /*exponent=*/0);
+  writer_->framer()->framer()->set_local_max_receive_timestamps_per_ack(100);
+
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+
+  const size_t total_packets = kMaxReceiveTimestampsToSend + 8;
+  for (size_t i = 1; i < total_packets; ++i) {
+    clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(10));
+    ProcessFramePacketAtLevel(i, QuicFrame(QuicPaddingFrame(100)),
+                              ENCRYPTION_FORWARD_SECURE);
+  }
+  clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(10));
+  ProcessFramePacketAtLevel(total_packets, QuicFrame(QuicPingFrame()),
+                            ENCRYPTION_FORWARD_SECURE);
+  if (connection_.GetAckAlarm()->IsSet()) {
+    connection_.GetAckAlarm()->Fire();
+  }
+
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  const QuicAckFrame& ack = writer_->ack_frames()[0];
+  EXPECT_EQ(kMaxReceiveTimestampsToSend, ack.received_packet_times.size());
+  EXPECT_EQ(QuicPacketNumber(40), ack.received_packet_times.front().first);
+  EXPECT_EQ(QuicPacketNumber(9), ack.received_packet_times.back().first);
+}
+
+TEST_P(QuicConnectionTest, EnableOutgoingReceiveTimestampsZeroIsNoOp) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.EnableOutgoingReceiveTimestamps(/*max_timestamps=*/0,
+                                              /*exponent=*/6);
+
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(2);
+
+  ProcessDataPacket(1);
+  ProcessDataPacket(2);
+
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_TRUE(writer_->ack_frames()[0].received_packet_times.empty());
+  EXPECT_TRUE(connection_.GetUpdatedAckFrame()
+                  .ack_frame->received_packet_times.empty());
+}
+
+TEST_P(QuicConnectionTest, EnableOutgoingReceiveTimestampsExponentBoundary) {
+  if (!IsDefaultTestConfiguration()) {
+    return;
+  }
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  EXPECT_QUIC_BUG(
+      connection_.EnableOutgoingReceiveTimestamps(
+          16, kMaxReceiveTimestampsExponent + 1),
+      "Trying to enable sending receive timestamps with an invalid exponent");
+
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(2);
+
+  ProcessDataPacket(1);
+  EXPECT_TRUE(connection_.GetUpdatedAckFrame()
+                  .ack_frame->received_packet_times.empty());
+
+  writer_->framer()->framer()->set_local_max_receive_timestamps_per_ack(16);
+  writer_->framer()->framer()->set_local_receive_timestamps_exponent(
+      kMaxReceiveTimestampsExponent);
+
+  connection_.EnableOutgoingReceiveTimestamps(16,
+                                              kMaxReceiveTimestampsExponent);
+  ProcessDataPacket(2);
+  EXPECT_FALSE(connection_.GetUpdatedAckFrame()
+                   .ack_frame->received_packet_times.empty());
+}
+
+TEST_P(QuicConnectionTest, EnableOutgoingReceiveTimestampsNonIetfQuicBug) {
+  if (version() != ParsedQuicVersion::Q046() ||
+      GetParam().ack_response != AckResponse::kImmediate) {
+    return;
+  }
+
+  EXPECT_QUIC_BUG(connection_.EnableOutgoingReceiveTimestamps(16, 6),
+                  "Trying to enable QUIC receive timestamps for non-IETF QUIC");
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessDataPacket(1);
+  EXPECT_TRUE(connection_.GetUpdatedAckFrame()
+                  .ack_frame->received_packet_times.empty());
+}
+
+TEST_P(QuicConnectionTest,
+       EnableIncomingReceiveTimestampsParsesWithExponentAndEnforcesMax) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.EnableIncomingReceiveTimestamps(/*max_timestamps=*/2,
+                                              /*exponent=*/6);
+
+  peer_framer_.set_peer_max_receive_timestamps_per_ack(10);
+  peer_framer_.set_peer_receive_timestamps_exponent(6);
+
+  SendStreamDataToPeer(1, "foo", 0, NO_FIN, nullptr);
+  SendStreamDataToPeer(1, "bar", 3, NO_FIN, nullptr);
+
+  QuicAckFrame ack1 = InitAckFrame(2);
+  ack1.received_packet_times.push_back(
+      {QuicPacketNumber(1),
+       *QuicReceiveTime::FromPeerTime(QuicTimeDelta::FromMicroseconds(100))});
+  ack1.received_packet_times.push_back(
+      {QuicPacketNumber(2),
+       *QuicReceiveTime::FromPeerTime(QuicTimeDelta::FromMicroseconds(250))});
+
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _, _, _))
+      .WillOnce(Invoke([](bool /*rtt_updated*/,
+                          QuicByteCount /*prior_in_flight*/,
+                          QuicTime /*event_time*/,
+                          const AckedPacketVector& acked_packets,
+                          const LostPacketVector& /*lost_packets*/,
+                          QuicPacketCount /*consecutive_retransmission_count*/,
+                          QuicPacketCount /*consecutive_loss_count*/) {
+        ASSERT_EQ(2u, acked_packets.size());
+        EXPECT_EQ(QuicPacketNumber(1), acked_packets[0].packet_number);
+        EXPECT_EQ(QuicPacketNumber(2), acked_packets[1].packet_number);
+        ASSERT_TRUE(acked_packets[0].receive_timestamp.has_value());
+        ASSERT_TRUE(acked_packets[1].receive_timestamp.has_value());
+        EXPECT_EQ(128, acked_packets[0].receive_timestamp->ToDebuggingValue());
+        EXPECT_EQ(256, acked_packets[1].receive_timestamp->ToDebuggingValue());
+      }));
+
+  ProcessAckPacket(&ack1);
+  EXPECT_EQ(2u, connection_.GetStats()
+                    .application_data_packets_with_receive_timestamps_acked);
+
+  // Peer sending more timestamps than max_timestamps closes the connection.
+  SendStreamDataToPeer(1, "baz", 6, NO_FIN, nullptr);
+  QuicAckFrame ack2 = InitAckFrame(3);
+  ack2.received_packet_times.push_back(
+      {QuicPacketNumber(1),
+       *QuicReceiveTime::FromPeerTime(QuicTimeDelta::FromMicroseconds(100))});
+  ack2.received_packet_times.push_back(
+      {QuicPacketNumber(2),
+       *QuicReceiveTime::FromPeerTime(QuicTimeDelta::FromMicroseconds(200))});
+  ack2.received_packet_times.push_back(
+      {QuicPacketNumber(3),
+       *QuicReceiveTime::FromPeerTime(QuicTimeDelta::FromMicroseconds(300))});
+
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+  ProcessAckPacket(&ack2);
+
+  EXPECT_FALSE(connection_.connected());
+  EXPECT_EQ(1, connection_close_frame_count_);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_INVALID_ACK_DATA));
+}
+
+TEST_P(QuicConnectionTest,
+       EnableIncomingReceiveTimestampsZeroLeavesFrameUnsupported) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.EnableIncomingReceiveTimestamps(/*max_timestamps=*/0,
+                                              /*exponent=*/6);
+
+  peer_framer_.set_peer_max_receive_timestamps_per_ack(10);
+  peer_framer_.set_peer_receive_timestamps_exponent(6);
+
+  SendStreamDataToPeer(1, "foo", 0, NO_FIN, nullptr);
+
+  QuicAckFrame ack = InitAckFrame(1);
+  ack.received_packet_times.push_back(
+      {QuicPacketNumber(1),
+       *QuicReceiveTime::FromPeerTime(QuicTimeDelta::FromMicroseconds(100))});
+
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+  ProcessAckPacket(&ack);
+
+  EXPECT_FALSE(connection_.connected());
+  EXPECT_EQ(1, connection_close_frame_count_);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_INVALID_FRAME_DATA));
+}
+
+TEST_P(QuicConnectionTest,
+       EnableIncomingReceiveTimestampsUsefulExponentBoundary) {
+  if (!IsDefaultTestConfiguration()) {
+    return;
+  }
+
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  // Exponent at the useful boundary succeeds without QUIC_BUG.
+  connection_.EnableIncomingReceiveTimestamps(
+      16, kMaxReceiveTimestampsUsefulExponent);
+
+  // Exponent above the useful boundary logs QUIC_BUG_IF but still passes the
+  // exponent downstream to framer_.
+  EXPECT_QUIC_BUG(
+      connection_.EnableIncomingReceiveTimestamps(
+          16, kMaxReceiveTimestampsUsefulExponent + 1),
+      "Trying to configure QUIC Receive Timestamps with worse than millisecond "
+      "precision");
+
+  peer_framer_.set_peer_max_receive_timestamps_per_ack(10);
+  peer_framer_.set_peer_receive_timestamps_exponent(
+      kMaxReceiveTimestampsUsefulExponent + 1);
+
+  SendStreamDataToPeer(1, "foo", 0, NO_FIN, nullptr);
+
+  QuicAckFrame ack = InitAckFrame(1);
+  ack.received_packet_times.push_back(
+      {QuicPacketNumber(1),
+       *QuicReceiveTime::FromPeerTime(QuicTimeDelta::FromMicroseconds(3000))});
+
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _, _, _))
+      .WillOnce(Invoke(
+          [](bool /*rtt_updated*/, QuicByteCount /*prior_in_flight*/,
+             QuicTime /*event_time*/, const AckedPacketVector& acked_packets,
+             const LostPacketVector& /*lost_packets*/,
+             QuicPacketCount /*consecutive_retransmission_count*/,
+             QuicPacketCount /*consecutive_loss_count*/) {
+            ASSERT_EQ(1u, acked_packets.size());
+            ASSERT_TRUE(acked_packets[0].receive_timestamp.has_value());
+            // With exponent 11 (2048us units), 3000us rounds up to 2 * 2048 =
+            // 4096us.
+            EXPECT_EQ(4096,
+                      acked_packets[0].receive_timestamp->ToDebuggingValue());
+          }));
+  ProcessAckPacket(&ack);
+}
+
+TEST_P(QuicConnectionTest, EnableIncomingReceiveTimestampsNonIetfQuicBug) {
+  if (version() != ParsedQuicVersion::Q046() ||
+      GetParam().ack_response != AckResponse::kImmediate) {
+    return;
+  }
+
+  EXPECT_QUIC_BUG(connection_.EnableIncomingReceiveTimestamps(16, 6),
+                  "Trying to enable QUIC receive timestamps for non-IETF QUIC");
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
