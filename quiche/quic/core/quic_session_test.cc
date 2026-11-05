@@ -2444,8 +2444,8 @@ TEST_P(QuicSessionTestClient, MinAckDelaySet) {
   }
   session_.config()->SetClientConnectionOptions({kAFIA});
   session_.Initialize();
-  EXPECT_EQ(session_.config()->GetMinAckDelayDraft10ToSendMs(),
-            kDefaultMinAckDelayTimeMs);
+  EXPECT_EQ(session_.config()->GetMinAckDelayDraft14ToSendUs(),
+            kDefaultMinAckDelayTimeMs * kNumMicrosPerMilli);
 }
 
 TEST_P(QuicSessionTestClient, ActiveConnectionIdLimitSet) {
@@ -3609,16 +3609,16 @@ TEST_P(QuicSessionTestServer, OpenStreamLimitPerEventLoop) {
                          GetNthClientInitiatedBidirectionalId(i - 1)));
 }
 
-TEST_P(QuicSessionTestServer, SetMinAckDelayDraft10) {
+TEST_P(QuicSessionTestServer, SetMinAckDelayDraft14) {
   if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   session_.Initialize();
   if (GetQuicReloadableFlag(quic_receive_ack_frequency2)) {
-    EXPECT_EQ(session_.config()->GetMinAckDelayDraft10ToSendMs(),
-              kDefaultMinAckDelayTimeMs);
+    EXPECT_EQ(session_.config()->GetMinAckDelayDraft14ToSendUs(),
+              kDefaultMinAckDelayTimeMs * kNumMicrosPerMilli);
   } else {
-    EXPECT_FALSE(session_.config()->HasMinAckDelayDraft10ToSend());
+    EXPECT_FALSE(session_.config()->HasMinAckDelayDraft14ToSend());
   }
 }
 

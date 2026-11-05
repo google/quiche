@@ -678,12 +678,13 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     EnableBlackholeAvoidanceViaFlowLabel();
   }
 
-  if (config.HasMinAckDelayDraft10ToSend()) {
-    if (config.GetMinAckDelayDraft10ToSendMs() <=
-        config.GetMaxAckDelayToSendMs()) {  // MinAckDelay is valid.
+  if (config.HasMinAckDelayDraft14ToSend()) {
+    if (config.GetMinAckDelayDraft14ToSendUs() <=
+        config.GetMaxAckDelayToSendMs() *
+            kNumMicrosPerMilli) {  // MinAckDelay is valid.
       set_can_receive_ack_frequency_immediate_ack(true);
-      local_min_ack_delay_ = QuicTime::Delta::FromMilliseconds(
-          config.GetMinAckDelayDraft10ToSendMs());
+      local_min_ack_delay_ = QuicTime::Delta::FromMicroseconds(
+          config.GetMinAckDelayDraft14ToSendUs());
     } else {
       QUIC_BUG(quic_bug_min_ack_delay_too_high)
           << "MinAckDelay higher than MaxAckDelay";
@@ -712,7 +713,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
 
   if (config.peer_reordering_threshold() != 1 &&
       perspective_ == Perspective::IS_CLIENT && version().IsIetfQuic() &&
-      !config.HasMinAckDelayDraft10ToSend()) {
+      !config.HasMinAckDelayDraft14ToSend()) {
     QuicAckFrequencyFrame frame;
     frame.reordering_threshold = config.peer_reordering_threshold();
     uber_received_packet_manager_.OnAckFrequencyFrame(frame);

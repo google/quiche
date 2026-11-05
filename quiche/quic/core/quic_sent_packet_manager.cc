@@ -143,7 +143,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
         QuicTime::Delta::FromMilliseconds(config.ReceivedMaxAckDelayMs());
   }
   // TODO(b/389762349): set peer_min_ack_delay_ if
-  // config.HasReceivedMinAckDelayDraft10Ms(). Set
+  // config.HasReceivedMinAckDelayDraft14Us(). Set
   // use_smoothed_rtt_in_ack_delay_ based on
   // config.HasClientSentConnectionOption(kAFF1, perspective).
   if (config.HasClientSentConnectionOption(kMAD0, perspective)) {

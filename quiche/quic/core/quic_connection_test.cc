@@ -19199,7 +19199,8 @@ TEST_P(QuicConnectionTest, OnParsedClientHelloInfoWithDebugVisitor) {
 TEST_P(QuicConnectionTest, ConfigEnablesAckFrequency) {
   QuicConfig config;
   EXPECT_FALSE(QuicConnectionPeer::CanReceiveAckFrequencyFrames(&connection_));
-  config.SetMinAckDelayDraft10Ms(kDefaultMinAckDelayTimeMs);
+  config.SetMinAckDelayDraft14Us(kDefaultMinAckDelayTimeMs *
+                                 kNumMicrosPerMilli);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));

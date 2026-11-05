@@ -97,7 +97,7 @@ enum TransportParameters::TransportParameterId : uint64_t {
   // 0x4752 was used to transmit Google-specific version and supported_versions,
   // it was replaced by kVersionInformation.
 
-  kMinAckDelayDraft10 = 0xFF04DE1B,  // draft-ietf-quic-delayed-ack-10 and -11.
+  kMinAckDelayDraft14 = 0xFF04DE1B,  // draft-ietf-quic-ack-frequency-14.
   kVersionInformation = 0x11,        // RFC 9368.
 
   // draft-ietf-quic-reliable-stream-reset.
@@ -171,7 +171,7 @@ std::string TransportParameterIdToString(
       return "initial_round_trip_time";
     case TransportParameters::kGoogleConnectionOptions:
       return "google_connection_options";
-    case TransportParameters::kMinAckDelayDraft10:
+    case TransportParameters::kMinAckDelayDraft14:
       return "min_ack_delay_us";
     case TransportParameters::kVersionInformation:
       return "version_information";
@@ -250,7 +250,7 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kDebuggingSni:
     case TransportParameters::kInitialRoundTripTime:
     case TransportParameters::kGoogleConnectionOptions:
-    case TransportParameters::kMinAckDelayDraft10:
+    case TransportParameters::kMinAckDelayDraft14:
     case TransportParameters::kReliableStreamReset:
     case TransportParameters::kVersionInformation:
       return true;
@@ -434,9 +434,9 @@ std::string TransportParameters::ToString() const {
   rv += initial_max_streams_uni.ToString(/*for_use_in_list=*/true);
   rv += ack_delay_exponent.ToString(/*for_use_in_list=*/true);
   rv += max_ack_delay.ToString(/*for_use_in_list=*/true);
-  if (min_ack_delay_us_draft10.has_value()) {
-    absl::StrAppend(&rv, " ", TransportParameterIdToString(kMinAckDelayDraft10),
-                    " ", *min_ack_delay_us_draft10);
+  if (min_ack_delay_us_draft14.has_value()) {
+    absl::StrAppend(&rv, " ", TransportParameterIdToString(kMinAckDelayDraft14),
+                    " ", *min_ack_delay_us_draft14);
   }
   if (disable_active_migration) {
     rv += " " + TransportParameterIdToString(kDisableActiveMigration);
@@ -551,7 +551,7 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       initial_max_streams_uni(other.initial_max_streams_uni),
       ack_delay_exponent(other.ack_delay_exponent),
       max_ack_delay(other.max_ack_delay),
-      min_ack_delay_us_draft10(other.min_ack_delay_us_draft10),
+      min_ack_delay_us_draft14(other.min_ack_delay_us_draft14),
       active_connection_id_limit(other.active_connection_id_limit),
       initial_source_connection_id(other.initial_source_connection_id),
       retry_source_connection_id(other.retry_source_connection_id),
@@ -593,7 +593,7 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
             rhs.initial_max_streams_uni.value() &&
         ack_delay_exponent.value() == rhs.ack_delay_exponent.value() &&
         max_ack_delay.value() == rhs.max_ack_delay.value() &&
-        min_ack_delay_us_draft10 == rhs.min_ack_delay_us_draft10 &&
+        min_ack_delay_us_draft14 == rhs.min_ack_delay_us_draft14 &&
         disable_active_migration == rhs.disable_active_migration &&
         active_connection_id_limit.value() ==
             rhs.active_connection_id_limit.value() &&
@@ -692,8 +692,8 @@ bool TransportParameters::AreValid(std::string* error_details) const {
     *error_details = "Server cannot send initial round trip time";
     return false;
   }
-  if (min_ack_delay_us_draft10.has_value() &&
-      (*min_ack_delay_us_draft10 >
+  if (min_ack_delay_us_draft14.has_value() &&
+      (*min_ack_delay_us_draft14 >
        (max_ack_delay.value() * kNumMicrosPerMilli))) {
     *error_details = "min_ack_delay cannot be larger than max_ack_delay";
     return false;
@@ -789,7 +789,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       kIntegerParameterLength +           // initial_max_streams_uni
       kIntegerParameterLength +           // ack_delay_exponent
       kIntegerParameterLength +           // max_ack_delay
-      kIntegerParameterLength +           // min_ack_delay_us_draft10
+      kIntegerParameterLength +           // min_ack_delay_us_draft14
       kTypeAndValueLength +               // disable_active_migration
       kPreferredAddressParameterLength +  // preferred_address
       kIntegerParameterLength +           // active_connection_id_limit
@@ -818,7 +818,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       TransportParameters::kInitialMaxStreamsUni,
       TransportParameters::kAckDelayExponent,
       TransportParameters::kMaxAckDelay,
-      TransportParameters::kMinAckDelayDraft10,
+      TransportParameters::kMinAckDelayDraft14,
       TransportParameters::kActiveConnectionIdLimit,
       TransportParameters::kMaxDatagramFrameSize,
       TransportParameters::kReliableStreamReset,
@@ -1018,16 +1018,16 @@ bool SerializeTransportParameters(const TransportParameters& in,
           return false;
         }
       } break;
-      // min_ack_delay_us_draft10
-      case TransportParameters::kMinAckDelayDraft10: {
-        if (!in.min_ack_delay_us_draft10.has_value()) {
+      // min_ack_delay_us_draft14
+      case TransportParameters::kMinAckDelayDraft14: {
+        if (!in.min_ack_delay_us_draft14.has_value()) {
           break;
         }
         if (!WriteIntegerTlv(&writer, parameter_id,
-                             *in.min_ack_delay_us_draft10)) {
+                             *in.min_ack_delay_us_draft14)) {
           QUIC_BUG(quic_bug_min_ack_delay_failed_write)
               << "Failed to write "
-              << " min_ack_delay_us_draft10 for " << in;
+              << " min_ack_delay_us_draft14 for " << in;
           return false;
         }
       } break;
@@ -1567,19 +1567,19 @@ bool ParseTransportParameters(ParsedQuicVersion version,
           out->version_information->other_versions.push_back(other_version);
         }
       } break;
-      case TransportParameters::kMinAckDelayDraft10: {
-        if (out->min_ack_delay_us_draft10.has_value()) {
-          *error_details = "Received a second min_ack_delay_us_draft10";
+      case TransportParameters::kMinAckDelayDraft14: {
+        if (out->min_ack_delay_us_draft14.has_value()) {
+          *error_details = "Received a second min_ack_delay_us_draft14";
           return false;
         }
         uint64_t delay_value;
         parse_success = ReadIntegerValue(
-            &value_reader, TransportParameters::kMinAckDelayDraft10,
+            &value_reader, TransportParameters::kMinAckDelayDraft14,
             delay_value, error_details);
         if (!parse_success) {
           return false;
         }
-        out->min_ack_delay_us_draft10 = delay_value;
+        out->min_ack_delay_us_draft14 = delay_value;
       } break;
       default:
         if (out->custom_parameters.find(param_id) !=

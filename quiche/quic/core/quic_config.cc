@@ -453,7 +453,7 @@ QuicConfig::QuicConfig()
       alternate_server_address_ipv4_(kASAD, PRESENCE_OPTIONAL),
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
       max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL),
-      min_ack_delay_ms_draft10_(0, PRESENCE_OPTIONAL),
+      min_ack_delay_us_draft14_(0, PRESENCE_OPTIONAL),
       ack_delay_exponent_(kADE, PRESENCE_OPTIONAL),
       max_udp_payload_size_(0, PRESENCE_OPTIONAL),
       max_datagram_frame_size_(0, PRESENCE_OPTIONAL),
@@ -646,24 +646,24 @@ uint32_t QuicConfig::ReceivedMaxAckDelayMs() const {
   return max_ack_delay_ms_.GetReceivedValue();
 }
 
-void QuicConfig::SetMinAckDelayDraft10Ms(uint64_t min_ack_delay_ms) {
-  min_ack_delay_ms_draft10_.SetSendValue(min_ack_delay_ms);
+void QuicConfig::SetMinAckDelayDraft14Us(uint64_t min_ack_delay_us) {
+  min_ack_delay_us_draft14_.SetSendValue(min_ack_delay_us);
 }
 
-bool QuicConfig::HasMinAckDelayDraft10ToSend() const {
-  return min_ack_delay_ms_draft10_.HasSendValue();
+bool QuicConfig::HasMinAckDelayDraft14ToSend() const {
+  return min_ack_delay_us_draft14_.HasSendValue();
 }
 
-uint64_t QuicConfig::GetMinAckDelayDraft10ToSendMs() const {
-  return min_ack_delay_ms_draft10_.GetSendValue();
+uint64_t QuicConfig::GetMinAckDelayDraft14ToSendUs() const {
+  return min_ack_delay_us_draft14_.GetSendValue();
 }
 
-bool QuicConfig::HasReceivedMinAckDelayDraft10Ms() const {
-  return min_ack_delay_ms_draft10_.HasReceivedValue();
+bool QuicConfig::HasReceivedMinAckDelayDraft14Us() const {
+  return min_ack_delay_us_draft14_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedMinAckDelayDraft10Ms() const {
-  return min_ack_delay_ms_draft10_.GetReceivedValue();
+uint64_t QuicConfig::ReceivedMinAckDelayDraft14Us() const {
+  return min_ack_delay_us_draft14_.GetReceivedValue();
 }
 
 void QuicConfig::SetAckDelayExponentToSend(uint32_t exponent) {
@@ -1246,9 +1246,8 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   params->initial_max_streams_uni.set_value(
       GetMaxUnidirectionalStreamsToSend());
   params->max_ack_delay.set_value(GetMaxAckDelayToSendMs());
-  if (min_ack_delay_ms_draft10_.HasSendValue()) {
-    params->min_ack_delay_us_draft10 =
-        min_ack_delay_ms_draft10_.GetSendValue() * kNumMicrosPerMilli;
+  if (min_ack_delay_us_draft14_.HasSendValue()) {
+    params->min_ack_delay_us_draft14 = min_ack_delay_us_draft14_.GetSendValue();
   }
   params->ack_delay_exponent.set_value(GetAckDelayExponentToSend());
   params->disable_active_migration =
@@ -1410,14 +1409,14 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
                 &params.preferred_address->stateless_reset_token.front()));
       }
     }
-    if (params.min_ack_delay_us_draft10.has_value()) {
-      if (*params.min_ack_delay_us_draft10 >
+    if (params.min_ack_delay_us_draft14.has_value()) {
+      if (*params.min_ack_delay_us_draft14 >
           params.max_ack_delay.value() * kNumMicrosPerMilli) {
         *error_details = "MinAckDelay is greater than MaxAckDelay.";
         return IETF_QUIC_PROTOCOL_VIOLATION;
       }
-      min_ack_delay_ms_draft10_.SetReceivedValue(
-          *params.min_ack_delay_us_draft10 / kNumMicrosPerMilli);
+      min_ack_delay_us_draft14_.SetReceivedValue(
+          *params.min_ack_delay_us_draft14);
     }
   }
 

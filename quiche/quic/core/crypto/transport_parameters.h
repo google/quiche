@@ -199,7 +199,7 @@ struct QUICHE_EXPORT TransportParameters {
   // sent regardless of the default value. Even if the incoming value matches
   // the default, it indicates readiness to receive ACK_FREQUENCY and
   // IMMEDIATE_ACK frames.
-  std::optional<uint64_t> min_ack_delay_us_draft10;
+  std::optional<uint64_t> min_ack_delay_us_draft14;
 
   // Used to effect a change in server address at the end of the handshake.
   std::unique_ptr<PreferredAddress> preferred_address;

@@ -97,7 +97,8 @@ void QuicConfigPeer::SetReceivedMaxPacketSize(QuicConfig* config,
 // static
 void QuicConfigPeer::SetReceivedMinAckDelayMs(QuicConfig* config,
                                               uint32_t min_ack_delay_ms) {
-  config->min_ack_delay_ms_draft10_.SetReceivedValue(min_ack_delay_ms);
+  config->min_ack_delay_us_draft14_.SetReceivedValue(min_ack_delay_ms *
+                                                     kNumMicrosPerMilli);
 }
 
 // static
