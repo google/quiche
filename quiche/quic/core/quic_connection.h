@@ -2009,6 +2009,12 @@ class QUICHE_EXPORT QuicConnection
   // Tries to fill coalesced packet with data of higher packet space.
   void MaybeCoalescePacketOfHigherSpace();
 
+  // Tries to coalesce a PING packet of a lower encryption level (INITIAL or
+  // HANDSHAKE) with the last packet of a flight when that space has
+  // unacknowledged retransmittable data and there is available space in the
+  // coalesced packet.
+  void MaybeCoalescePingOfLowerSpace();
+
   // Serialize and send coalesced_packet. Returns false if serialization fails
   // or the write causes errors, otherwise, returns true.
   bool FlushCoalescedPacket();
@@ -2609,6 +2615,7 @@ class QUICHE_EXPORT QuicConnection
   bool spin_bit_enabled_ : 1 = false;
   bool fix_mtu_discovery_ : 1 = GetQuicReloadableFlag(quic_fix_mtu_discovery);
   bool send_acks_after_on_can_write_ : 1 = false;
+  bool coalesce_ping_with_last_packet_ : 1 = false;
 };
 
 }  // namespace quic

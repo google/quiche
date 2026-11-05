@@ -616,6 +616,12 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       config.HasClientSentConnectionOption(kCDFR, perspective_)) {
     defer_send_in_response_to_packets_ = true;
   }
+  if (version().IsIetfQuic() &&
+      config.HasClientSentConnectionOption(kCPLP, perspective_) &&
+      GetQuicReloadableFlag(quic_coalesce_ping_with_last_packet)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_coalesce_ping_with_last_packet);
+    coalesce_ping_with_last_packet_ = true;
+  }
 
   if (config.HasClientRequestedIndependentOption(kINVC, perspective_)) {
     send_connection_close_for_invalid_version_ = true;
@@ -5189,6 +5195,10 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
     // coalescer.
     if (connection_->version().IsIetfQuic()) {
       connection_->MaybeCoalescePacketOfHigherSpace();
+      if (connection_->coalesce_ping_with_last_packet_) {
+        connection_->packet_creator_.FlushCurrentPacket();
+        connection_->MaybeCoalescePingOfLowerSpace();
+      }
     }
     connection_->packet_creator_.Flush();
     if (connection_->version().IsIetfQuic()) {
@@ -6272,6 +6282,54 @@ void QuicConnection::MaybeCoalescePacketOfHigherSpace() {
   }
 }
 
+void QuicConnection::MaybeCoalescePingOfLowerSpace() {
+  if (!connected() || !packet_creator_.HasSoftMaxPacketLength() ||
+      sent_packet_manager_.pending_timer_transmission_count() > 0) {
+    return;
+  }
+  if (fill_coalesced_packet_) {
+    QUIC_BUG(quic_coalesce_ping_reentrant);
+    return;
+  }
+  const QuicUnackedPacketMap& unacked_packets =
+      sent_packet_manager_.unacked_packets();
+  if (unacked_packets.empty() ||
+      !unacked_packets.HasRetransmittableFrames(*unacked_packets.rbegin())) {
+    return;
+  }
+
+  const EncryptionLevel last_level = unacked_packets.rbegin()->encryption_level;
+  for (EncryptionLevel level : {ENCRYPTION_INITIAL, ENCRYPTION_HANDSHAKE}) {
+    if (level >= last_level || !framer_.HasEncrypterOfEncryptionLevel(level) ||
+        coalesced_packet_.ContainsPacketOfEncryptionLevel(level) ||
+        (perspective_ == Perspective::IS_CLIENT &&
+         level == ENCRYPTION_INITIAL && handshake_packet_sent_)) {
+      continue;
+    }
+    const QuicPacketNumber largest_sent =
+        unacked_packets.GetLargestSentRetransmittableOfPacketNumberSpace(
+            QuicUtils::GetPacketNumberSpace(level));
+    if (!largest_sent.IsInitialized() ||
+        !unacked_packets.IsUnacked(largest_sent) ||
+        !unacked_packets.HasRetransmittableFrames(largest_sent)) {
+      continue;
+    }
+    ScopedEncryptionLevelContext context(this, level);
+    if (!packet_creator_.HasSoftMaxPacketLength() ||
+        packet_creator_.BytesFree() <
+            QuicPacketCreator::MinPlaintextPacketSize(
+                version(), PACKET_1BYTE_PACKET_NUMBER)) {
+      continue;
+    }
+    QUIC_DVLOG(1) << ENDPOINT << "Coalescing PING of encryption level: "
+                  << EncryptionLevelToString(level);
+    SetTransmissionType(NOT_RETRANSMISSION);
+    fill_coalesced_packet_ = true;
+    SendControlFrame(QuicFrame(QuicPingFrame()));
+    fill_coalesced_packet_ = false;
+  }
+}
+
 bool QuicConnection::FlushCoalescedPacket() {
   ScopedCoalescedPacketClearer clearer(&coalesced_packet_);
   if (!connected_) {
@@ -6297,7 +6355,8 @@ bool QuicConnection::FlushCoalescedPacket() {
 
   char buffer[kMaxOutgoingPacketSize];
   const size_t length = packet_creator_.SerializeCoalescedPacket(
-      coalesced_packet_, buffer, coalesced_packet_.max_packet_length());
+      coalesced_packet_, buffer, coalesced_packet_.max_packet_length(),
+      coalesce_ping_with_last_packet_);
   if (length == 0) {
     if (connected_) {
       CloseConnection(QUIC_FAILED_TO_SERIALIZE_PACKET,

@@ -20481,6 +20481,138 @@ TEST_P(QuicConnectionTest, EnableIncomingReceiveTimestampsNonIetfQuicBug) {
                   "Trying to enable QUIC receive timestamps for non-IETF QUIC");
 }
 
+TEST_P(QuicConnectionTest, CoalescePingWithLastPacketDisabledWhenFlagFalse) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_coalesce_ping_with_last_packet, false);
+  set_perspective(Perspective::IS_SERVER);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, {kCPLP});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  connection_.SetEncrypter(
+      ENCRYPTION_HANDSHAKE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_HANDSHAKE));
+
+  // Receive a client Initial packet so the server is not amplification-limited.
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+
+  std::string initial_data(100, 'a');
+  std::string handshake_data(1500, 'b');
+  connection_.producer()->SaveCryptoData(ENCRYPTION_INITIAL, 0, initial_data);
+  connection_.producer()->SaveCryptoData(ENCRYPTION_HANDSHAKE, 0,
+                                         handshake_data);
+
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(3);
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+    connection_.SendCryptoData(ENCRYPTION_INITIAL, initial_data.size(), 0);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    connection_.SendCryptoData(ENCRYPTION_HANDSHAKE, handshake_data.size(), 0);
+  }
+
+  // When quic_coalesce_ping_with_last_packet is false, no INITIAL PING packet
+  // is coalesced onto the second datagram.
+  EXPECT_EQ(2u, writer_->packets_write_attempts());
+  EXPECT_EQ(QuicPacketNumber(3u),
+            connection_.sent_packet_manager().GetLargestSentPacket());
+}
+
+TEST_P(QuicConnectionTest, CoalescePingWithLastPacketOfServerFlight) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_coalesce_ping_with_last_packet, true);
+  set_perspective(Perspective::IS_SERVER);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, {kCPLP});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  connection_.SetEncrypter(
+      ENCRYPTION_HANDSHAKE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_HANDSHAKE));
+
+  // Receive a client Initial packet so the server is not amplification-limited.
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+
+  std::string initial_data(100, 'a');
+  std::string handshake_data(1500, 'b');
+  connection_.producer()->SaveCryptoData(ENCRYPTION_INITIAL, 0, initial_data);
+  connection_.producer()->SaveCryptoData(ENCRYPTION_HANDSHAKE, 0,
+                                         handshake_data);
+
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(4);
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+    connection_.SendCryptoData(ENCRYPTION_INITIAL, initial_data.size(), 0);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    connection_.SendCryptoData(ENCRYPTION_HANDSHAKE, handshake_data.size(), 0);
+  }
+
+  // Datagram 1 coalesces the INITIAL CRYPTO packet (packet 1) and the first
+  // HANDSHAKE CRYPTO packet (packet 2).
+  // Datagram 2 coalesces the second HANDSHAKE CRYPTO packet (packet 3) with an
+  // unpadded INITIAL PING packet (packet 4).
+  EXPECT_EQ(2u, writer_->packets_write_attempts());
+  EXPECT_EQ(QuicPacketNumber(4u),
+            connection_.sent_packet_manager().GetLargestSentPacket());
+  EXPECT_LT(writer_->last_packet_size(), connection_.max_packet_length());
+}
+
+TEST_P(QuicConnectionTest, CoalesceHandshakePingWithLastPacketOfClientFlight) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_coalesce_ping_with_last_packet, true);
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kCPLP});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  connection_.SetEncrypter(
+      ENCRYPTION_HANDSHAKE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_HANDSHAKE));
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
+
+  std::string handshake_data(100, 'a');
+  std::string stream_data(1500, 'b');
+  connection_.producer()->SaveCryptoData(ENCRYPTION_HANDSHAKE, 0,
+                                         handshake_data);
+
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(4);
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    connection_.SendCryptoData(ENCRYPTION_HANDSHAKE, handshake_data.size(), 0);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    connection_.SaveAndSendStreamData(3, stream_data, 0, NO_FIN);
+  }
+
+  // Datagram 1 coalesces the HANDSHAKE CRYPTO packet (packet 1) and the first
+  // 1-RTT STREAM packet (packet 2).
+  // Datagram 2 coalesces the second 1-RTT STREAM packet (packet 3) with a
+  // HANDSHAKE PING packet (packet 4).
+  EXPECT_EQ(2u, writer_->packets_write_attempts());
+  EXPECT_EQ(QuicPacketNumber(4u),
+            connection_.sent_packet_manager().GetLargestSentPacket());
+  EXPECT_LT(writer_->last_packet_size(), connection_.max_packet_length());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
