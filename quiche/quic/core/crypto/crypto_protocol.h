@@ -261,6 +261,7 @@ DEFINE_STATIC_QUIC_TAG(NRTT);  // Ignore initial RTT
 
 DEFINE_STATIC_QUIC_TAG(1PTO);  // Send 1 packet upon PTO.
 DEFINE_STATIC_QUIC_TAG(2PTO);  // Send 2 packets upon PTO.
+DEFINE_STATIC_QUIC_TAG(PTO2);  // Send 2 packets upon PTO during handshake.
 
 DEFINE_STATIC_QUIC_TAG(6PTO);  // Closes connection on 6
                                // consecutive PTOs.

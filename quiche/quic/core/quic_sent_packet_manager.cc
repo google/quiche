@@ -236,6 +236,10 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kRNIB, perspective)) {
     pacing_sender_.set_remove_non_initial_burst();
   }
+  if (GetQuicReloadableFlag(quic_handshake_pto_two_packets) &&
+      config.HasClientSentConnectionOption(kPTO2, perspective)) {
+    handshake_pto_two_packets_ = true;
+  }
   // Path degradation experiments
   if (config.HasClientRequestedIndependentOption(kPDE2, perspective)) {
     num_ptos_for_path_degrading_ = 2;
@@ -850,6 +854,11 @@ QuicSentPacketManager::OnRetransmissionTimeout() {
   return GetRetransmissionMode();
 }
 
+bool QuicSentPacketManager::ShouldSendTwoHandshakeProbes() const {
+  return handshake_pto_two_packets_ && handshake_mode_disabled_ &&
+         !handshake_finished_;
+}
+
 void QuicSentPacketManager::RetransmitCryptoPackets() {
   QUICHE_DCHECK_EQ(HANDSHAKE_MODE, GetRetransmissionMode());
   ++consecutive_crypto_retransmission_count_;
@@ -922,6 +931,12 @@ void QuicSentPacketManager::MaybeSendProbePacket() {
       return;
     }
   }
+  const bool send_two_handshake_probes = ShouldSendTwoHandshakeProbes();
+  if (send_two_handshake_probes) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_handshake_pto_two_packets, 1, 2);
+  }
+  const size_t max_probe_packets =
+      send_two_handshake_probes ? 2 : pending_timer_transmission_count_;
   std::vector<QuicPacketNumber> probing_packets;
   if (!unacked_packets_.empty()) {
     QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
@@ -937,7 +952,7 @@ void QuicSentPacketManager::MaybeSendProbePacket() {
                transmission_info->encryption_level) == packet_number_space)) {
         QUICHE_DCHECK(transmission_info->in_flight);
         probing_packets.push_back(packet_number);
-        if (probing_packets.size() == pending_timer_transmission_count_) {
+        if (probing_packets.size() == max_probe_packets) {
           break;
         }
       }
@@ -947,7 +962,17 @@ void QuicSentPacketManager::MaybeSendProbePacket() {
   for (QuicPacketNumber retransmission : probing_packets) {
     QUIC_DVLOG(1) << ENDPOINT << "Marking " << retransmission
                   << " for probing retransmission";
-    MarkForRetransmission(retransmission, PTO_RETRANSMISSION);
+    if (send_two_handshake_probes && pending_timer_transmission_count_ == 0) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_handshake_pto_two_packets, 2, 2);
+      pending_timer_transmission_count_ = 1;
+      MarkForRetransmission(retransmission, PTO_RETRANSMISSION);
+      // Defensive: ensure no credit lingers if MarkForRetransmission failed to
+      // serialize a packet, since pending_timer_transmission_count_ > 0 blocks
+      // GetRetransmissionTime() from re-arming the PTO timer.
+      pending_timer_transmission_count_ = 0;
+    } else {
+      MarkForRetransmission(retransmission, PTO_RETRANSMISSION);
+    }
   }
   // It is possible that there is not enough outstanding data for probing.
 }

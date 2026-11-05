@@ -3789,6 +3789,122 @@ TEST_F(QuicSentPacketManagerTest, ReceiveTimestampsStats) {
   EXPECT_EQ(1u, stats_.application_data_packets_with_receive_timestamps_acked);
 }
 
+TEST_F(QuicSentPacketManagerTest, HandshakePtoTwoPacketsDisabledWhenFlagFalse) {
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  SetQuicReloadableFlag(quic_handshake_pto_two_packets, false);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, {kPTO2});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+
+  SendDataPacket(1, ENCRYPTION_HANDSHAKE);
+  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1000));
+  EXPECT_EQ(QuicSentPacketManager::PTO_MODE,
+            manager_.OnRetransmissionTimeout());
+  EXPECT_EQ(1u, manager_.pending_timer_transmission_count());
+
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>([this](TransmissionType type) {
+        return RetransmitDataPacket(3, type, ENCRYPTION_HANDSHAKE);
+      }));
+  manager_.MaybeSendProbePacket();
+  EXPECT_EQ(0u, manager_.pending_timer_transmission_count());
+  EXPECT_TRUE(manager_.GetRetransmissionTime().IsInitialized());
+}
+
+TEST_F(QuicSentPacketManagerTest, HandshakePtoTwoPackets) {
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  SetQuicReloadableFlag(quic_handshake_pto_two_packets, true);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, {kPTO2});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+
+  SendDataPacket(1, ENCRYPTION_HANDSHAKE);
+  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+  SendDataPacket(3, ENCRYPTION_HANDSHAKE);
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1000));
+  EXPECT_EQ(QuicSentPacketManager::PTO_MODE,
+            manager_.OnRetransmissionTimeout());
+  EXPECT_EQ(1u, manager_.pending_timer_transmission_count());
+
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>([this](TransmissionType type) {
+        return RetransmitDataPacket(4, type, ENCRYPTION_HANDSHAKE);
+      }))
+      .WillOnce(WithArgs<1>([this](TransmissionType type) {
+        return RetransmitDataPacket(5, type, ENCRYPTION_HANDSHAKE);
+      }));
+  manager_.MaybeSendProbePacket();
+  EXPECT_EQ(0u, manager_.pending_timer_transmission_count());
+  EXPECT_TRUE(manager_.GetRetransmissionTime().IsInitialized());
+
+  // Once the handshake is confirmed, PTO only sends one probe packet, even if
+  // crypto data (e.g., a NewSessionTicket) is still outstanding.
+  manager_.SetHandshakeConfirmed();
+  EXPECT_CALL(notifier_, HasUnackedCryptoData()).WillRepeatedly(Return(true));
+  SendDataPacket(6, ENCRYPTION_FORWARD_SECURE);
+  SendDataPacket(7, ENCRYPTION_FORWARD_SECURE);
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(2000));
+  EXPECT_EQ(QuicSentPacketManager::PTO_MODE,
+            manager_.OnRetransmissionTimeout());
+  EXPECT_EQ(1u, manager_.pending_timer_transmission_count());
+
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>([this](TransmissionType type) {
+        return RetransmitDataPacket(8, type, ENCRYPTION_FORWARD_SECURE);
+      }));
+  manager_.MaybeSendProbePacket();
+  EXPECT_EQ(0u, manager_.pending_timer_transmission_count());
+  EXPECT_TRUE(manager_.GetRetransmissionTime().IsInitialized());
+}
+
+TEST_F(QuicSentPacketManagerTest, HandshakePtoTwoPacketsOnlyOneInFlight) {
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  SetQuicReloadableFlag(quic_handshake_pto_two_packets, true);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, {kPTO2});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+
+  SendDataPacket(1, ENCRYPTION_HANDSHAKE);
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1000));
+  EXPECT_EQ(QuicSentPacketManager::PTO_MODE,
+            manager_.OnRetransmissionTimeout());
+  EXPECT_EQ(1u, manager_.pending_timer_transmission_count());
+
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>([this](TransmissionType type) {
+        return RetransmitDataPacket(2, type, ENCRYPTION_HANDSHAKE);
+      }));
+  manager_.MaybeSendProbePacket();
+  EXPECT_EQ(0u, manager_.pending_timer_transmission_count());
+  EXPECT_TRUE(manager_.GetRetransmissionTime().IsInitialized());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

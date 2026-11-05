@@ -46,6 +46,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enforce_immediate_goaway, true, tr
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fin_before_completed_http_headers, false, true, "If true, close the connection with error if FIN is received before finish receiving the whole HTTP headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_mtu_discovery, false, true, "If true, fix a externally reported bug in QUIC MTU discovery.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_timeouts, true, true, "If true, postpone setting handshake timeout to infinite to handshake complete.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_handshake_pto_two_packets, false, false, "When true, send up to two probe packets on PTO during the IETF QUIC handshake.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_include_datagrams_in_willing_to_write, false, false, "If true, checks for queued datagrams when determining if a connection is willing to write.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_maybe_copy_datagram_frames, false, true, "If true, maybe copy datagram frames in QuicUnackedPacketMap.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_move_clock_now, false, false, "If true, move the call to clock.Now() in QuicPacketReader::ReadAndDispatchPackets to after socket_api_.ReadMultiplePackets().")

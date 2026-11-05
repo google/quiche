@@ -474,7 +474,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // Setting the send algorithm once the connection is underway is dangerous.
   void SetSendAlgorithm(SendAlgorithmInterface* send_algorithm);
 
-  // Sends one probe packet.
+  // Sends one or more probe packets.
   void MaybeSendProbePacket();
 
   // Called to disable HANDSHAKE_MODE, and only PTO and LOSS modes are used.
@@ -528,6 +528,11 @@ class QUICHE_EXPORT QuicSentPacketManager {
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
+
+  // Returns true if up to two probe packets should be sent when the PTO fires.
+  // This applies when PTO2 was negotiated, IETF PTO is in use, and the
+  // handshake has not been confirmed.
+  bool ShouldSendTwoHandshakeProbes() const;
 
   // Returns the current retransmission mode.
   RetransmissionTimeoutMode GetRetransmissionMode() const;
@@ -775,6 +780,8 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // used to prevent the execution of ECN-specific code unless flag-protected
   // code has explicitly enabled it.
   bool ecn_queried_ = false;
+
+  bool handshake_pto_two_packets_ = false;
 };
 
 }  // namespace quic
