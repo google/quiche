@@ -2563,9 +2563,6 @@ class QUICHE_EXPORT QuicConnection
   bool in_probe_time_out_ : 1 = false;
   // If true, upon seeing a new client address, validate the client address.
   bool validate_client_addresses_ : 1 = false;
-  // Indicates whether we should proactively validate peer address on a
-  // PATH_CHALLENGE received.
-  bool should_proactively_validate_peer_address_on_path_challenge_ : 1 = false;
   // If SCONE is enabled, maybe send a SCONE packet.
   void MaybeSendSconePacket();
   // If true, send connection close packet on INVALID_VERSION.

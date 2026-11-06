@@ -1851,8 +1851,49 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
     // Only respond to the 1st PATH_CHALLENGE in the packet.
     return true;
   }
-  should_proactively_validate_peer_address_on_path_challenge_ = false;
-  // UpdatePacketContent() may start reverse path validation.
+  bool should_proactively_validate_peer_address = false;
+  const QuicSocketAddress current_effective_peer_address =
+      last_received_packet_info_.source_address;
+  if (version().IsIetfQuic() && perspective_ == Perspective::IS_SERVER &&
+      !IsDefaultPath(last_received_packet_info_.destination_address,
+                     current_effective_peer_address) &&
+      !IsAlternativePath(last_received_packet_info_.destination_address,
+                         current_effective_peer_address)) {
+    QUIC_DVLOG(1)
+        << "The peer is probing a new path with effective peer address "
+        << current_effective_peer_address << ",  self address "
+        << last_received_packet_info_.destination_address;
+    if (!default_path_.validated) {
+      // Skip reverse path validation because either handshake hasn't
+      // completed or the connection is validating the default path. Using
+      // PATH_CHALLENGE to validate alternative client address before
+      // handshake gets comfirmed is meaningless because anyone can respond to
+      // it. If the connection is validating the default path, this
+      // alternative path is currently the only validated path which shouldn't
+      // be overridden.
+      QUIC_DVLOG(1) << "The connection hasn't finished handshake or is "
+                       "validating a recent peer address change.";
+      QUIC_BUG_IF(quic_bug_12714_30,
+                  IsHandshakeConfirmed() && !alternative_path_.validated)
+          << "No validated peer address to send after handshake comfirmed.";
+    } else if (!IsReceivedPeerAddressValidated()) {
+      QuicConnectionId client_connection_id;
+      std::optional<StatelessResetToken> stateless_reset_token;
+      FindMatchingOrNewClientConnectionIdOrToken(
+          default_path_, alternative_path_,
+          GetDestinationConnectionId(last_received_packet_info_),
+          &client_connection_id, &stateless_reset_token);
+      // Only override alternative path state upon receiving a
+      // PATH_CHALLENGE from an unvalidated peer address, and the connection
+      // isn't validating a recent peer migration.
+      alternative_path_ =
+          PathState(last_received_packet_info_.destination_address,
+                    current_effective_peer_address, client_connection_id,
+                    GetDestinationConnectionId(last_received_packet_info_),
+                    stateless_reset_token);
+      should_proactively_validate_peer_address = true;
+    }
+  }
   if (!UpdatePacketContent(PATH_CHALLENGE_FRAME)) {
     return false;
   }
@@ -1879,7 +1920,7 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
     QuicPacketCreator::ScopedPeerAddressContext context(
         &packet_creator_, direct_peer_address_to_respond, client_cid,
         server_cid);
-    if (should_proactively_validate_peer_address_on_path_challenge_) {
+    if (should_proactively_validate_peer_address) {
       // Conditions to proactively validate peer address:
       // The perspective is server
       // The PATH_CHALLENGE is received on an unvalidated alternative path.
@@ -5860,49 +5901,9 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
       MaybeStartIetfPeerMigration();
       return connected_;
     }
-    QuicSocketAddress current_effective_peer_address =
-        last_received_packet_info_.source_address;
     if (IsDefaultPath(last_received_packet_info_.destination_address,
                       last_received_packet_info_.source_address)) {
       return connected_;
-    }
-    if (type == PATH_CHALLENGE_FRAME &&
-        !IsAlternativePath(last_received_packet_info_.destination_address,
-                           current_effective_peer_address)) {
-      QUIC_DVLOG(1)
-          << "The peer is probing a new path with effective peer address "
-          << current_effective_peer_address << ",  self address "
-          << last_received_packet_info_.destination_address;
-      if (!default_path_.validated) {
-        // Skip reverse path validation because either handshake hasn't
-        // completed or the connection is validating the default path. Using
-        // PATH_CHALLENGE to validate alternative client address before
-        // handshake gets comfirmed is meaningless because anyone can respond to
-        // it. If the connection is validating the default path, this
-        // alternative path is currently the only validated path which shouldn't
-        // be overridden.
-        QUIC_DVLOG(1) << "The connection hasn't finished handshake or is "
-                         "validating a recent peer address change.";
-        QUIC_BUG_IF(quic_bug_12714_30,
-                    IsHandshakeConfirmed() && !alternative_path_.validated)
-            << "No validated peer address to send after handshake comfirmed.";
-      } else if (!IsReceivedPeerAddressValidated()) {
-        QuicConnectionId client_connection_id;
-        std::optional<StatelessResetToken> stateless_reset_token;
-        FindMatchingOrNewClientConnectionIdOrToken(
-            default_path_, alternative_path_,
-            GetDestinationConnectionId(last_received_packet_info_),
-            &client_connection_id, &stateless_reset_token);
-        // Only override alternative path state upon receiving a
-        // PATH_CHALLENGE from an unvalidated peer address, and the connection
-        // isn't validating a recent peer migration.
-        alternative_path_ =
-            PathState(last_received_packet_info_.destination_address,
-                      current_effective_peer_address, client_connection_id,
-                      GetDestinationConnectionId(last_received_packet_info_),
-                      stateless_reset_token);
-        should_proactively_validate_peer_address_on_path_challenge_ = true;
-      }
     }
     MaybeUpdateBytesReceivedFromAlternativeAddress(
         last_received_packet_info_.length);
