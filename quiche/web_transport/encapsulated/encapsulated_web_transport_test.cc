@@ -478,6 +478,31 @@ TEST_F(EncapsulatedWebTransportTest, FinRead) {
   EXPECT_TRUE(read.fin);
 }
 
+TEST_F(EncapsulatedWebTransportTest, ReadIntoOversizedBuffer) {
+  std::unique_ptr<EncapsulatedSession> session =
+      CreateTransport(Perspective::kClient);
+  DefaultHandshakeForClient(*session);
+  EXPECT_CALL(*visitor_, OnIncomingBidirectionalStreamAvailable());
+  ProcessIncomingCapsule(
+      quiche::WebTransportStreamDataCapsule{1, "abcd", false});
+  Stream* stream = session->AcceptIncomingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  EXPECT_EQ(stream->ReadableBytes(), 4u);
+
+  std::array<char, 16> buffer;
+  Stream::ReadResult read = stream->Read(absl::MakeSpan(buffer));
+  EXPECT_EQ(read.bytes_read, 4u);
+  EXPECT_FALSE(read.fin);
+  EXPECT_EQ(absl::string_view(buffer.data(), read.bytes_read), "abcd");
+  EXPECT_EQ(stream->ReadableBytes(), 0u);
+
+  ProcessIncomingCapsule(quiche::WebTransportStreamDataCapsule{1, "ef", true});
+  read = stream->Read(absl::MakeSpan(buffer));
+  EXPECT_EQ(read.bytes_read, 2u);
+  EXPECT_TRUE(read.fin);
+  EXPECT_EQ(absl::string_view(buffer.data(), read.bytes_read), "ef");
+}
+
 TEST_F(EncapsulatedWebTransportTest, LargeRead) {
   std::unique_ptr<EncapsulatedSession> session =
       CreateTransport(Perspective::kClient);
