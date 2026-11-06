@@ -623,6 +623,12 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     coalesce_ping_with_last_packet_ = true;
   }
 
+  if (perspective_ == Perspective::IS_CLIENT && version().IsIetfQuic() &&
+      (config.HasClientRequestedIndependentOption(kDAOP, perspective_) ||
+       config.HasClientSentConnectionOption(kDAOP, perspective_))) {
+    allow_deferring_ack_only_packets_ = true;
+  }
+
   if (config.HasClientRequestedIndependentOption(kINVC, perspective_)) {
     send_connection_close_for_invalid_version_ = true;
   }
@@ -3036,7 +3042,8 @@ void QuicConnection::OnCanWrite() {
     }
     const QuicTime ack_timeout =
         uber_received_packet_manager_.GetEarliestAckTimeout();
-    if (ack_timeout.IsInitialized() &&
+    // ScopedAckDeferrer sends due ACKs when it goes out of scope.
+    if (!defer_ack_only_packets_ && ack_timeout.IsInitialized() &&
         ack_timeout <= clock_->ApproximateNow()) {
       // Send an ACK now because either 1) we were write blocked when we last
       // tried to send an ACK, or 2) both ack alarm and send alarm were set to
@@ -3049,7 +3056,8 @@ void QuicConnection::OnCanWrite() {
   } else {
     const QuicTime ack_timeout =
         uber_received_packet_manager_.GetEarliestAckTimeout();
-    if (ack_timeout.IsInitialized() &&
+    // ScopedAckDeferrer sends due ACKs when it goes out of scope.
+    if (!defer_ack_only_packets_ && ack_timeout.IsInitialized() &&
         ack_timeout <= clock_->ApproximateNow()) {
       // Send an ACK now because either 1) we were write blocked when we last
       // tried to send an ACK, or 2) both ack alarm and send alarm were set to
@@ -5198,32 +5206,35 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
   }
 
   if (active_) {
-    const QuicTime ack_timeout =
-        connection_->uber_received_packet_manager_.GetEarliestAckTimeout();
-    if (ack_timeout.IsInitialized()) {
-      if (ack_timeout <= connection_->clock_->ApproximateNow() &&
-          !connection_->CanWrite(NO_RETRANSMITTABLE_DATA)) {
-        // Cancel ACK alarm if connection is write blocked, and ACK will be
-        // sent when connection gets unblocked.
-        connection_->ack_alarm().Cancel();
-      } else if (!connection_->ack_alarm().IsSet() ||
-                 connection_->ack_alarm().deadline() > ack_timeout) {
-        connection_->ack_alarm().Update(ack_timeout, QuicTime::Delta::Zero());
+    // ScopedAckDeferrer handles pending ACKs when it goes out of scope.
+    if (!connection_->defer_ack_only_packets_) {
+      const QuicTime ack_timeout =
+          connection_->uber_received_packet_manager_.GetEarliestAckTimeout();
+      if (ack_timeout.IsInitialized()) {
+        if (ack_timeout <= connection_->clock_->ApproximateNow() &&
+            !connection_->CanWrite(NO_RETRANSMITTABLE_DATA)) {
+          // Cancel ACK alarm if connection is write blocked, and ACK will be
+          // sent when connection gets unblocked.
+          connection_->ack_alarm().Cancel();
+        } else if (!connection_->ack_alarm().IsSet() ||
+                   connection_->ack_alarm().deadline() > ack_timeout) {
+          connection_->ack_alarm().Update(ack_timeout, QuicTime::Delta::Zero());
+        }
       }
-    }
-    if (connection_->ack_alarm().IsSet() &&
-        connection_->ack_alarm().deadline() <=
-            connection_->clock_->ApproximateNow()) {
-      // An ACK needs to be sent right now. This ACK did not get bundled
-      // because either there was no data to write or packets were marked as
-      // received after frames were queued in the generator.
-      if (connection_->send_alarm().IsSet() &&
-          connection_->send_alarm().deadline() <=
+      if (connection_->ack_alarm().IsSet() &&
+          connection_->ack_alarm().deadline() <=
               connection_->clock_->ApproximateNow()) {
-        // If send alarm will go off soon, let send alarm send the ACK.
-        connection_->ack_alarm().Cancel();
-      } else {
-        connection_->SendAllPendingAcks();
+        // An ACK needs to be sent right now. This ACK did not get bundled
+        // because either there was no data to write or packets were marked as
+        // received after frames were queued in the generator.
+        if (connection_->send_alarm().IsSet() &&
+            connection_->send_alarm().deadline() <=
+                connection_->clock_->ApproximateNow()) {
+          // If send alarm will go off soon, let send alarm send the ACK.
+          connection_->ack_alarm().Cancel();
+        } else {
+          connection_->SendAllPendingAcks();
+        }
       }
     }
 
@@ -5288,6 +5299,35 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
   }
   QUICHE_DCHECK_EQ(active_,
                    !connection_->packet_creator_.PacketFlusherAttached());
+}
+
+QuicConnection::ScopedAckDeferrer::ScopedAckDeferrer(QuicConnection* connection)
+    : connection_(connection), active_(false) {
+  if (connection_ == nullptr || !connection_->connected() ||
+      !connection_->SupportsMultiplePacketNumberSpaces() ||
+      !connection_->allow_deferring_ack_only_packets_) {
+    return;
+  }
+  if (!connection_->defer_ack_only_packets_) {
+    active_ = true;
+    connection_->defer_ack_only_packets_ = true;
+  }
+}
+
+QuicConnection::ScopedAckDeferrer::~ScopedAckDeferrer() {
+  if (!active_) {
+    return;
+  }
+  connection_->defer_ack_only_packets_ = false;
+  if (!connection_->connected() ||
+      connection_->packet_creator_.PacketFlusherAttached() ||
+      !connection_->uber_received_packet_manager_.GetEarliestAckTimeout()
+           .IsInitialized()) {
+    return;
+  }
+  // Now that deferral has ended, ~ScopedPacketFlusher() sends any due ACKs or
+  // updates the ACK alarm for the whole batch.
+  ScopedPacketFlusher flusher(connection_);
 }
 
 QuicConnection::ScopedEncryptionLevelContext::ScopedEncryptionLevelContext(

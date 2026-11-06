@@ -20613,6 +20613,377 @@ TEST_P(QuicConnectionTest, CoalesceHandshakePingWithLastPacketOfClientFlight) {
   EXPECT_LT(writer_->last_packet_size(), connection_.max_packet_length());
 }
 
+TEST_P(QuicConnectionTest, ScopedAckDeferrerDisabledWithoutConnectionOption) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(4);
+
+  {
+    QuicConnection::ScopedAckDeferrer ack_deferrer(&connection_);
+    for (uint64_t i = 1; i <= 4; ++i) {
+      ProcessDataPacket(i);
+    }
+    // Without DAOP, ACK-only packets are still sent mid-batch.
+    EXPECT_EQ(2u, writer_->packets_write_attempts());
+  }
+
+  EXPECT_EQ(2u, writer_->packets_write_attempts());
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_EQ(QuicPacketNumber(4), LargestAcked(writer_->ack_frames()[0]));
+}
+
+TEST_P(QuicConnectionTest, ScopedAckDeferrerBatchesAckOnlyPackets) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  QuicConnectionPeer::SetAllowDeferringAckOnlyPackets(&connection_, true);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+
+  constexpr uint64_t kNumPackets = 16;
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(kNumPackets);
+  {
+    QuicConnection::ScopedAckDeferrer ack_deferrer(&connection_);
+    for (uint64_t i = 1; i <= kNumPackets; ++i) {
+      ProcessDataPacket(i);
+      EXPECT_EQ(0u, writer_->packets_write_attempts());
+    }
+  }
+
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_EQ(QuicPacketNumber(kNumPackets),
+            LargestAcked(writer_->ack_frames()[0]));
+  EXPECT_EQ(1u, writer_->ack_frames()[0].packets.NumIntervals());
+  EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
+}
+
+TEST_P(QuicConnectionTest,
+       ScopedAckDeferrerOutOfOrderBatchSendsSingleContiguousAck) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  QuicConnectionPeer::SetAllowDeferringAckOnlyPackets(&connection_, true);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+
+  const uint64_t kPacketOrder[] = {1, 2, 4, 3, 5, 6};
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(6);
+  {
+    QuicConnection::ScopedAckDeferrer ack_deferrer(&connection_);
+    for (uint64_t packet_number : kPacketOrder) {
+      ProcessDataPacket(packet_number);
+      EXPECT_EQ(0u, writer_->packets_write_attempts());
+    }
+  }
+
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_EQ(QuicPacketNumber(6), LargestAcked(writer_->ack_frames()[0]));
+  EXPECT_EQ(1u, writer_->ack_frames()[0].packets.NumIntervals());
+}
+
+TEST_P(QuicConnectionTest, ScopedAckDeferrerArmsAckAlarmWhenTimeoutInFuture) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  QuicConnectionPeer::SetAllowDeferringAckOnlyPackets(&connection_, true);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  {
+    QuicConnection::ScopedAckDeferrer ack_deferrer(&connection_);
+    ProcessDataPacket(1);
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+  }
+
+  // Only one packet arrived, so no immediate ACK is due; the delayed-ACK alarm
+  // must be armed for the future.
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
+  ASSERT_TRUE(connection_.GetAckAlarm()->IsSet());
+  EXPECT_GT(connection_.GetAckAlarm()->deadline(), clock_.ApproximateNow());
+
+  clock_.AdvanceTime(connection_.GetAckAlarm()->deadline() -
+                     clock_.ApproximateNow());
+  connection_.GetAckAlarm()->Fire();
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_EQ(QuicPacketNumber(1), LargestAcked(writer_->ack_frames()[0]));
+}
+
+TEST_P(QuicConnectionTest,
+       ScopedAckDeferrerAllowsOpportunisticAckBundlingMidBatch) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  QuicConnectionPeer::SetAllowDeferringAckOnlyPackets(&connection_, true);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+
+  int stream_frames_received = 0;
+  EXPECT_CALL(visitor_, OnStreamFrame(_))
+      .Times(4)
+      .WillRepeatedly([&](const QuicStreamFrame& /*frame*/) {
+        ++stream_frames_received;
+        if (stream_frames_received == 4) {
+          connection_.SendStreamData3();
+        }
+      });
+
+  {
+    QuicConnection::ScopedAckDeferrer ack_deferrer(&connection_);
+    for (uint64_t i = 1; i <= 3; ++i) {
+      ProcessDataPacket(i);
+      EXPECT_EQ(0u, writer_->packets_write_attempts());
+    }
+    ProcessDataPacket(4);
+    // Outgoing STREAM data mid-batch is flushed immediately with the pending
+    // ACK bundled.
+    EXPECT_EQ(1u, writer_->packets_write_attempts());
+    ASSERT_EQ(1u, writer_->ack_frames().size());
+    EXPECT_EQ(QuicPacketNumber(4), LargestAcked(writer_->ack_frames()[0]));
+    EXPECT_EQ(1u, writer_->stream_frames().size());
+  }
+
+  // No redundant ACK-only packet is sent when ScopedAckDeferrer exits.
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
+}
+
+TEST_P(QuicConnectionTest,
+       ScopedAckDeferrerDefersToPendingSendAlarmAtBatchEnd) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  QuicConnectionPeer::SetAllowDeferringAckOnlyPackets(&connection_, true);
+  connection_.set_defer_send_in_response_to_packets(true);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(4);
+
+  auto receive_without_firing_send_alarm = [this](uint64_t packet_number) {
+    std::unique_ptr<QuicPacket> packet(ConstructDataPacket(
+        packet_number, /*has_stop_waiting=*/false, ENCRYPTION_FORWARD_SECURE));
+    char buffer[kMaxOutgoingPacketSize];
+    peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+    size_t encrypted_length = peer_framer_.EncryptPayload(
+        ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(packet_number), *packet,
+        buffer, kMaxOutgoingPacketSize);
+    connection_.ProcessUdpPacket(
+        kSelfAddress, kPeerAddress,
+        QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
+  };
+
+  {
+    QuicConnection::ScopedAckDeferrer ack_deferrer(&connection_);
+    receive_without_firing_send_alarm(1);
+    receive_without_firing_send_alarm(2);
+    // Simulate session having data ready to write via the send alarm.
+    EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(true));
+    receive_without_firing_send_alarm(3);
+    receive_without_firing_send_alarm(4);
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+    EXPECT_TRUE(connection_.GetSendAlarm()->IsSet());
+  }
+
+  // Because send_alarm is due immediately, ~ScopedAckDeferrer() leaves the ACK
+  // for OnSendAlarm() to bundle with outgoing data rather than sending a
+  // separate ACK-only packet first.
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
+  EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
+
+  EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(false));
+  EXPECT_CALL(visitor_, OnCanWrite()).WillOnce([this]() {
+    connection_.SendStreamData3();
+  });
+  connection_.GetSendAlarm()->Fire();
+
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_EQ(QuicPacketNumber(4), LargestAcked(writer_->ack_frames()[0]));
+  EXPECT_EQ(1u, writer_->stream_frames().size());
+}
+
+TEST_P(QuicConnectionTest,
+       ScopedAckDeferrerMultiplePacketNumberSpacesAndNesting) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  QuicConnectionPeer::SetAllowDeferringAckOnlyPackets(&connection_, true);
+  QuicConnection::ScopedAckDeferrer null_deferrer(nullptr);
+
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  peer_framer_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                            std::make_unique<TaggingEncrypter>(0x02));
+  writer_->framer()->framer()->InstallDecrypter(
+      ENCRYPTION_HANDSHAKE, std::make_unique<StrictTaggingDecrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(2);
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  {
+    QuicConnection::ScopedAckDeferrer outer_deferrer(&connection_);
+    {
+      QuicConnection::ScopedAckDeferrer inner_deferrer(&connection_);
+      ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+      ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
+      // Inner deferrer going out of scope must not flush ACKs early.
+    }
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+    ProcessDataPacket(1);
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+  }
+
+  // Outer deferrer sends the due INITIAL ACK and arms the future ACK alarm for
+  // APPLICATION_DATA packet 1.
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+  EXPECT_GT(connection_.GetAckAlarm()->deadline(), clock_.ApproximateNow());
+}
+
+TEST_P(QuicConnectionTest, ScopedAckDeferrerHandlesConnectionCloseMidBatch) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  QuicConnectionPeer::SetAllowDeferringAckOnlyPackets(&connection_, true);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(2);
+  EXPECT_CALL(visitor_,
+              OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
+
+  size_t packets_after_close = 0;
+  {
+    QuicConnection::ScopedAckDeferrer ack_deferrer(&connection_);
+    ProcessDataPacket(1);
+    ProcessDataPacket(2);
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+    connection_.CloseConnection(
+        QUIC_NO_ERROR, "closing mid-batch",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    packets_after_close = writer_->packets_write_attempts();
+    EXPECT_GE(packets_after_close, 1u);
+    EXPECT_FALSE(writer_->connection_close_frames().empty());
+  }
+
+  EXPECT_FALSE(connection_.connected());
+  // Exiting ScopedAckDeferrer after CloseConnection must not send any extra
+  // packets.
+  EXPECT_EQ(packets_after_close, writer_->packets_write_attempts());
+}
+
+TEST_P(QuicConnectionTest, ScopedAckDeferrerEnabledByClientConnectionOption) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  QuicConfig config;
+  config.SetClientConnectionOptions({kDAOP});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(4);
+
+  {
+    QuicConnection::ScopedAckDeferrer ack_deferrer(&connection_);
+    for (uint64_t i = 1; i <= 4; ++i) {
+      ProcessDataPacket(i);
+      EXPECT_EQ(0u, writer_->packets_write_attempts());
+    }
+  }
+
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_EQ(QuicPacketNumber(4), LargestAcked(writer_->ack_frames()[0]));
+}
+
+TEST_P(QuicConnectionTest,
+       ScopedAckDeferrerEnabledByClientSentConnectionOption) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kDAOP});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(4);
+
+  {
+    QuicConnection::ScopedAckDeferrer ack_deferrer(&connection_);
+    for (uint64_t i = 1; i <= 4; ++i) {
+      ProcessDataPacket(i);
+      EXPECT_EQ(0u, writer_->packets_write_attempts());
+    }
+  }
+
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_EQ(QuicPacketNumber(4), LargestAcked(writer_->ack_frames()[0]));
+}
+
+TEST_P(QuicConnectionTest, ScopedAckDeferrerIgnoredOnServerForClientOption) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  writer_->set_perspective(Perspective::IS_SERVER);
+  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  QuicConnectionPeer::SetAddressValidated(&connection_);
+
+  QuicConfig config;
+  config.SetInitialReceivedConnectionOptions({kDAOP});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(4);
+
+  {
+    QuicConnection::ScopedAckDeferrer ack_deferrer(&connection_);
+    for (uint64_t i = 1; i <= 4; ++i) {
+      ProcessDataPacket(i);
+    }
+    EXPECT_EQ(2u, writer_->packets_write_attempts());
+  }
+  EXPECT_EQ(2u, writer_->packets_write_attempts());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
