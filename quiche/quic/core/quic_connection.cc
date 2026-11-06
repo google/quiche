@@ -6499,7 +6499,7 @@ void QuicConnection::EnableOutgoingReceiveTimestamps(uint32_t max_timestamps,
   }
   max_timestamps = std::min(max_timestamps, kMaxReceiveTimestampsToSend);
 
-  uber_received_packet_manager_.set_save_timestamps(true);
+  uber_received_packet_manager_.SaveReceiveTimestamps(max_timestamps);
   framer_.set_peer_max_receive_timestamps_per_ack(max_timestamps);
   framer_.set_peer_receive_timestamps_exponent(exponent);
 }
