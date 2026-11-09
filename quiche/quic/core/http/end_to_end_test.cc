@@ -7877,8 +7877,7 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
   NiceMock<MockQuicConnectionDebugVisitor> visitor;
   connection_debug_visitor_ = &visitor;
   EXPECT_CALL(visitor, OnTransportParametersSent(_))
-      .WillOnce([kCustomParameter](
-                    const TransportParameters& transport_parameters) {
+      .WillOnce([](const TransportParameters& transport_parameters) {
         auto it = transport_parameters.custom_parameters.find(kCustomParameter);
         ASSERT_NE(it, transport_parameters.custom_parameters.end());
         EXPECT_EQ(it->second, "test");
