@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_SESSION_INTERFACE_H_
 #define QUICHE_QUIC_MOQT_MOQT_SESSION_INTERFACE_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -40,8 +41,8 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   MoqtSessionParameters() = default;
   explicit MoqtSessionParameters(quic::Perspective perspective)
       : perspective(perspective), using_webtrans(true) {}
-  explicit MoqtSessionParameters(bool deliver_partial_objects)
-      : deliver_partial_objects(deliver_partial_objects) {}
+  explicit MoqtSessionParameters(size_t max_undelivered_object)
+      : max_undelivered_object(max_undelivered_object) {}
   MoqtSessionParameters(quic::Perspective perspective, std::string path,
                         std::string authority)
       : perspective(perspective),
@@ -51,7 +52,11 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   bool operator==(const MoqtSessionParameters& other) const = default;
 
   std::string version = std::string(kDefaultMoqtVersion);
-  bool deliver_partial_objects = false;
+  // If zero, partial object payloads are always delivered. If non-zero, the
+  // session will buffer objects up to this size before delivering. If an
+  // object is larger than the specified limit, the session will reset the
+  // stream.
+  size_t max_undelivered_object = 64 * 1024 * 1024;  // 64 MB
   quic::Perspective perspective = quic::Perspective::IS_SERVER;
   bool using_webtrans = true;
   std::string path;

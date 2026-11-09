@@ -1638,9 +1638,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
             // stream is reset, probably because OnObjectMessage() caused
             // something to happen to the stream or the session.
             no_more_data_ = true;
-            if (!done) {
-              ParseError("FIN received at an unexpected point in the stream");
-            }
+            return;
           }
         } else {
           absl::StrAppend(&metadata_.properties,

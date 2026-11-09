@@ -34,6 +34,7 @@
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
+#include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simulator/link.h"
@@ -1528,6 +1529,54 @@ TEST_F(MoqtIntegrationTest, PublishWithNewGroupRequest) {
   EXPECT_TRUE(success);
   EXPECT_EQ(largest_id, Location(0, 1));
   EXPECT_TRUE(dynamic_groups);
+}
+
+TEST_F(MoqtIntegrationTest, MaxUndeliveredObjectExceeded) {
+  EstablishSession();
+  MoqtSessionPeer::SetMaxUndeliveredObject(client_->session(), 500);
+  FullTrackName full_track_name("foo", "bar");
+
+  MoqtKnownTrackPublisher publisher;
+  server_->session()->set_publisher(&publisher);
+  auto queue = std::make_shared<TestTrackPublisher>(full_track_name);
+  publisher.Add(queue);
+
+  SubscribeLatestObject(full_track_name, &subscribe_visitor_);
+
+  EXPECT_CALL(client_callbacks_.session_terminated_callback, Call(_)).Times(0);
+  EXPECT_CALL(server_callbacks_.session_terminated_callback, Call(_)).Times(0);
+
+  // Send a small first object on group 0 so the stream index is registered,
+  // followed by a 5000-byte object (> 1 MTU and > max_undelivered_object = 500)
+  // on group 0, and a small object on group 1 to verify the session stays alive
+  // and delivers subsequent streams.
+  EXPECT_CALL(subscribe_visitor_,
+              OnObjectFragment(full_track_name,
+                               MetadataLocationAndStatus(
+                                   Location{0, 0}, MoqtObjectStatus::kNormal),
+                               "first", /*offset=*/0));
+  bool stream_reset = false;
+  EXPECT_CALL(subscribe_visitor_,
+              OnStreamReset(full_track_name, DataStreamIndex{0, 0}))
+      .WillOnce([&]() { stream_reset = true; });
+  bool small_received = false;
+  EXPECT_CALL(subscribe_visitor_,
+              OnObjectFragment(full_track_name,
+                               MetadataLocationAndStatus(
+                                   Location{1, 0}, MoqtObjectStatus::kNormal),
+                               "small", /*offset=*/0))
+      .WillOnce([&]() { small_received = true; });
+  EXPECT_CALL(subscribe_visitor_,
+              OnStreamFin(full_track_name, DataStreamIndex{1, 0}));
+
+  queue->AddObject(Location{0, 0}, 0, "first", false);
+  std::string large_data(5000, 'a');
+  queue->AddObject(Location{0, 1}, 0, large_data, true);
+  queue->AddObject(Location{1, 0}, 0, "small", true);
+
+  bool success = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return stream_reset && small_received; });
+  EXPECT_TRUE(success);
 }
 
 }  // namespace

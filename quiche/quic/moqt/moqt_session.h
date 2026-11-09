@@ -178,8 +178,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   }
 
   // SessionToUniStreamInterface implementation.
-  bool deliver_partial_objects() const override {
-    return parameters_.deliver_partial_objects;
+  size_t max_undelivered_object() const override {
+    return parameters_.max_undelivered_object;
   }
   // Called when the incoming track is malformed per Section 2.5 of
   // draft-ietf-moqt-moq-transport-12. Unsubscribe and notify the application so
