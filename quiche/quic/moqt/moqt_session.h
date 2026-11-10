@@ -176,6 +176,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   webtransport::Session* session() override {
     return is_closing_ ? nullptr : session_;
   }
+  uint64_t NextRequestId() override {
+    uint64_t id = next_request_id_;
+    next_request_id_ += 2;
+    return id;
+  }
 
   // SessionToUniStreamInterface implementation.
   size_t max_undelivered_object() const override {
@@ -408,12 +413,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // Handlers for the control messages on the main control stream.
   absl::Status OnControlMessage(const MoqtSetup& message);
   absl::Status OnControlMessage(const MoqtGoAway& message);
-
-  uint64_t NextRequestId() {
-    uint64_t id = next_request_id_;
-    next_request_id_ += 2;
-    return id;
-  }
 
   bool is_closing_ = false;
   webtransport::Session* session_;

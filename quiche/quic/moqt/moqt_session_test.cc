@@ -2903,6 +2903,73 @@ TEST_F(MoqtSessionTest, PublishAfterGoaway) {
       [&](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}));
 }
 
+TEST_F(MoqtSessionTest, PublishUpdateOnPublish) {
+  CreateTrackPublisher();
+  std::shared_ptr<MoqtTrackPublisher> track_publisher =
+      publisher_.GetTrack(kDefaultTrackName());
+
+  PrepareRequestStream(bidi_wrapper_);
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kPublish), _))
+      .WillOnce(Return(absl::OkStatus()));
+
+  ASSERT_TRUE(session_.Publish(
+      track_publisher, MessageParameters(), TrackProperties(),
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}));
+  bidi_wrapper_->ReceiveMessage(MoqtRequestOk());
+
+  // Unknown track returns true.
+  MessageParameters update_params;
+  update_params.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
+                                                  "token");
+  EXPECT_TRUE(session_.PublishUpdate(
+      FullTrackName("unknown", "track"), update_params,
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}));
+
+  MoqtRequestUpdate expected_update;
+  expected_update.request_id = 2;
+  expected_update.parameters.authorization_tokens =
+      update_params.authorization_tokens;
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(expected_update), _))
+      .WillOnce(Return(absl::OkStatus()));
+
+  bool update_callback_called = false;
+  EXPECT_TRUE(session_.PublishUpdate(
+      kDefaultTrackName(), update_params,
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> resp) {
+        update_callback_called = true;
+        EXPECT_TRUE(std::holds_alternative<MessageParameters>(resp));
+      }));
+  EXPECT_FALSE(update_callback_called);
+  bidi_wrapper_->ReceiveMessage(MoqtRequestOk());
+  EXPECT_TRUE(update_callback_called);
+}
+
+TEST_F(MoqtSessionTest, PublishUpdateOnSubscribe) {
+  bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
+      ResponseStream(kSubscribeByte));
+  MoqtSubscribe request = DefaultSubscribe();
+  MockTrackPublisher* track = CreateTrackPublisher();
+  ReceiveSubscribeSynchronousOk(track, request, bidi_wrapper_.get());
+
+  MessageParameters notify_params;
+  notify_params.set_forward(false);
+  MoqtPublishStateNotify expected_notify;
+  expected_notify.parameters.set_forward(false);
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(expected_notify), _))
+      .WillOnce(Return(absl::OkStatus()));
+  bool callback_called = false;
+  EXPECT_TRUE(session_.PublishUpdate(
+      kDefaultTrackName(), notify_params,
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> resp) {
+        callback_called = true;
+        EXPECT_TRUE(std::holds_alternative<MessageParameters>(resp));
+      }));
+  EXPECT_TRUE(callback_called);
+}
+
 TEST_F(MoqtSessionTest, IncomingPublishAbortsPendingSubscribe) {
   PrepareRequestStream(bidi_wrapper_);
   EXPECT_CALL(mock_bidi_stream_,

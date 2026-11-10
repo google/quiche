@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/base/casts.h"
 #include "absl/base/nullability.h"
@@ -41,6 +42,7 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
@@ -249,7 +251,7 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedNoFilter) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribeOk), _))
       .WillOnce(Return(absl::OkStatus()));
   publisher_->OnSubscribeAccepted();
-  EXPECT_TRUE(publisher_->established());
+  EXPECT_TRUE(publisher_->largest_object_known());
   EXPECT_EQ(publisher_->parameters().largest_object, Location(1, 2));
   EXPECT_FALSE(publisher_->parameters().subscription_filter.has_value());
 }
@@ -328,7 +330,7 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedWithQueuedUpdates) {
       .WillOnce(Return(absl::OkStatus()));
 
   publisher_->OnSubscribeAccepted();
-  EXPECT_TRUE(publisher_->established());
+  EXPECT_TRUE(publisher_->largest_object_known());
   EXPECT_EQ(publisher_->parameters().object_delivery_timeout,
             quic::QuicTimeDelta::FromSeconds(5));
   EXPECT_TRUE(publisher_->parameters().forward());
@@ -957,7 +959,8 @@ TEST_F(LivePublisherTest, PublishPropertiesAndTimeouts) {
             MoqtGroupOrder::kDescending);
 
   // OnSubscribeAccepted initializes publisher delivery timeouts and default
-  // priority without sending SUBSCRIBE_OK since established_ is already true.
+  // priority without sending SUBSCRIBE_OK since largest_object_known_ is
+  // already true.
   EXPECT_CALL(mock_bidi_stream_, Writev).Times(0);
   publish_publisher.OnSubscribeAccepted();
   EXPECT_EQ(publish_publisher.subgroup_delivery_timeout(),
@@ -965,6 +968,168 @@ TEST_F(LivePublisherTest, PublishPropertiesAndTimeouts) {
   EXPECT_EQ(publish_publisher.object_delivery_timeout(),
             quic::QuicTimeDelta::FromMilliseconds(250));
   EXPECT_CALL(*track_publisher_, RemoveObjectListener(&publish_publisher));
+}
+
+TEST_F(LivePublisherTest, PublishUpdateOnPublish) {
+  EXPECT_CALL(*track_publisher_, properties())
+      .WillRepeatedly(ReturnRef(properties_));
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+
+  MessageParameters publish_params;
+  publish_params.set_forward(false);
+  LivePublisher publish_publisher(framer_, track_publisher_, &bidi_stream_,
+                                  kRequestId, kTrackAlias, publish_params,
+                                  visitor_.weak_ptr_factory_.Create(),
+                                  /*is_publish=*/true);
+
+  // Ignored parameters alone return false and send nothing.
+  MessageParameters ignored_only;
+  ignored_only.subscriber_priority = 99;
+  EXPECT_CALL(mock_bidi_stream_, Writev).Times(0);
+  EXPECT_FALSE(publish_publisher.PublishUpdate(
+      ignored_only,
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}));
+
+  // AUTHORIZATION_TOKEN + SUBSCRIPTION_FILTER + FORWARD=1 (+ an ignored
+  // parameter) sends both REQUEST_UPDATE and PUBLISH_STATE_NOTIFY using
+  // track_publisher_->largest_location().
+  EXPECT_CALL(*track_publisher_, largest_location())
+      .WillOnce(Return(Location(3, 5)));
+  MessageParameters update_params;
+  update_params.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
+                                                  "token");
+  update_params.set_forward(true);
+  update_params.subscription_filter.emplace(
+      SubscriptionFilter(MoqtFilterType::kLargestObject));
+  update_params.subscriber_priority = 99;
+
+  MoqtRequestUpdate expected_update;
+  expected_update.request_id = 2;
+  expected_update.parameters.authorization_tokens =
+      update_params.authorization_tokens;
+
+  MoqtPublishStateNotify expected_notify;
+  expected_notify.parameters.largest_object = Location(3, 5);
+  expected_notify.parameters.set_forward(true);
+  expected_notify.parameters.subscription_filter.emplace(
+      SubscriptionFilter(MoqtFilterType::kLargestObject));
+
+  EXPECT_CALL(visitor_, NextRequestId()).WillOnce(Return(2));
+  {
+    testing::InSequence seq;
+    EXPECT_CALL(mock_bidi_stream_,
+                Writev(SerializedControlMessage(expected_notify), _))
+        .WillOnce(Return(absl::OkStatus()));
+    EXPECT_CALL(mock_bidi_stream_,
+                Writev(SerializedControlMessage(expected_update), _))
+        .WillOnce(Return(absl::OkStatus()));
+  }
+
+  bool update_callback_called = false;
+  EXPECT_TRUE(publish_publisher.PublishUpdate(
+      update_params,
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo>) {
+        update_callback_called = true;
+      }));
+  EXPECT_TRUE(publish_publisher.parameters().forward());
+  ASSERT_TRUE(publish_publisher.parameters().subscription_filter.has_value());
+  EXPECT_EQ(publish_publisher.parameters().subscription_filter->start(),
+            Location(3, 6));
+  EXPECT_EQ(publish_publisher.parameters().largest_object, Location(3, 5));
+  EXPECT_FALSE(update_callback_called);
+
+  // FORWARD alone sends PUBLISH_STATE_NOTIFY, invokes response_callback
+  // synchronously with empty MessageParameters, and returns true.
+  MessageParameters notify_only;
+  notify_only.set_forward(false);
+  EXPECT_CALL(*track_publisher_, largest_location())
+      .WillOnce(Return(Location(4, 0)));
+  MoqtPublishStateNotify expected_notify_only;
+  expected_notify_only.parameters.largest_object = Location(4, 0);
+  expected_notify_only.parameters.set_forward(false);
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(expected_notify_only), _))
+      .WillOnce(Return(absl::OkStatus()));
+  bool notify_callback_called = false;
+  EXPECT_TRUE(publish_publisher.PublishUpdate(
+      notify_only,
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> resp) {
+        notify_callback_called = true;
+        EXPECT_TRUE(std::holds_alternative<MessageParameters>(resp));
+      }));
+  EXPECT_FALSE(publish_publisher.parameters().forward());
+  EXPECT_EQ(publish_publisher.parameters().largest_object, Location(4, 0));
+  EXPECT_TRUE(notify_callback_called);
+  EXPECT_CALL(*track_publisher_, RemoveObjectListener(&publish_publisher));
+}
+
+TEST_F(LivePublisherTest, PublishUpdateOnSubscribe) {
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+
+  MessageParameters auth_only;
+  auth_only.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
+                                              "token");
+  MessageParameters notify_params = auth_only;
+  notify_params.set_forward(false);
+  notify_params.subscriber_priority = 42;
+
+  // Before SUBSCRIBE_OK is sent (!largest_object_known()), PublishUpdate hits
+  // a QUICHE_BUG and returns false without invoking response_callback.
+  EXPECT_CALL(mock_bidi_stream_, Writev).Times(0);
+  bool pre_ok_callback_called = false;
+  EXPECT_QUICHE_BUG(
+      EXPECT_FALSE(publisher_->PublishUpdate(
+          notify_params,
+          [&](std::variant<MessageParameters, MoqtRequestErrorInfo>) {
+            pre_ok_callback_called = true;
+          })),
+      "PublishUpdate called before largest_object_known_ is set");
+  EXPECT_TRUE(publisher_->parameters().forward());
+  EXPECT_FALSE(publisher_->parameters().largest_object.has_value());
+  EXPECT_FALSE(pre_ok_callback_called);
+
+  EXPECT_CALL(*track_publisher_, properties())
+      .WillRepeatedly(ReturnRef(properties_));
+  EXPECT_CALL(*track_publisher_, largest_location())
+      .WillOnce(Return(Location(1, 0)));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribeOk), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->OnSubscribeAccepted();
+
+  // AUTHORIZATION_TOKEN alone on a SUBSCRIBE does not send REQUEST_UPDATE and
+  // returns false without invoking response_callback.
+  EXPECT_CALL(mock_bidi_stream_, Writev).Times(0);
+  bool auth_callback_called = false;
+  EXPECT_FALSE(publisher_->PublishUpdate(
+      auth_only, [&](std::variant<MessageParameters, MoqtRequestErrorInfo>) {
+        auth_callback_called = true;
+      }));
+  EXPECT_FALSE(auth_callback_called);
+
+  // AUTHORIZATION_TOKEN + FORWARD=0 on a SUBSCRIBE ignores AUTHORIZATION_TOKEN,
+  // sends PUBLISH_STATE_NOTIFY with track_publisher_->largest_location(),
+  // invokes response_callback synchronously with empty MessageParameters, and
+  // returns true.
+  EXPECT_CALL(*track_publisher_, largest_location())
+      .WillOnce(Return(Location(2, 1)));
+
+  MoqtPublishStateNotify expected_notify;
+  expected_notify.parameters.largest_object = Location(2, 1);
+  expected_notify.parameters.set_forward(false);
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(expected_notify), _))
+      .WillOnce(Return(absl::OkStatus()));
+  bool callback_called = false;
+  EXPECT_TRUE(publisher_->PublishUpdate(
+      notify_params,
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> resp) {
+        callback_called = true;
+        EXPECT_TRUE(std::holds_alternative<MessageParameters>(resp));
+      }));
+  EXPECT_FALSE(publisher_->parameters().forward());
+  EXPECT_EQ(publisher_->parameters().largest_object, Location(2, 1));
+  EXPECT_TRUE(callback_called);
 }
 
 }  // namespace
