@@ -755,8 +755,7 @@ std::unique_ptr<MoqtFetchTask> MoqtSession::RelativeJoiningFetch(
     const MessageParameters& parameters) {
   QUICHE_DCHECK(name.IsValid());
   MessageParameters subscribe_parameters = parameters;
-  subscribe_parameters.subscription_filter.emplace(
-      MoqtFilterType::kLargestObject);
+  subscribe_parameters.location_filter = LocationFilter::NextObjectFilter();
   uint64_t subscribe_request_id = next_request_id_;
   if (!Subscribe(name, visitor, subscribe_parameters)) {
     return nullptr;

@@ -253,12 +253,11 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedNoFilter) {
   publisher_->OnSubscribeAccepted();
   EXPECT_TRUE(publisher_->largest_object_known());
   EXPECT_EQ(publisher_->parameters().largest_object, Location(1, 2));
-  EXPECT_FALSE(publisher_->parameters().subscription_filter.has_value());
+  EXPECT_FALSE(publisher_->parameters().location_filter.has_value());
 }
 
 TEST_F(LivePublisherTest, OnSubscribeAcceptedWithFilter) {
-  publisher_->parameters().subscription_filter =
-      SubscriptionFilter(MoqtFilterType::kLargestObject);
+  publisher_->parameters().location_filter = LocationFilter::NextObjectFilter();
   const TrackProperties properties(std::nullopt, std::nullopt, std::nullopt,
                                    /*default_publisher_priority=*/64,
                                    std::nullopt, std::nullopt, std::nullopt);
@@ -273,9 +272,8 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedWithFilter) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribeOk), _))
       .WillOnce(Return(absl::OkStatus()));
   publisher_->OnSubscribeAccepted();
-  ASSERT_TRUE(publisher_->parameters().subscription_filter.has_value());
-  EXPECT_EQ(publisher_->parameters().subscription_filter->start(),
-            Location(1, 3));
+  ASSERT_TRUE(publisher_->parameters().location_filter.has_value());
+  EXPECT_EQ(publisher_->parameters().location_filter->start(), Location(1, 3));
   // Check that default_publisher_priority is set. A datagram set at priority
   // 64 should not explicitly encode that.
   EXPECT_CALL(*track_publisher_,
@@ -304,7 +302,7 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedWithQueuedUpdates) {
 
   MessageParameters update2;
   update2.set_forward(true);
-  update2.subscription_filter.emplace(MoqtFilterType::kLargestObject);
+  update2.location_filter = LocationFilter::NextObjectFilter();
   bidi_stream_.QueueIncomingUpdate(update2);
 
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
@@ -335,9 +333,8 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedWithQueuedUpdates) {
             quic::QuicTimeDelta::FromSeconds(5));
   EXPECT_TRUE(publisher_->parameters().forward());
   EXPECT_EQ(publisher_->parameters().largest_object, Location(2, 5));
-  ASSERT_TRUE(publisher_->parameters().subscription_filter.has_value());
-  EXPECT_EQ(publisher_->parameters().subscription_filter->start(),
-            Location(2, 6));
+  ASSERT_TRUE(publisher_->parameters().location_filter.has_value());
+  EXPECT_EQ(publisher_->parameters().location_filter->start(), Location(2, 6));
 }
 
 TEST_F(LivePublisherTest, OnSubscribeRejected) {
@@ -369,10 +366,9 @@ TEST_F(LivePublisherTest, Update) {
   EXPECT_FALSE(publisher_->parameters().forward());
   EXPECT_FALSE(publisher_->can_have_joining_fetch());
 
-  // Setting a LargestObject filter while forward=false, then turning forward=
+  // Setting a NextObject filter while forward=false, then turning forward=
   // true initializes the filter using the latest largest_location.
-  publisher_->parameters().subscription_filter =
-      SubscriptionFilter(MoqtFilterType::kLargestObject);
+  publisher_->parameters().location_filter = LocationFilter::NextObjectFilter();
   MessageParameters forward_on_params;
   forward_on_params.set_forward(true);
   EXPECT_CALL(*track_publisher_, largest_location())
@@ -386,18 +382,17 @@ TEST_F(LivePublisherTest, Update) {
   EXPECT_TRUE(publisher_->parameters().forward());
   EXPECT_TRUE(publisher_->can_have_joining_fetch());
   EXPECT_EQ(publisher_->parameters().largest_object, Location(2, 4));
-  ASSERT_TRUE(publisher_->parameters().subscription_filter.has_value());
-  EXPECT_EQ(publisher_->parameters().subscription_filter->start(),
-            Location(2, 5));
+  ASSERT_TRUE(publisher_->parameters().location_filter.has_value());
+  EXPECT_EQ(publisher_->parameters().location_filter->start(), Location(2, 5));
 }
 
-TEST_F(LivePublisherTest, UpdateSubscriptionFilterAndEndGroup) {
+TEST_F(LivePublisherTest, UpdateLocationFilterAndEndGroup) {
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
 
-  // Adding a new kLargestObject filter when forward is already true initializes
+  // Adding a new kNextObject filter when forward is already true initializes
   // the filter and sends LARGEST_OBJECT in REQUEST_OK.
   MessageParameters filter_params;
-  filter_params.subscription_filter.emplace(MoqtFilterType::kLargestObject);
+  filter_params.location_filter = LocationFilter::NextObjectFilter();
   EXPECT_CALL(*track_publisher_, largest_location())
       .WillOnce(Return(Location(3, 1)));
   MessageParameters expected_ok1;
@@ -406,15 +401,15 @@ TEST_F(LivePublisherTest, UpdateSubscriptionFilterAndEndGroup) {
               Writev(SerializedControlMessage(MoqtRequestOk{expected_ok1}), _))
       .WillOnce(Return(absl::OkStatus()));
   publisher_->Update(filter_params, false);
-  ASSERT_TRUE(publisher_->parameters().subscription_filter.has_value());
-  EXPECT_EQ(publisher_->parameters().subscription_filter->start(),
-            Location(3, 2));
+  ASSERT_TRUE(publisher_->parameters().location_filter.has_value());
+  EXPECT_EQ(publisher_->parameters().location_filter->start(), Location(3, 2));
 
-  // Set an AbsoluteRange filter and then extend end_group.
-  publisher_->parameters().subscription_filter =
-      SubscriptionFilter(Location(1, 0), 5);
+  // Set an AbsoluteStartGroupEnd filter and then extend end_group.
+  publisher_->parameters().location_filter =
+      LocationFilter::AbsoluteStartGroupEndFilter(Location(1, 0), 5);
   MessageParameters extend_params;
-  extend_params.subscription_filter = SubscriptionFilter(Location(1, 0), 8);
+  extend_params.location_filter =
+      LocationFilter::AbsoluteStartGroupEndFilter(Location(1, 0), 8);
   EXPECT_CALL(*track_publisher_, largest_location())
       .WillOnce(Return(Location(4, 2)));
   MessageParameters expected_ok2;
@@ -423,7 +418,7 @@ TEST_F(LivePublisherTest, UpdateSubscriptionFilterAndEndGroup) {
               Writev(SerializedControlMessage(MoqtRequestOk{expected_ok2}), _))
       .WillOnce(Return(absl::OkStatus()));
   publisher_->Update(extend_params, false);
-  EXPECT_EQ(publisher_->parameters().subscription_filter->end_group(), 8);
+  EXPECT_EQ(publisher_->parameters().location_filter->end_group(), 8);
   EXPECT_EQ(publisher_->parameters().largest_object, Location(4, 2));
 }
 
@@ -510,7 +505,8 @@ TEST_F(LivePublisherTest, UpdatePriorityWithActiveStreams) {
 
 TEST_F(LivePublisherTest, OnNewObjectAvailableNotInWindow) {
   MessageParameters params;
-  params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
+  params.location_filter =
+      LocationFilter::AbsoluteStartGroupEndFilter(Location(10, 0), 10);
   publisher_->Update(params, true);
   EXPECT_CALL(*track_publisher_, GetCachedObject).Times(0);
   publisher_->OnNewObjectAvailable(Location(5, 0), 0, 128);
@@ -563,7 +559,8 @@ TEST_F(LivePublisherTest, OnNewObjectAvailableStreamCreationBlocked) {
 TEST_F(LivePublisherTest, OnNewFinAvailableNoops) {
   // Not in window
   MessageParameters params;
-  params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
+  params.location_filter =
+      LocationFilter::AbsoluteStartGroupEndFilter(Location(10, 0), 10);
   publisher_->Update(params, true);
   EXPECT_CALL(webtrans_, GetStreamById).Times(0);
   EXPECT_CALL(mock_uni_stream_, Writev).Times(0);
@@ -604,7 +601,8 @@ TEST_F(LivePublisherTest, OnNewFinAvailableWithStream) {
 TEST_F(LivePublisherTest, OnSubgroupAbandonedNoEffect) {
   // Not in window
   MessageParameters params;
-  params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
+  params.location_filter =
+      LocationFilter::AbsoluteStartGroupEndFilter(Location(10, 0), 10);
   publisher_->Update(params, true);
   EXPECT_CALL(webtrans_, GetStreamById).Times(0);
   publisher_->OnSubgroupAbandoned(1, 0, 17);
@@ -622,7 +620,8 @@ TEST_F(LivePublisherTest, OnSubgroupAbandonedNoEffect) {
 TEST_F(LivePublisherTest, OnGroupAbandoned) {
   // Not in window
   MessageParameters params;
-  params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
+  params.location_filter =
+      LocationFilter::AbsoluteStartGroupEndFilter(Location(10, 0), 10);
   publisher_->Update(params, true);
   EXPECT_CALL(webtrans_, GetStreamById).Times(0);
   publisher_->OnGroupAbandoned(1);
@@ -875,7 +874,8 @@ TEST_F(LivePublisherTest, SubgroupDeliveryTimeout) {
 TEST_F(LivePublisherTest, IncomingUpdateTruncatesSubscription) {
   // Track gets to Group 5.
   CreateStream(Location(5, 0), 0, 128);
-  parameters_.subscription_filter = SubscriptionFilter(Location(0, 0), 4);
+  parameters_.location_filter =
+      LocationFilter::AbsoluteStartGroupEndFilter(Location(0, 0), 4);
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_bidi_stream_,
               Writev(SerializedControlMessage(MoqtRequestOk()), _))
@@ -907,7 +907,8 @@ TEST_F(LivePublisherTest, OnSubgroupAbandoned) {
 }
 
 TEST_F(LivePublisherTest, OnSubgroupAbandonedOutsideWindow) {
-  parameters_.subscription_filter = SubscriptionFilter(Location(20, 0));
+  parameters_.location_filter =
+      LocationFilter::AbsoluteStartFilter(Location(20, 0));
   publisher_->Update(parameters_, true);
   EXPECT_CALL(mock_uni_stream_, ResetWithUserCode).Times(0);
   publisher_->OnSubgroupAbandoned(1, 0, 1234);
@@ -990,7 +991,7 @@ TEST_F(LivePublisherTest, PublishUpdateOnPublish) {
       ignored_only,
       [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}));
 
-  // AUTHORIZATION_TOKEN + SUBSCRIPTION_FILTER + FORWARD=1 (+ an ignored
+  // AUTHORIZATION_TOKEN + LOCATION_FILTER + FORWARD=1 (+ an ignored
   // parameter) sends both REQUEST_UPDATE and PUBLISH_STATE_NOTIFY using
   // track_publisher_->largest_location().
   EXPECT_CALL(*track_publisher_, largest_location())
@@ -999,8 +1000,7 @@ TEST_F(LivePublisherTest, PublishUpdateOnPublish) {
   update_params.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                   "token");
   update_params.set_forward(true);
-  update_params.subscription_filter.emplace(
-      SubscriptionFilter(MoqtFilterType::kLargestObject));
+  update_params.location_filter = LocationFilter::NextObjectFilter();
   update_params.subscriber_priority = 99;
 
   MoqtRequestUpdate expected_update;
@@ -1011,8 +1011,8 @@ TEST_F(LivePublisherTest, PublishUpdateOnPublish) {
   MoqtPublishStateNotify expected_notify;
   expected_notify.parameters.largest_object = Location(3, 5);
   expected_notify.parameters.set_forward(true);
-  expected_notify.parameters.subscription_filter.emplace(
-      SubscriptionFilter(MoqtFilterType::kLargestObject));
+  expected_notify.parameters.location_filter =
+      LocationFilter::NextObjectFilter();
 
   EXPECT_CALL(visitor_, NextRequestId()).WillOnce(Return(2));
   {
@@ -1032,8 +1032,8 @@ TEST_F(LivePublisherTest, PublishUpdateOnPublish) {
         update_callback_called = true;
       }));
   EXPECT_TRUE(publish_publisher.parameters().forward());
-  ASSERT_TRUE(publish_publisher.parameters().subscription_filter.has_value());
-  EXPECT_EQ(publish_publisher.parameters().subscription_filter->start(),
+  ASSERT_TRUE(publish_publisher.parameters().location_filter.has_value());
+  EXPECT_EQ(publish_publisher.parameters().location_filter->start(),
             Location(3, 6));
   EXPECT_EQ(publish_publisher.parameters().largest_object, Location(3, 5));
   EXPECT_FALSE(update_callback_called);

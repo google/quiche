@@ -139,9 +139,9 @@ class LivePublisher : public MoqtObjectListener, public LivePublisherInterface {
   // LivePublisherInterface implementation.
   bool InWindow(Location location) override {
     return parameters_.forward() &&
-           (!parameters_.subscription_filter.has_value() ||
-            (parameters_.subscription_filter->WindowKnown() &&
-             parameters_.subscription_filter->InWindow(location)));
+           (!parameters_.location_filter.has_value() ||
+            (parameters_.location_filter->WindowKnown() &&
+             parameters_.location_filter->InWindow(location)));
   };
   const quic::QuicClock* clock() override {
     if (visitor() == nullptr) {
@@ -212,9 +212,9 @@ class LivePublisher : public MoqtObjectListener, public LivePublisherInterface {
   // subscriber.
   bool InWindow(uint64_t group) {
     return parameters_.forward() &&
-           (!parameters_.subscription_filter.has_value() ||
-            (parameters_.subscription_filter->WindowKnown() &&
-             parameters_.subscription_filter->InWindow(group)));
+           (!parameters_.location_filter.has_value() ||
+            (parameters_.location_filter->WindowKnown() &&
+             parameters_.location_filter->InWindow(group)));
   }
 
   void SendDatagram(Location sequence);

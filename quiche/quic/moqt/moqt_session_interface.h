@@ -102,10 +102,11 @@ class MoqtSessionInterface {
                                MoqtResponseCallback response_callback) = 0;
   // Used by the publisher of a subscription. If |parameters| contains an
   // AUTHORIZATION_TOKEN and it's a PUBLISH, it will send REQUEST_UPDATE. If
-  // |parameters| contains a SUBSCRIPTION_FILTER or FORWARD, it will send
-  // PUBLISH_STATE_NOTIFY with the parameters plus LARGEST_OBJECT.
-  // Returns true if all required messages were sent, and |response_callback|
-  // will be (or has already been) invoked.
+  // |parameters| contains a LOCATION_FILTER or FORWARD, it will send
+  // PUBLISH_STATE_NOTIFY with the parameters plus LARGEST_OBJECT. Returns false
+  // if sending either message fails. |response_callback| will be invoked when
+  // REQUEST_UPDATE receives a response. The callback is ignored if the function
+  // returns false (meaning no REQUEST_UPDATE was sent).
   virtual bool PublishUpdate(const FullTrackName& name,
                              const MessageParameters& parameters,
                              MoqtResponseCallback response_callback) = 0;

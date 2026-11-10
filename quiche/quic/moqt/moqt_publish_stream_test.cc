@@ -186,8 +186,8 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestUpdate) {
   request_update.parameters.object_delivery_timeout =
       quic::QuicTimeDelta::FromSeconds(3);
   request_update.parameters.subscriber_priority = 5;
-  request_update.parameters.subscription_filter.emplace(
-      MoqtFilterType::kLargestObject);
+  request_update.parameters.location_filter =
+      LocationFilter::NextObjectFilter();
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _))
       .WillOnce(Return(absl::OkStatus()));
@@ -202,10 +202,8 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestUpdate) {
             request_update.parameters.subscriber_priority);
 
   // Verify filter was updated based on largest location (1, 2) -> (1, 3)
-  ASSERT_TRUE(pub_params.subscription_filter.has_value());
-  EXPECT_EQ(pub_params.subscription_filter->type(),
-            MoqtFilterType::kLargestObject);
-  EXPECT_EQ(pub_params.subscription_filter->start(), Location(1, 3));
+  ASSERT_TRUE(pub_params.location_filter.has_value());
+  EXPECT_EQ(pub_params.location_filter->start(), Location(1, 3));
 }
 
 TEST_F(MoqtPublishRequestStreamTest, ReceiveObjectAck) {
@@ -520,7 +518,8 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishStateNotify) {
   MoqtPublishStateNotify notify;
   notify.parameters.largest_object = Location(2, 5);
   notify.parameters.set_forward(false);
-  notify.parameters.subscription_filter.emplace(Location(3, 0), 8);
+  notify.parameters.location_filter =
+      LocationFilter::AbsoluteStartGroupEndFilter(Location(3, 0), 8);
   QUICHE_EXPECT_OK(
       stream_->OnRawControlMessage(GenericMessageToRawControlMessage(notify)));
 
@@ -529,8 +528,8 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishStateNotify) {
       LiveSubscriberPeer::parameters(*captured_subscriber);
   EXPECT_EQ(sub_params.largest_object, Location(2, 5));
   EXPECT_FALSE(sub_params.forward());
-  EXPECT_EQ(sub_params.subscription_filter,
-            SubscriptionFilter(Location(3, 0), 8));
+  EXPECT_EQ(sub_params.location_filter,
+            LocationFilter::AbsoluteStartGroupEndFilter(Location(3, 0), 8));
 
   // A subsequent PUBLISH_STATE_NOTIFY decreasing LARGEST_OBJECT is rejected.
   MoqtPublishStateNotify bad_notify;

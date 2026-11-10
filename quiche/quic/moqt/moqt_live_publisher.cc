@@ -139,8 +139,8 @@ bool LivePublisher::PublishUpdate(const MessageParameters& parameters,
   }
   bool send_request_update =
       !parameters.authorization_tokens.empty() && is_publish_;
-  bool send_notify = parameters.subscription_filter.has_value() ||
-                     parameters.forward_has_value();
+  bool send_notify =
+      parameters.location_filter.has_value() || parameters.forward_has_value();
   if (!send_request_update && !send_notify) {
     return false;
   }
@@ -151,7 +151,7 @@ bool LivePublisher::PublishUpdate(const MessageParameters& parameters,
       return false;
     }
     MoqtPublishStateNotify notify;
-    notify.parameters.subscription_filter = parameters.subscription_filter;
+    notify.parameters.location_filter = parameters.location_filter;
     if (parameters.forward_has_value()) {
       notify.parameters.set_forward(parameters.forward());
     }
@@ -207,9 +207,9 @@ void LivePublisher::OnSubscribeAccepted() {
   }
   largest_object_known_ = true;
   parameters_.largest_object = track_publisher_->largest_location();
-  if (parameters_.subscription_filter.has_value() &&
-      !parameters_.subscription_filter->WindowKnown()) {
-    parameters_.subscription_filter->OnLargestObject(
+  if (parameters_.location_filter.has_value() &&
+      !parameters_.location_filter->WindowKnown()) {
+    parameters_.location_filter->ConvertRelativeToAbsolute(
         parameters_.largest_object);
   }
   MoqtSubscribeOk subscribe_ok;

@@ -193,7 +193,7 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceiveRequestOk) {
                   quic::QuicTimeDelta::FromSeconds(30));
       };
   parameters_.subscriber_priority = 20;
-  parameters_.subscription_filter.emplace(MoqtFilterType::kLargestObject);
+  parameters_.location_filter = LocationFilter::NextObjectFilter();
   QUICHE_EXPECT_OK(stream_->SendRequestUpdate(kRequestId, parameters_,
                                               std::move(callback),
                                               MoqtMessageType::kSubscribe));
@@ -209,9 +209,8 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceiveRequestOk) {
             quic::QuicTimeDelta::FromSeconds(30));
   EXPECT_EQ(stream_->track()->const_parameters().largest_object,
             Location(2, 4));
-  ASSERT_TRUE(
-      stream_->track()->const_parameters().subscription_filter.has_value());
-  EXPECT_EQ(stream_->track()->const_parameters().subscription_filter->start(),
+  ASSERT_TRUE(stream_->track()->const_parameters().location_filter.has_value());
+  EXPECT_EQ(stream_->track()->const_parameters().location_filter->start(),
             Location(2, 5));
   EXPECT_TRUE(callback_called);
 
@@ -266,17 +265,16 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceivePublishStateNotify) {
   MoqtPublishStateNotify notify;
   notify.parameters.largest_object = Location(3, 4);
   notify.parameters.set_forward(false);
-  notify.parameters.subscription_filter.emplace(MoqtFilterType::kLargestObject);
+  notify.parameters.location_filter = LocationFilter::NextObjectFilter();
   QUICHE_EXPECT_OK(
       stream_->OnRawControlMessage(GenericMessageToRawControlMessage(notify)));
   EXPECT_EQ(stream_->track()->const_parameters().largest_object,
             Location(3, 4));
   EXPECT_FALSE(stream_->track()->const_parameters().forward());
-  ASSERT_TRUE(
-      stream_->track()->const_parameters().subscription_filter.has_value());
+  ASSERT_TRUE(stream_->track()->const_parameters().location_filter.has_value());
   EXPECT_TRUE(
-      stream_->track()->const_parameters().subscription_filter->WindowKnown());
-  EXPECT_EQ(stream_->track()->const_parameters().subscription_filter->start(),
+      stream_->track()->const_parameters().location_filter->WindowKnown());
+  EXPECT_EQ(stream_->track()->const_parameters().location_filter->start(),
             Location(3, 5));
 
   // A subsequent PUBLISH_STATE_NOTIFY with a smaller LARGEST_OBJECT is
