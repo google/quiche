@@ -7870,7 +7870,7 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  constexpr auto kCustomParameter =
+  static constexpr auto kCustomParameter =
       static_cast<TransportParameters::TransportParameterId>(0xff34);
   client_config_.custom_transport_parameters_to_send()[kCustomParameter] =
       "test";
