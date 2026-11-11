@@ -142,7 +142,7 @@ class QUICHE_EXPORT OutgoingSubgroupStream : public OutgoingUniStream {
     }
   }
 
-  class DeliveryTimeoutDelegate
+  class QUICHE_EXPORT DeliveryTimeoutDelegate
       : public quic::QuicAlarm::DelegateWithoutContext {
    public:
     explicit DeliveryTimeoutDelegate(OutgoingSubgroupStream* stream)
