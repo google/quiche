@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/quic_packet_reader.h"
 
+#include <cstddef>
+#include <vector>
+
 #include "absl/base/macros.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_process_packet_interface.h"
@@ -20,18 +23,37 @@
 
 namespace quic {
 
-QuicPacketReader::QuicPacketReader()
-    : read_buffers_(kNumPacketsPerReadMmsgCall),
-      read_results_(kNumPacketsPerReadMmsgCall) {
-  QUICHE_DCHECK_EQ(read_buffers_.size(), read_results_.size());
-  for (size_t i = 0; i < read_results_.size(); ++i) {
-    read_results_[i].packet_buffer.buffer = read_buffers_[i].packet_buffer;
-    read_results_[i].packet_buffer.buffer_len =
-        sizeof(read_buffers_[i].packet_buffer);
+namespace {
 
-    read_results_[i].control_buffer.buffer = read_buffers_[i].control_buffer;
-    read_results_[i].control_buffer.buffer_len =
-        sizeof(read_buffers_[i].control_buffer);
+// Points each of |read_results| at the matching buffer in |read_buffers|.
+template <typename ReadBufferType>
+void AttachBuffers(std::vector<ReadBufferType>& read_buffers,
+                   QuicUdpSocketApi::ReadPacketResults& read_results) {
+  QUICHE_DCHECK_EQ(read_buffers.size(), read_results.size());
+  for (size_t i = 0; i < read_results.size(); ++i) {
+    read_results[i].packet_buffer.buffer = read_buffers[i].packet_buffer;
+    read_results[i].packet_buffer.buffer_len =
+        sizeof(read_buffers[i].packet_buffer);
+
+    read_results[i].control_buffer.buffer = read_buffers[i].control_buffer;
+    read_results[i].control_buffer.buffer_len =
+        sizeof(read_buffers[i].control_buffer);
+  }
+}
+
+}  // namespace
+
+QuicPacketReader::QuicPacketReader() : QuicPacketReader(Options()) {}
+
+QuicPacketReader::QuicPacketReader(Options options)
+    : gro_enabled_(options.enable_gro),
+      read_results_(kNumPacketsPerReadMmsgCall) {
+  if (gro_enabled_) {
+    gro_read_buffers_.resize(kNumPacketsPerReadMmsgCall);
+    AttachBuffers(gro_read_buffers_, read_results_);
+  } else {
+    read_buffers_.resize(kNumPacketsPerReadMmsgCall);
+    AttachBuffers(read_buffers_, read_results_);
   }
 }
 
@@ -41,9 +63,11 @@ bool QuicPacketReader::ReadAndDispatchPackets(
     int fd, int port, const QuicClock& clock, ProcessPacketInterface* processor,
     QuicPacketCount* packets_dropped) {
   // Reset all read_results for reuse.
+  const size_t packet_buffer_length = gro_enabled_
+                                          ? sizeof(GroReadBuffer::packet_buffer)
+                                          : sizeof(ReadBuffer::packet_buffer);
   for (size_t i = 0; i < read_results_.size(); ++i) {
-    read_results_[i].Reset(
-        /*packet_buffer_length=*/sizeof(read_buffers_[i].packet_buffer));
+    read_results_[i].Reset(packet_buffer_length);
   }
 
   // Use clock.Now() as the packet receipt time, the time between packet
@@ -62,6 +86,9 @@ bool QuicPacketReader::ReadAndDispatchPackets(
   QUIC_CODE_COUNT(quic_record_tos_byte);
   // Note ToS bit will also populate ECN codepoint.
   info_bits.Set(QuicUdpPacketInfoBit::TOS);
+  if (gro_enabled_) {
+    info_bits.Set(QuicUdpPacketInfoBit::IS_GRO);
+  }
   size_t packets_read =
       socket_api_.ReadMultiplePackets(fd, info_bits, &read_results_);
   if (GetQuicReloadableFlag(quic_move_clock_now)) {
@@ -80,7 +107,15 @@ bool QuicPacketReader::ReadAndDispatchPackets(
       continue;
     }
 
-    DispatchPacket(result, now, port, processor);
+    if (gro_enabled_) {
+      // The result may be a GRO train of several packets.
+      socket_api_.ForEachGroSegment(
+          result, [&](const QuicUdpSocketApi::ReadPacketResult& segment) {
+            DispatchPacket(segment, now, port, processor);
+          });
+    } else {
+      DispatchPacket(result, now, port, processor);
+    }
   }
 
   // We may not have read all of the packets available on the socket.
