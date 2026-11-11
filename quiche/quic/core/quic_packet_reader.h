@@ -11,6 +11,7 @@
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_process_packet_interface.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -46,6 +47,11 @@ class QUICHE_EXPORT QuicPacketReader {
   // return value. If neither v4 nor v6 ip exists, return an uninitialized ip.
   static QuicIpAddress GetSelfIpFromPacketInfo(
       const QuicUdpPacketInfo& packet_info, bool prefer_v6_ip);
+
+  // Passes the packet in |result| to |processor|, received at |now| on |port|.
+  void DispatchPacket(const QuicUdpSocketApi::ReadPacketResult& result,
+                      QuicTime now, int port,
+                      ProcessPacketInterface* processor);
 
   struct QUICHE_EXPORT ReadBuffer {
     ABSL_CACHELINE_ALIGNED char
