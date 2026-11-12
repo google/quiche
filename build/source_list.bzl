@@ -1341,6 +1341,7 @@ quiche_tests_srcs = [
     "quic/core/qpack/qpack_send_stream_test.cc",
     "quic/core/qpack/qpack_static_table_test.cc",
     "quic/core/qpack/value_splitting_header_list_test.cc",
+    "quic/core/quic_ack_timestamp_fuzz_test.cc",
     "quic/core/quic_ack_timestamp_list_test.cc",
     "quic/core/quic_alarm_test.cc",
     "quic/core/quic_arena_scoped_ptr_test.cc",
