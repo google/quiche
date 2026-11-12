@@ -12,11 +12,10 @@
 
 namespace quiche {
 
-QuicheMemSlice::QuicheMemSlice(QuicheBuffer buffer)
-    : data_(buffer.data()), size_(buffer.size()) {
+QuicheMemSlice::QuicheMemSlice(QuicheBuffer buffer) : size_(buffer.size()) {
   QuicheUniqueBufferPtr owned = buffer.Release();
   QuicheBufferAllocator* allocator = owned.get_deleter().allocator();
-  owned.release();
+  data_ = owned.release();
   done_callback_ = [allocator](absl::string_view ptr) {
     allocator->Delete(const_cast<char*>(ptr.data()));
   };
