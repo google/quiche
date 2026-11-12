@@ -14,9 +14,11 @@
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_default_packet_writer.h"
+#include "quiche/quic/core/quic_packet_reader.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_udp_socket.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -147,6 +149,20 @@ void QuicClientDefaultNetworkHelper::RunEventLoop() {
   event_loop_->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(50));
 }
 
+void QuicClientDefaultNetworkHelper::EnableUdpGro() {
+  if (!fd_address_map_.empty()) {
+    // Replacing the reader could free it in the middle of a read.
+    QUIC_BUG(quic_enable_udp_gro_after_socket_creation)
+        << "UDP GRO must be enabled before any socket is created.";
+    return;
+  }
+  if (packet_reader_->gro_enabled()) {
+    return;
+  }
+  packet_reader_ = std::make_unique<QuicPacketReader>(
+      QuicPacketReader::Options{.enable_gro = true});
+}
+
 void QuicClientDefaultNetworkHelper::OnSocketEvent(
     QuicEventLoop* /*event_loop*/, QuicUdpSocketFd fd,
     QuicSocketEventMask events) {
@@ -238,6 +254,10 @@ SocketFd QuicClientDefaultNetworkHelper::CreateUDPSocket(
 
   *overflow_supported = api.EnableDroppedPacketCount(fd);
   api.EnableReceiveTimestamp(fd);
+  if (packet_reader_->gro_enabled() && !api.EnableUdpGro(fd)) {
+    QUIC_LOG(WARNING) << "Failed to enable UDP GRO on socket (" << fd
+                      << "), continuing without it.";
+  }
 
   if (!BindInterfaceNameIfNeeded(fd)) {
     CleanUpUDPSocket(fd);

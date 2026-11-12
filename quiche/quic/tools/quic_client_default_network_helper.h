@@ -118,6 +118,12 @@ class QuicClientDefaultNetworkHelper : public QuicClientBase::NetworkHelper,
   void set_max_reads_per_event_loop(int num_reads) {
     max_reads_per_event_loop_ = num_reads;
   }
+
+  // Enables UDP GRO on each socket that this helper creates, if the kernel
+  // supports it, and reads with a QuicPacketReader that can read GRO trains.
+  // Must be called before the helper creates any socket.
+  void EnableUdpGro();
+
   // If |fd| is an open UDP socket, unregister and close it. Otherwise, do
   // nothing.
   void CleanUpUDPSocket(SocketFd fd);

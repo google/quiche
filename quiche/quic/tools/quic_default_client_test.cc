@@ -9,9 +9,12 @@
 #include "quiche/quic/tools/quic_default_client.h"
 
 #include <dirent.h>
+#include <netinet/udp.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -20,9 +23,12 @@
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_clock.h"
+#include "quiche/quic/core/quic_udp_socket.h"
+#include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_loopback.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
+#include "quiche/quic/tools/quic_client_default_network_helper.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -67,6 +73,17 @@ size_t NumOpenSocketFDs() {
   return socket_count;
 }
 
+// Returns whether UDP GRO is enabled on |fd|, or nullopt if the kernel does not
+// support UDP GRO.
+std::optional<bool> IsUdpGroEnabled(int fd) {
+  int gro_enabled = 0;
+  socklen_t length = sizeof(gro_enabled);
+  if (getsockopt(fd, SOL_UDP, UDP_GRO, &gro_enabled, &length) != 0) {
+    return std::nullopt;
+  }
+  return gro_enabled != 0;
+}
+
 class QuicDefaultClientTest : public QuicTest {
  public:
   QuicDefaultClientTest()
@@ -78,15 +95,20 @@ class QuicDefaultClientTest : public QuicTest {
     CreateAndInitializeQuicClient();
   }
 
-  // Creates a new QuicClient and Initializes it on an unused port.
-  // Caller is responsible for deletion.
-  std::unique_ptr<QuicDefaultClient> CreateAndInitializeQuicClient() {
+  // Creates a new QuicClient for an unused port, without initializing it.
+  std::unique_ptr<QuicDefaultClient> CreateQuicClient() {
     QuicSocketAddress server_address(QuicSocketAddress(TestLoopback(), 0));
     QuicServerId server_id("hostname", server_address.port());
     ParsedQuicVersionVector versions = AllSupportedVersions();
-    auto client = std::make_unique<QuicDefaultClient>(
+    return std::make_unique<QuicDefaultClient>(
         server_address, server_id, versions, event_loop_.get(),
         crypto_test_utils::ProofVerifierForTesting());
+  }
+
+  // Creates a new QuicClient and Initializes it on an unused port.
+  // Caller is responsible for deletion.
+  std::unique_ptr<QuicDefaultClient> CreateAndInitializeQuicClient() {
+    std::unique_ptr<QuicDefaultClient> client = CreateQuicClient();
     EXPECT_TRUE(client->Initialize());
     return client;
   }
@@ -138,6 +160,49 @@ TEST_F(QuicDefaultClientTest, CreateAndCleanUpUDPSockets) {
   EXPECT_EQ(number_of_open_fds + 2, NumOpenSocketFDs());
   client->default_network_helper()->CleanUpUDPSocket(client->GetLatestFD());
   EXPECT_EQ(number_of_open_fds + 1, NumOpenSocketFDs());
+}
+
+TEST_F(QuicDefaultClientTest, UdpGroIsOffByDefault) {
+  std::unique_ptr<QuicDefaultClient> client(CreateAndInitializeQuicClient());
+
+  std::optional<bool> gro_enabled = IsUdpGroEnabled(client->GetLatestFD());
+  if (!gro_enabled.has_value()) {
+    GTEST_SKIP() << "UDP GRO is not supported.";
+  }
+  EXPECT_FALSE(*gro_enabled);
+}
+
+TEST_F(QuicDefaultClientTest, EnableUdpGro) {
+  std::unique_ptr<QuicDefaultClient> client(CreateQuicClient());
+  client->default_network_helper()->EnableUdpGro();
+  ASSERT_TRUE(client->Initialize());
+
+  std::optional<bool> gro_enabled = IsUdpGroEnabled(client->GetLatestFD());
+  if (!gro_enabled.has_value()) {
+    GTEST_SKIP() << "UDP GRO is not supported.";
+  }
+  EXPECT_TRUE(*gro_enabled);
+}
+
+TEST_F(QuicDefaultClientTest, EnableUdpGroTwice) {
+  std::unique_ptr<QuicDefaultClient> client(CreateQuicClient());
+  client->default_network_helper()->EnableUdpGro();
+  // A second call before any socket exists is a no-op.
+  client->default_network_helper()->EnableUdpGro();
+  ASSERT_TRUE(client->Initialize());
+
+  std::optional<bool> gro_enabled = IsUdpGroEnabled(client->GetLatestFD());
+  if (!gro_enabled.has_value()) {
+    GTEST_SKIP() << "UDP GRO is not supported.";
+  }
+  EXPECT_TRUE(*gro_enabled);
+}
+
+TEST_F(QuicDefaultClientTest, EnableUdpGroAfterCreatingSocket) {
+  std::unique_ptr<QuicDefaultClient> client(CreateAndInitializeQuicClient());
+
+  EXPECT_QUIC_BUG(client->default_network_helper()->EnableUdpGro(),
+                  "UDP GRO must be enabled before any socket is created.");
 }
 
 }  // namespace
