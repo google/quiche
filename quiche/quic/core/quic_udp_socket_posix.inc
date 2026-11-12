@@ -95,7 +95,8 @@ void PopulatePacketInfoFromControlMessage(
 #ifdef SOL_UDP
   if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::IS_GRO) &&
       cmsg->cmsg_level == SOL_UDP && cmsg->cmsg_type == UDP_GRO) {
-    packet_info->set_gso_size(*reinterpret_cast<uint16_t*>(CMSG_DATA(cmsg)));
+    // The UDP_GRO cmsg holds an int, unlike UDP_SEGMENT's uint16_t.
+    packet_info->set_gso_size(*reinterpret_cast<int*>(CMSG_DATA(cmsg)));
   }
 #endif
 
