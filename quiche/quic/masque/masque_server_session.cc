@@ -598,7 +598,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   }
 
   QuicSocketAddress target_server_address;
-  if (has_bind_header && host == "%2A" && port == "%2A") {
+  if (has_bind_header && host == "*" && port == "*") {
     // This is a valid connect-udp-bind request.
     target_server_address = QuicSocketAddress();
   } else if (has_bind_header) {
@@ -610,7 +610,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
         absl::StrCat(
             "Bad value for target when connect-udp-bind is present: host:",
             host.value(), " port: ", port.value()));
-  } else if (host == "%2A" || port == "%2A") {
+  } else if (host == "*" || port == "*") {
     // Error.
     QUIC_DLOG(ERROR)
         << "Bad value for target when connect-udp-bind is absent: host:"
@@ -684,6 +684,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
 
   quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
+  response_headers["capsule-protocol"] = "?1";
   if (has_bind_header) {
     // For now the proxy public address is returned as
     // localhost values.

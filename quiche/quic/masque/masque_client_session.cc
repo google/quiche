@@ -60,6 +60,7 @@ using ContextId = MasqueClientSession::ContextId;
 
 constexpr MasqueClientSession::ContextId kConnectIpPayloadContextId = 0;
 constexpr MasqueClientSession::ContextId kConnectEthernetPayloadContextId = 0;
+constexpr absl::string_view kBindHackyString = "HackyStringForBind";
 }  // namespace
 
 MasqueClientSession::MasqueClientSession(
@@ -112,10 +113,10 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   QUIC_DLOG(INFO) << "No existing state non bind state found, create one";
   // No CONNECT-UDP request found, create a new one.
   std::string target_host, target_port;
-
   if (IsBind()) {
-    target_host = "%2A";
-    target_port = "%2A";
+    // ExpandURITemplate does not encode * as %2A so we need to do it manually.
+    target_host = kBindHackyString;
+    target_port = kBindHackyString;
   } else {
     auto it =
         fake_addresses_.find(target_server_address.host().ToPackedString());
@@ -145,15 +146,12 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
                                          parsed_uri_template.query.len));
   }
   absl::flat_hash_map<std::string, std::string> parameters;
-  // TODO(abhisinghx): Remove this hack.
-  // ExpandURITemplate, does not encode * as %2A.
-  // Therefore to meet the spec, we need to do it manually.
+  parameters["target_host"] = target_host;
+  parameters["target_port"] = target_port;
   if (IsBind()) {
-    parameters["target_host"] = "HackyStringForBind";
-    parameters["target_port"] = "HackyStringForBind";
-  } else {
-    parameters["target_host"] = target_host;
-    parameters["target_port"] = target_port;
+    // Put it back to %2A for logging.
+    target_host = "%2A";
+    target_port = "%2A";
   }
 
   std::string expanded_path;
@@ -163,13 +161,12 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   if (!expanded || vars_found.find("target_host") == vars_found.end() ||
       vars_found.find("target_port") == vars_found.end()) {
     QUIC_DLOG(ERROR) << "Failed to expand URI template \"" << uri_template_
-                     << "\" for " << target_host << " port "
-                     << target_server_address.port();
+                     << "\" for " << target_host << " port " << target_port;
     return nullptr;
   }
   if (IsBind()) {
     expanded_path =
-        absl::StrReplaceAll(expanded_path, {{"HackyStringForBind", "%2A"}});
+        absl::StrReplaceAll(expanded_path, {{kBindHackyString, "%2A"}});
   }
 
   url::Component expanded_path_component(0, expanded_path.length());
@@ -181,7 +178,7 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   if (!canonicalized || !canonicalized_path_component.is_nonempty()) {
     QUIC_DLOG(ERROR) << "Failed to canonicalize URI template \""
                      << uri_template_ << "\" for " << target_host << " port "
-                     << target_server_address.port();
+                     << target_port;
     return nullptr;
   }
   std::string canonicalized_path(
@@ -200,9 +197,9 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   std::string authority = url.HostPort();
 
   QUIC_DLOG(INFO) << "Sending CONNECT-UDP request for " << target_host
-                  << " port " << target_server_address.port() << " on stream "
-                  << stream->id() << " scheme=\"" << scheme << "\" authority=\""
-                  << authority << "\" path=\"" << canonicalized_path << "\"";
+                  << " port " << target_port << " on stream " << stream->id()
+                  << " scheme=\"" << scheme << "\" authority=\"" << authority
+                  << "\" path=\"" << canonicalized_path << "\"";
 
   // Send the request.
   quiche::HttpHeaderBlock headers;
@@ -211,6 +208,7 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   headers[":scheme"] = scheme;
   headers[":authority"] = authority;
   headers[":path"] = canonicalized_path;
+  headers["capsule-protocol"] = "?1";
   if (IsBind()) {
     headers["connect-udp-bind"] = "?1";
   }
@@ -265,6 +263,7 @@ MasqueClientSession::GetOrCreateConnectIpClientState(
   headers[":scheme"] = scheme;
   headers[":authority"] = authority;
   headers[":path"] = path;
+  headers["capsule-protocol"] = "?1";
   AddAdditionalHeaders(headers, url);
   QUIC_DVLOG(1) << "Sending request headers: " << headers.DebugString();
   size_t bytes_sent =
@@ -315,6 +314,7 @@ MasqueClientSession::GetOrCreateConnectEthernetClientState(
   headers[":scheme"] = scheme;
   headers[":authority"] = authority;
   headers[":path"] = path;
+  headers["capsule-protocol"] = "?1";
   AddAdditionalHeaders(headers, url);
   QUIC_DVLOG(1) << "Sending request headers: " << headers.DebugString();
   size_t bytes_sent =
