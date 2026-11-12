@@ -5,15 +5,25 @@
 #ifndef QUICHE_QUIC_QBONE_QBONE_SERVER_SESSION_H_
 #define QUICHE_QUIC_QBONE_QBONE_SERVER_SESSION_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include "absl/base/attributes.h"
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
+#include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/qbone/qbone_control.pb.h"
 #include "quiche/quic/qbone/qbone_control_stream.h"
 #include "quiche/quic/qbone/qbone_packet_processor.h"
@@ -100,9 +110,9 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
   // Config for QUIC crypto server stream, used by the server.
   const QuicCryptoServerConfig* quic_crypto_server_config_;
 
- private:
   QbonePacketWriter* absl_nullable writer_;
 
+ private:
   // Used by QUIC crypto server stream to track most recently compressed certs.
   QuicCompressedCertsCache* compressed_certs_cache_;
   // This helper is needed when create QuicCryptoServerStream.
