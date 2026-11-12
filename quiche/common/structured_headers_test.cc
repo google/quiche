@@ -259,39 +259,46 @@ const struct DictionaryTestCase {
 } dictionary_test_cases[] = {
     {"basic dictionary",
      "en=\"Applepie\", da=:aGVsbG8=:",
-     {Dictionary{{{"en", {Item(Item::string, "Applepie"), {}}},
-                  {"da", {Item(Item::byte_sequence, "hello"), {}}}}}},
+     {Dictionary(Dictionary::unique_keys,
+                 {{"en", {Item(Item::string, "Applepie"), {}}},
+                  {"da", {Item(Item::byte_sequence, "hello"), {}}}})},
      nullptr},
     {"tab separated dictionary",
      "a=1\t,\tb=2",
-     {Dictionary{{{"a", {Integer(1L), {}}}, {"b", {Integer(2L), {}}}}}},
+     {Dictionary(Dictionary::unique_keys,
+                 {{"a", {Integer(1L), {}}}, {"b", {Integer(2L), {}}}})},
      "a=1, b=2"},
     {"missing value with params dictionary",
      "a=1, b;foo=9, c=3",
-     {Dictionary{{{"a", {Integer(1L), {}}},
+     {Dictionary(Dictionary::unique_keys,
+                 {{"a", {Integer(1L), {}}},
                   {"b", {Item(true), {Param("foo", 9)}}},
-                  {"c", {Integer(3L), {}}}}}},
+                  {"c", {Integer(3L), {}}}})},
      nullptr},
     // Parameterised dictionary tests
     {"parameterised inner list member dict",
      "a=(\"1\";b=1;c=?0 \"2\");d=\"e\"",
-     {Dictionary{{{"a",
+     {Dictionary(Dictionary::unique_keys,
+                 {{"a",
                    {{{Item(Item::string, "1"),
                       {Param("b", 1), BooleanParam("c", false)}},
                      {Item(Item::string, "2"), {}}},
-                    {Param("d", "e")}}}}}},
+                    {Param("d", "e")}}}})},
      nullptr},
     {"explicit true value with parameter",
      "a=?1;b=1",
-     {Dictionary{{{"a", {Item(true), {Param("b", 1)}}}}}},
+     {Dictionary(Dictionary::unique_keys,
+                 {{"a", {Item(true), {Param("b", 1)}}}})},
      "a;b=1"},
     {"implicit true value with parameter",
      "a;b=1",
-     {Dictionary{{{"a", {Item(true), {Param("b", 1)}}}}}},
+     {Dictionary(Dictionary::unique_keys,
+                 {{"a", {Item(true), {Param("b", 1)}}}})},
      nullptr},
     {"implicit true value with implicitly-valued parameter",
      "a;b",
-     {Dictionary{{{"a", {Item(true), {BooleanParam("b", true)}}}}}},
+     {Dictionary(Dictionary::unique_keys,
+                 {{"a", {Item(true), {BooleanParam("b", true)}}}})},
      nullptr},
 };
 }  // namespace
@@ -740,7 +747,7 @@ TEST(StructuredHeaderTest, DictionaryClear) {
   const std::string key0 = "key0";
   const ParameterizedMember member0(Item(Item::string, "Applepie"));
 
-  Dictionary dict({{key0, member0}});
+  Dictionary dict(Dictionary::unique_keys, {{key0, member0}});
   EXPECT_EQ(1U, dict.size());
   EXPECT_FALSE(dict.empty());
   EXPECT_TRUE(dict.contains(key0));
@@ -760,7 +767,7 @@ TEST(StructuredHeaderTest, DictionaryAccessors) {
       Item(Item::byte_sequence, "hello"));
   const ParameterizedMember empty_member;
 
-  Dictionary dict{{{key0, nonempty_member0}}};
+  Dictionary dict(Dictionary::unique_keys, {{key0, nonempty_member0}});
   EXPECT_TRUE(dict.contains(key0));
   EXPECT_EQ(nonempty_member0, dict[key0]);
   EXPECT_EQ(&dict[key0], &dict.at(key0));
@@ -805,18 +812,22 @@ TEST(StructuredHeaderTest, UnserializableDictionary) {
     const Dictionary value;
   } bad_dictionaries[] = {
       {"Default-constructed member",
-       Dictionary{{{"abc", ParameterizedMember()}}}},
-      {"Unserializable dict key", Dictionary{{{"ABC", {Token("abc"), {}}}}}},
+       Dictionary(Dictionary::unique_keys, {{"abc", ParameterizedMember()}})},
+      {"Unserializable dict key",
+       Dictionary(Dictionary::unique_keys, {{"ABC", {Token("abc"), {}}}})},
       {"Dictionary item is unserializable",
-       Dictionary{{{"abc", {Token("abc="), {}}}}}},
+       Dictionary(Dictionary::unique_keys, {{"abc", {Token("abc="), {}}}})},
       {"Param value is null",
-       Dictionary{{{"abc", {Token("abc"), {NullParam("a")}}}}}},
+       Dictionary(Dictionary::unique_keys,
+                  {{"abc", {Token("abc"), {NullParam("a")}}}})},
       {"Param value is unserializable",
-       Dictionary{{{"abc", {Token("abc"), {{"a", Token("\n")}}}}}}},
+       Dictionary(Dictionary::unique_keys,
+                  {{"abc", {Token("abc"), {{"a", Token("\n")}}}}})},
       {"Dictionary inner-list contains unserializable item",
-       Dictionary{
+       Dictionary(
+           Dictionary::unique_keys,
            {{"abc",
-             {std::vector<ParameterizedItem>{{Token("abc="), {}}}, {}}}}}},
+             {std::vector<ParameterizedItem>{{Token("abc="), {}}}, {}}}})},
   };
   for (const auto& bad_dictionary : bad_dictionaries) {
     SCOPED_TRACE(bad_dictionary.name);
