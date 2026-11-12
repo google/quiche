@@ -26,6 +26,12 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "each read represents a single syscall and QUICHE will read multiple "
     "packets per syscall (currently 16).");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, qbone_client_enable_udp_gro, false,
+    "If true, enables UDP GRO on the tunnel socket if the kernel supports it, "
+    "so that a read can return a train of back-to-back datagrams from the "
+    "server. Takes about 1 MB of read buffers per client.");
+
 namespace quic {
 namespace {
 std::unique_ptr<QuicClientBase::NetworkHelper> CreateNetworkHelper(
@@ -34,6 +40,9 @@ std::unique_ptr<QuicClientBase::NetworkHelper> CreateNetworkHelper(
       std::make_unique<QuicClientDefaultNetworkHelper>(event_loop, client);
   helper_impl->set_max_reads_per_event_loop(
       quiche::GetQuicheCommandLineFlag(FLAGS_qbone_client_max_tunnel_reads));
+  if (quiche::GetQuicheCommandLineFlag(FLAGS_qbone_client_enable_udp_gro)) {
+    helper_impl->EnableUdpGro();
+  }
 
   std::unique_ptr<QuicClientBase::NetworkHelper> helper =
       std::move(helper_impl);

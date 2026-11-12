@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/casts.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
@@ -35,6 +36,7 @@
 #include "quiche/quic/test_tools/quic_dispatcher_peer.h"
 #include "quiche/quic/test_tools/quic_server_peer.h"
 #include "quiche/quic/test_tools/server_thread.h"
+#include "quiche/quic/tools/quic_client_default_network_helper.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
 #include "quiche/quic/tools/quic_server.h"
 
@@ -213,7 +215,9 @@ INSTANTIATE_TEST_SUITE_P(Tests, QboneClientTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
-TEST_P(QboneClientTest, SendDataFromClient) {
+// Sends packets from a client to a server and back, with the client reading UDP
+// GRO trains if |enable_udp_gro| is true.
+void SendDataFromClient(const ParsedQuicVersion& version, bool enable_udp_gro) {
   quic::QuicMemoryCacheBackend server_backend;
   auto server = std::make_unique<QboneTestServer>(
       crypto_test_utils::ProofSourceForTesting(), &server_backend);
@@ -229,8 +233,12 @@ TEST_P(QboneClientTest, SendDataFromClient) {
       GetDefaultEventLoop()->Create(quic::QuicDefaultClock::Get());
   QboneTestClient client(
       server_address, QuicServerId("test.example.com", server_address.port()),
-      ParsedQuicVersionVector{GetParam()}, event_loop.get(),
+      ParsedQuicVersionVector{version}, event_loop.get(),
       crypto_test_utils::ProofVerifierForTesting());
+  if (enable_udp_gro) {
+    absl::down_cast<QuicClientDefaultNetworkHelper*>(client.network_helper())
+        ->EnableUdpGro();
+  }
   ASSERT_TRUE(client.Initialize());
   ASSERT_TRUE(client.Connect());
   ASSERT_TRUE(client.WaitForOneRttKeysAvailable());
@@ -265,6 +273,17 @@ TEST_P(QboneClientTest, SendDataFromClient) {
   client.Disconnect();
   server_thread.Quit();
   server_thread.Join();
+}
+
+TEST_P(QboneClientTest, SendDataFromClient) {
+  SendDataFromClient(GetParam(), /*enable_udp_gro=*/false);
+}
+
+// The server writes each packet separately, so the client does not get GRO
+// trains here; QuicPacketReaderTest covers those. This checks that a client
+// that reads with UDP GRO still works.
+TEST_P(QboneClientTest, SendDataFromClientWithUdpGro) {
+  SendDataFromClient(GetParam(), /*enable_udp_gro=*/true);
 }
 
 }  // namespace
