@@ -114,8 +114,8 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   std::string target_host, target_port;
 
   if (IsBind()) {
-    target_host = "*";
-    target_port = "*";
+    target_host = "%2A";
+    target_port = "%2A";
   } else {
     auto it =
         fake_addresses_.find(target_server_address.host().ToPackedString());
@@ -252,7 +252,7 @@ MasqueClientSession::GetOrCreateConnectIpClientState(
   QuicUrl url(uri_template_);
   std::string scheme = url.scheme();
   std::string authority = url.HostPort();
-  std::string path = "/.well-known/masque/ip/*/*/";
+  std::string path = "/.well-known/masque/ip/%2A/%2A/";
 
   QUIC_DLOG(INFO) << "Sending CONNECT-IP request on stream " << stream->id()
                   << " scheme=\"" << scheme << "\" authority=\"" << authority
@@ -265,7 +265,6 @@ MasqueClientSession::GetOrCreateConnectIpClientState(
   headers[":scheme"] = scheme;
   headers[":authority"] = authority;
   headers[":path"] = path;
-  headers["connect-ip-version"] = "3";
   AddAdditionalHeaders(headers, url);
   QUIC_DVLOG(1) << "Sending request headers: " << headers.DebugString();
   size_t bytes_sent =

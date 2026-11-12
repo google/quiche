@@ -598,7 +598,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   }
 
   QuicSocketAddress target_server_address;
-  if (has_bind_header && host == "*" && port == "*") {
+  if (has_bind_header && host == "%2A" && port == "%2A") {
     // This is a valid connect-udp-bind request.
     target_server_address = QuicSocketAddress();
   } else if (has_bind_header) {
@@ -610,7 +610,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
         absl::StrCat(
             "Bad value for target when connect-udp-bind is present: host:",
             host.value(), " port: ", port.value()));
-  } else if (host == "*" || port == "*") {
+  } else if (host == "%2A" || port == "%2A") {
     // Error.
     QUIC_DLOG(ERROR)
         << "Bad value for target when connect-udp-bind is absent: host:"
