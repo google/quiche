@@ -351,6 +351,14 @@ class TrackProperties : public KeyValuePairList {
   // Returns false if the property list contains illegal values or illegally
   // duplicated properties.
   bool Validate() const;
+  // Returns true if the property list renders the track malformed (e.g., it
+  // contains object-only properties).
+  bool IsMalformed() const {
+    // TODO(martinduke): If immutable properties include an immutable properties
+    // property, the track is malformed.
+    return contains(static_cast<uint64_t>(PropertyType::kPriorGroupIdGap)) ||
+           contains(static_cast<uint64_t>(PropertyType::kPriorObjectIdGap));
+  }
   // Returns OK if there are no unknown mandatory properties. Otherwise, returns
   // an error.
   absl::Status CheckForUnknownMandatoryProperty() const {

@@ -66,6 +66,17 @@ absl::Status MoqtSubscribeRequestStream::OnControlMessage(
     return absl::InvalidArgumentError(
         "Multiple SUBSCRIBE_OK on the same stream");
   }
+  if (message.properties.IsMalformed()) {
+    add_callback_ = nullptr;
+    // Save everything before Reset() destroys track_.
+    SubscribeVisitor* visitor = track_->visitor();
+    FullTrackName track_name = track_->full_track_name();
+    Reset(kResetCodeMalformedTrack);
+    if (visitor != nullptr) {
+      visitor->OnMalformedTrack(track_name);
+    }
+    return absl::OkStatus();
+  }
   absl::Status mandatory_property_status =
       message.properties.CheckForUnknownMandatoryProperty();
   if (!mandatory_property_status.ok()) {

@@ -143,6 +143,15 @@ absl::Status MoqtFetchRequestStream::OnControlMessage(
   if (response_callback_ == nullptr) {
     return absl::InvalidArgumentError("Multiple FETCH_OK on the same stream");
   }
+  if (message.properties.IsMalformed()) {
+    FetchResponseCallback response_callback = std::move(response_callback_);
+    response_callback_ = nullptr;
+    Reset(kResetCodeMalformedTrack);
+    std::move(response_callback)(MoqtRequestErrorInfo{
+        RequestErrorCode::kMalformedTrack,
+        /*retry_interval=*/std::nullopt, "Malformed track properties"});
+    return absl::OkStatus();
+  }
   absl::Status mandatory_property_status =
       message.properties.CheckForUnknownMandatoryProperty();
   if (!mandatory_property_status.ok()) {

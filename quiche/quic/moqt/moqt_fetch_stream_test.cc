@@ -267,6 +267,26 @@ TEST_F(MoqtFetchRequestStreamTest,
   QUICHE_EXPECT_OK(stream->OnControlMessage(ok_message));
 }
 
+TEST_F(MoqtFetchRequestStreamTest,
+       OnControlMessageFetchOkWithMalformedProperty) {
+  std::unique_ptr<MoqtFetchRequestStream> stream =
+      CreateAndBindStandaloneStream();
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeMalformedTrack));
+  EXPECT_CALL(delete_callback_, Call(kRequestId));
+  EXPECT_CALL(task_, OnStreamAndFetchClosed);
+  EXPECT_CALL(
+      response_callback_,
+      Call(testing::VariantWith<MoqtRequestErrorInfo>(MoqtRequestErrorInfo{
+          RequestErrorCode::kMalformedTrack,
+          /*retry_interval=*/std::nullopt, "Malformed track properties"})));
+  MoqtFetchOk ok_message;
+  ok_message.end_location = Location(3, 50);
+  ok_message.end_of_track = true;
+  ok_message.properties.insert(
+      static_cast<uint64_t>(PropertyType::kPriorObjectIdGap), 1ULL);
+  QUICHE_EXPECT_OK(stream->OnControlMessage(ok_message));
+}
+
 TEST_F(MoqtFetchRequestStreamTest, OnControlMessageDuplicateFetchOk) {
   std::unique_ptr<MoqtFetchRequestStream> stream =
       CreateAndBindStandaloneStream();

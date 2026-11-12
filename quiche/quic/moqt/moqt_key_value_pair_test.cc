@@ -395,6 +395,29 @@ TEST_F(TrackPropertiesTest, Validate) {
   EXPECT_FALSE(properties.Validate());
 }
 
+TEST_F(TrackPropertiesTest, IsMalformed) {
+  TrackProperties properties;
+  EXPECT_FALSE(properties.IsMalformed());
+
+  // Known track properties and unknown properties are not malformed.
+  properties.insert(static_cast<uint64_t>(PropertyType::kObjectDeliveryTimeout),
+                    5ULL);
+  properties.insert(0x42, 15ULL);
+  properties.insert(0x43, "unknown_odd");
+  EXPECT_FALSE(properties.IsMalformed());
+
+  // Object-only properties render the track malformed.
+  TrackProperties prior_group_gap;
+  prior_group_gap.insert(static_cast<uint64_t>(PropertyType::kPriorGroupIdGap),
+                         1ULL);
+  EXPECT_TRUE(prior_group_gap.IsMalformed());
+
+  TrackProperties prior_object_gap;
+  prior_object_gap.insert(
+      static_cast<uint64_t>(PropertyType::kPriorObjectIdGap), 1ULL);
+  EXPECT_TRUE(prior_object_gap.IsMalformed());
+}
+
 TEST_F(TrackPropertiesTest, CheckForUnknownMandatoryProperty) {
   TrackProperties properties;
   QUICHE_EXPECT_OK(properties.CheckForUnknownMandatoryProperty());

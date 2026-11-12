@@ -13,7 +13,6 @@
 #include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
-#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_live_publisher.h"
@@ -67,6 +66,12 @@ absl::Status MoqtTrackStatusRequestStream::OnControlMessage(
   TrackStatusResponseCallback callback = std::move(response_callback_);
   response_callback_ = nullptr;
   Fin();
+  if (message.properties.IsMalformed()) {
+    std::move(callback)(MoqtRequestErrorInfo{RequestErrorCode::kMalformedTrack,
+                                             /*retry_interval=*/std::nullopt,
+                                             "Malformed track properties"});
+    return absl::OkStatus();
+  }
   std::move(callback)(message);
   return absl::OkStatus();
 }

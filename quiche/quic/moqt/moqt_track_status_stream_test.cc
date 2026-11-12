@@ -133,6 +133,29 @@ TEST_F(MoqtTrackStatusRequestStreamTest, ReceiveOkResponse) {
       stream.OnRawControlMessage(GenericMessageToRawControlMessage(ok)));
 }
 
+TEST_F(MoqtTrackStatusRequestStreamTest, ReceiveOkWithMalformedProperty) {
+  MoqtTrackStatusRequestStream stream = CreateStream();
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kTrackStatus), _));
+  stream.BindStream(&mock_stream_);
+
+  MoqtRequestOk ok;
+  ok.parameters.largest_object = Location(1, 2);
+  ok.properties.insert(static_cast<uint64_t>(PropertyType::kPriorObjectIdGap),
+                       1ULL);
+  EXPECT_CALL(response_callback_, Call)
+      .WillOnce([&](std::variant<TrackStatusOkData, MoqtRequestErrorInfo> v) {
+        ASSERT_TRUE(std::holds_alternative<MoqtRequestErrorInfo>(v));
+        auto info = std::get<MoqtRequestErrorInfo>(v);
+        EXPECT_EQ(info.error_code, RequestErrorCode::kMalformedTrack);
+        EXPECT_EQ(info.reason_phrase, "Malformed track properties");
+      });
+  EXPECT_CALL(mock_stream_, Writev(testing::IsEmpty(), _));
+  QUICHE_EXPECT_OK(
+      stream.OnRawControlMessage(GenericMessageToRawControlMessage(ok)));
+}
+
 TEST_F(MoqtTrackStatusRequestStreamTest, ReceiveErrorResponse) {
   MoqtTrackStatusRequestStream stream = CreateStream();
   EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));

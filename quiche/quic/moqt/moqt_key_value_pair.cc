@@ -222,8 +222,6 @@ bool TrackProperties::dynamic_groups() const {
 }
 
 bool TrackProperties::Validate() const {
-  // TODO(martinduke): If immutable properties include an immutable properties
-  // property, the track is malformed.
   return (ValidateInner(PropertyType::kObjectDeliveryTimeout, std::nullopt,
                         std::nullopt) &&
           ValidateInner(PropertyType::kMaxCacheDuration, std::nullopt,

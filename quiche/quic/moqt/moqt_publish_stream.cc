@@ -177,6 +177,13 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
                             /*retry_interval=*/std::nullopt,
                             "Reserved track name");
   }
+  if (message.properties.IsMalformed()) {
+    add_callback_ = nullptr;
+    remove_callback_ = nullptr;
+    return SendRequestError(RequestErrorCode::kMalformedTrack,
+                            /*retry_interval=*/std::nullopt,
+                            "Malformed track properties");
+  }
   absl::Status mandatory_property_status =
       message.properties.CheckForUnknownMandatoryProperty();
   if (!mandatory_property_status.ok()) {
