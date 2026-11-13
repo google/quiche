@@ -240,12 +240,15 @@ void QuicSession::Initialize() {
     }
     if (perspective_ == Perspective::IS_CLIENT &&
         connection_->version().IsIetfQuic()) {
-      if (config()->HasClientRequestedIndependentOption(k3CID, perspective_)) {
+      if (config()->HasClientSentConnectionOption(k3CID, perspective_) ||
+          config()->HasClientRequestedIndependentOption(k3CID, perspective_)) {
         config()->SetActiveConnectionIdLimitToSend(3);
-      } else if (config()->HasClientRequestedIndependentOption(k4CID,
+      } else if (config()->HasClientSentConnectionOption(k4CID, perspective_) ||
+                 config()->HasClientRequestedIndependentOption(k4CID,
                                                                perspective_)) {
         config()->SetActiveConnectionIdLimitToSend(4);
-      } else if (config()->HasClientRequestedIndependentOption(k5CID,
+      } else if (config()->HasClientSentConnectionOption(k5CID, perspective_) ||
+                 config()->HasClientRequestedIndependentOption(k5CID,
                                                                perspective_)) {
         config()->SetActiveConnectionIdLimitToSend(5);
       }

@@ -2469,6 +2469,25 @@ TEST_P(QuicSessionTestClient, ActiveConnectionIdLimitSet) {
   EXPECT_EQ(session_.config()->GetActiveConnectionIdLimitToSend(), 5u);
   EXPECT_EQ(QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(connection_),
             5u);
+
+  session_.config()->SetClientConnectionOptions({});
+  session_.config()->SetConnectionOptionsToSend({k3CID});
+  session_.Initialize();
+  EXPECT_EQ(session_.config()->GetActiveConnectionIdLimitToSend(), 3u);
+  EXPECT_EQ(QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(connection_),
+            3u);
+
+  session_.config()->SetConnectionOptionsToSend({k4CID});
+  session_.Initialize();
+  EXPECT_EQ(session_.config()->GetActiveConnectionIdLimitToSend(), 4u);
+  EXPECT_EQ(QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(connection_),
+            4u);
+
+  session_.config()->SetConnectionOptionsToSend({k5CID});
+  session_.Initialize();
+  EXPECT_EQ(session_.config()->GetActiveConnectionIdLimitToSend(), 5u);
+  EXPECT_EQ(QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(connection_),
+            5u);
 }
 
 TEST_P(QuicSessionTestServer, ZombieStreams) {

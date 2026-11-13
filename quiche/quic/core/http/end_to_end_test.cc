@@ -4112,8 +4112,8 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChangedTwiceInARow) {
   // Tests that the client's port can change twice in a row when the server
   // issues extra Connection IDs via active_connection_id_limit, without waiting
   // for newly issued CIDs between migrations.
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
-  client_config_.SetClientConnectionOptions(QuicTagVector{k3CID});
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
+  client_extra_copts_.push_back(k3CID);
   server_config_.set_max_num_of_active_connection_ids(
       kMaxNumOfActiveConnectionIds);
   ASSERT_TRUE(Initialize());
@@ -4193,8 +4193,8 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChangedTwiceInARow) {
 }
 
 TEST_P(EndToEndTest, ConnectionMigrationClientIPChangedTwiceInARow) {
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
-  client_config_.SetClientConnectionOptions(QuicTagVector{k3CID});
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
+  client_extra_copts_.push_back(k3CID);
   server_config_.set_max_num_of_active_connection_ids(
       kMaxNumOfActiveConnectionIds);
   ASSERT_TRUE(Initialize());
@@ -4261,8 +4261,8 @@ TEST_P(EndToEndTest, ConnectionMigrationClientIPChangedTwiceInARow) {
 
 TEST_P(EndToEndTest,
        AsynchronousConnectionMigrationClientIPChangedTwiceInARow) {
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
-  client_config_.SetClientConnectionOptions(QuicTagVector{k3CID});
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
+  client_extra_copts_.push_back(k3CID);
   server_config_.set_max_num_of_active_connection_ids(
       kMaxNumOfActiveConnectionIds);
   ASSERT_TRUE(Initialize());
@@ -4336,8 +4336,8 @@ TEST_P(EndToEndTest,
 }
 
 TEST_P(EndToEndTest, ProbingMultiplePathsCausesServerToForgetEarlyPaths) {
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
-  client_config_.SetClientConnectionOptions(QuicTagVector{k4CID});
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
+  client_extra_copts_.push_back(k4CID);
   server_config_.set_max_num_of_active_connection_ids(
       kMaxNumOfActiveConnectionIds);
   ASSERT_TRUE(Initialize());
@@ -4455,8 +4455,8 @@ TEST_P(EndToEndTest, ProbingMultiplePathsCausesServerToForgetEarlyPaths) {
 
 TEST_P(EndToEndTest,
        ConnectionMigrationReplenishesConnectionIdsAcrossMultipleMigrations) {
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
-  client_config_.SetClientConnectionOptions(QuicTagVector{k4CID});
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
+  client_extra_copts_.push_back(k4CID);
   server_config_.set_max_num_of_active_connection_ids(
       kMaxNumOfActiveConnectionIds);
   ASSERT_TRUE(Initialize());
@@ -4592,8 +4592,8 @@ TEST_P(EndToEndTest,
 }
 
 TEST_P(EndToEndTest, ConnectionMigrationClientIPChangedFourTimesInARow) {
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
-  client_config_.SetClientConnectionOptions(QuicTagVector{k5CID});
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
+  client_extra_copts_.push_back(k5CID);
   server_config_.set_max_num_of_active_connection_ids(
       kMaxNumOfActiveConnectionIds);
   ASSERT_TRUE(Initialize());
@@ -4658,8 +4658,8 @@ TEST_P(EndToEndTest, ConnectionMigrationClientIPChangedFourTimesInARow) {
 }
 
 TEST_P(EndToEndTest, ConnectionMigrationExhaustsConnectionIdsWith5CID) {
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
-  client_config_.SetClientConnectionOptions(QuicTagVector{k5CID});
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
+  client_extra_copts_.push_back(k5CID);
   server_config_.set_max_num_of_active_connection_ids(
       kMaxNumOfActiveConnectionIds);
   ASSERT_TRUE(Initialize());
@@ -9948,8 +9948,8 @@ TEST_P(EndToEndTest, SpinBitEnableSafety) {
 }
 
 TEST_P(EndToEndTest, ActiveConnectionIdLimit4CID) {
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
-  client_config_.SetClientConnectionOptions(QuicTagVector{k4CID});
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
+  client_extra_copts_.push_back(k4CID);
   server_config_.set_max_num_of_active_connection_ids(
       kMaxNumOfActiveConnectionIds);
   ASSERT_TRUE(Initialize());
@@ -9968,6 +9968,31 @@ TEST_P(EndToEndTest, ActiveConnectionIdLimit4CID) {
   EXPECT_EQ(
       QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(server_connection),
       4u);
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest,
+       ActiveConnectionIdLimit4CIDIgnoredWithoutConnectionOption) {
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{k4CID});
+  server_config_.set_max_num_of_active_connection_ids(
+      kMaxNumOfActiveConnectionIds);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) {
+    return;
+  }
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_NE(client_connection, nullptr);
+  EXPECT_EQ(
+      QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(client_connection),
+      4u);
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  ASSERT_NE(server_connection, nullptr);
+  EXPECT_EQ(
+      QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(server_connection),
+      kMinNumOfActiveConnectionIds);
   server_thread_->Resume();
 }
 

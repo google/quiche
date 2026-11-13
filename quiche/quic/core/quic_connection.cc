@@ -461,16 +461,19 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       peer_issued_cid_manager_->set_active_connection_id_limit(
           config.GetActiveConnectionIdLimitToSend());
     } else if (perspective_ == Perspective::IS_SERVER &&
-               GetQuicReloadableFlag(quic_active_connection_id_limit2) &&
+               GetQuicReloadableFlag(quic_active_connection_id_limit3) &&
                self_issued_cid_manager_ != nullptr &&
                // Ensure the client is not using a CID.
                peer_issued_cid_manager_ == nullptr &&
                config.max_num_of_active_connection_ids() >
                    kMinNumOfActiveConnectionIds &&
+               (config.HasClientSentConnectionOption(k3CID, perspective_) ||
+                config.HasClientSentConnectionOption(k4CID, perspective_) ||
+                config.HasClientSentConnectionOption(k5CID, perspective_)) &&
                config.HasReceivedActiveConnectionIdLimit() &&
                config.ReceivedActiveConnectionIdLimit() >
                    kMinNumOfActiveConnectionIds) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit2, 1, 2);
+      QUIC_RELOADABLE_FLAG_COUNT(quic_active_connection_id_limit3);
       self_issued_cid_manager_->set_active_connection_id_limit(
           std::min<size_t>(config.ReceivedActiveConnectionIdLimit(),
                            config.max_num_of_active_connection_ids()));

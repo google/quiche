@@ -15056,7 +15056,7 @@ TEST_P(
   if (!version().IsIetfQuic()) {
     return;
   }
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
   PathProbeTestInit(Perspective::IS_SERVER);
 
   QuicConfig config;
@@ -15064,6 +15064,7 @@ TEST_P(
   TransportParameters params;
   params.initial_source_connection_id = connection_.client_connection_id();
   params.active_connection_id_limit.set_value(3);
+  params.google_connection_options = QuicTagVector{k3CID};
   std::string error_details;
   ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
                                                 &error_details),
@@ -15171,7 +15172,7 @@ TEST_P(QuicConnectionTest,
   if (!version().IsIetfQuic()) {
     return;
   }
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
   PathProbeTestInit(Perspective::IS_SERVER);
 
   QuicConfig config;
@@ -15179,6 +15180,7 @@ TEST_P(QuicConnectionTest,
   TransportParameters params;
   params.initial_source_connection_id = connection_.client_connection_id();
   params.active_connection_id_limit.set_value(3);
+  params.google_connection_options = QuicTagVector{k3CID};
   std::string error_details;
   ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
                                                 &error_details),
@@ -15257,7 +15259,7 @@ TEST_P(QuicConnectionTest,
   if (!version().IsIetfQuic()) {
     return;
   }
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
   PathProbeTestInit(Perspective::IS_SERVER);
 
   QuicConfig config;
@@ -15265,6 +15267,7 @@ TEST_P(QuicConnectionTest,
   TransportParameters params;
   params.initial_source_connection_id = connection_.client_connection_id();
   params.active_connection_id_limit.set_value(3);
+  params.google_connection_options = QuicTagVector{k3CID};
   std::string error_details;
   ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
                                                 &error_details),
@@ -15338,7 +15341,7 @@ TEST_P(QuicConnectionTest, TwoUnvalidatedPeerIpMigrationsInARowAtServer) {
   if (!version().IsIetfQuic()) {
     return;
   }
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
   PathProbeTestInit(Perspective::IS_SERVER);
   ASSERT_TRUE(connection_.client_connection_id().IsEmpty());
 
@@ -15347,6 +15350,7 @@ TEST_P(QuicConnectionTest, TwoUnvalidatedPeerIpMigrationsInARowAtServer) {
   TransportParameters params;
   params.initial_source_connection_id = connection_.client_connection_id();
   params.active_connection_id_limit.set_value(3);
+  params.google_connection_options = QuicTagVector{k3CID};
   std::string error_details;
   ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
                                                 &error_details),
@@ -15454,7 +15458,7 @@ TEST_P(
   if (!version().IsIetfQuic()) {
     return;
   }
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
   PathProbeTestInit(Perspective::IS_SERVER);
   ASSERT_TRUE(connection_.client_connection_id().IsEmpty());
 
@@ -15463,6 +15467,7 @@ TEST_P(
   TransportParameters params;
   params.initial_source_connection_id = connection_.client_connection_id();
   params.active_connection_id_limit.set_value(3);
+  params.google_connection_options = QuicTagVector{k3CID};
   std::string error_details;
   ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
                                                 &error_details),
@@ -15578,7 +15583,7 @@ TEST_P(QuicConnectionTest,
   if (!version().IsIetfQuic()) {
     return;
   }
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
   PathProbeTestInit(Perspective::IS_SERVER);
   ASSERT_TRUE(connection_.client_connection_id().IsEmpty());
 
@@ -15587,6 +15592,7 @@ TEST_P(QuicConnectionTest,
   TransportParameters params;
   params.initial_source_connection_id = connection_.client_connection_id();
   params.active_connection_id_limit.set_value(4);
+  params.google_connection_options = QuicTagVector{k4CID};
   std::string error_details;
   ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
                                                 &error_details),
@@ -15674,7 +15680,7 @@ TEST_P(QuicConnectionTest,
   if (!version().IsIetfQuic()) {
     return;
   }
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
   PathProbeTestInit(Perspective::IS_SERVER);
   ASSERT_TRUE(connection_.client_connection_id().IsEmpty());
 
@@ -15683,6 +15689,7 @@ TEST_P(QuicConnectionTest,
   TransportParameters params;
   params.initial_source_connection_id = connection_.client_connection_id();
   params.active_connection_id_limit.set_value(kMaxNumOfActiveConnectionIds);
+  params.google_connection_options = QuicTagVector{k5CID};
   std::string error_details;
   ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
                                                 &error_details),
@@ -15754,7 +15761,7 @@ TEST_P(QuicConnectionTest,
   if (!version().IsIetfQuic()) {
     return;
   }
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
   PathProbeTestInit(Perspective::IS_SERVER);
   ASSERT_TRUE(connection_.client_connection_id().IsEmpty());
 
@@ -15763,6 +15770,7 @@ TEST_P(QuicConnectionTest,
   TransportParameters params;
   params.initial_source_connection_id = connection_.client_connection_id();
   params.active_connection_id_limit.set_value(kMaxNumOfActiveConnectionIds);
+  params.google_connection_options = QuicTagVector{k5CID};
   std::string error_details;
   ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
                                                 &error_details),
@@ -19974,6 +19982,7 @@ TEST_P(QuicConnectionTest, ServerActiveConnectionIdLimit) {
             kMinNumOfActiveConnectionIds);
 
   QuicConfig config;
+  config.set_max_num_of_active_connection_ids(kMaxNumOfActiveConnectionIds);
   TransportParameters params;
   params.initial_source_connection_id = connection_.client_connection_id();
   params.active_connection_id_limit.set_value(4);
@@ -19982,7 +19991,9 @@ TEST_P(QuicConnectionTest, ServerActiveConnectionIdLimit) {
                                                 &error_details),
               IsQuicNoError());
 
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, false);
+  // Transport parameter alone without a 3CID/4CID/5CID connection option is
+  // ignored.
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
@@ -19990,8 +20001,35 @@ TEST_P(QuicConnectionTest, ServerActiveConnectionIdLimit) {
   EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
             kMinNumOfActiveConnectionIds);
 
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
-  // Default max_num_of_active_connection_ids is kMinNumOfActiveConnectionIds.
+  // Connection option alone without active_connection_id_limit > 2 is ignored.
+  params.active_connection_id_limit.set_value(kMinNumOfActiveConnectionIds);
+  params.google_connection_options = QuicTagVector{k4CID};
+  ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
+                                                &error_details),
+              IsQuicNoError());
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
+            kMinNumOfActiveConnectionIds);
+
+  // Both connection option and active_connection_id_limit > 2 are present.
+  params.active_connection_id_limit.set_value(4);
+  ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
+                                                &error_details),
+              IsQuicNoError());
+
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, false);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
+            kMinNumOfActiveConnectionIds);
+
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
+  config.set_max_num_of_active_connection_ids(kMinNumOfActiveConnectionIds);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
@@ -20016,6 +20054,7 @@ TEST_P(QuicConnectionTest, ServerActiveConnectionIdLimit) {
             4u);
 
   // Verify values above 5 are capped at kMaxNumOfActiveConnectionIds (5).
+  params.google_connection_options = QuicTagVector{k5CID};
   params.active_connection_id_limit.set_value(10);
   ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
                                                 &error_details),
@@ -20046,12 +20085,13 @@ TEST_P(QuicConnectionTest,
   TransportParameters params;
   params.initial_source_connection_id = connection_.client_connection_id();
   params.active_connection_id_limit.set_value(4);
+  params.google_connection_options = QuicTagVector{k4CID};
   std::string error_details;
   ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
                                                 &error_details),
               IsQuicNoError());
 
-  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  SetQuicReloadableFlag(quic_active_connection_id_limit3, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
