@@ -6,6 +6,8 @@
 
 #include <cstdint>
 #include <optional>
+#include <variant>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
@@ -352,7 +354,7 @@ TEST_F(TrackPropertiesTest, Validate) {
   properties.clear();
   KeyValuePairList immutable;
   immutable.insert({PropertyType::kDynamicGroups, 2ULL});
-  properties.OnImmutablePropertiesParsed(immutable);
+  properties.AddImmutablePropertyList(immutable);
   EXPECT_FALSE(properties.Validate());
 }
 
@@ -423,28 +425,36 @@ TEST_F(TrackPropertiesTest, IsMalformed) {
 TEST_F(TrackPropertiesTest, ImmutableProperties) {
   TrackProperties properties;
   properties.insert({PropertyType::kObjectDeliveryTimeout, 10ULL});
-  properties.insert(
-      {PropertyType::kImmutableProperties, "raw_immutable_bytes"});
 
   KeyValuePairList immutable;
   immutable.insert({PropertyType::kMaxCacheDuration, 20ULL});
   immutable.insert({PropertyType::kDynamicGroups, 1ULL});
   immutable.insert({0x42, 99ULL});
-  properties.OnImmutablePropertiesParsed(immutable);
+  properties.AddImmutablePropertyList(immutable);
 
   EXPECT_TRUE(properties.Validate());
   EXPECT_FALSE(properties.IsMalformed());
+  EXPECT_FALSE(properties.empty());
   EXPECT_EQ(properties.object_delivery_timeout(),
             quic::QuicTimeDelta::FromMilliseconds(10));
   EXPECT_EQ(properties.max_cache_duration(),
             quic::QuicTimeDelta::FromMilliseconds(20));
   EXPECT_TRUE(properties.dynamic_groups());
-  EXPECT_EQ(properties.immutable_properties(), "raw_immutable_bytes");
+  EXPECT_EQ(properties.immutable_properties(), "\x04\x14\x2c\x01\x12\x63");
   EXPECT_FALSE(properties.contains(
       static_cast<uint64_t>(PropertyType::kMaxCacheDuration)));
   EXPECT_FALSE(properties.contains(0x42));
 
-  // ForEach only visits outer properties (including the verbatim
+  // If kImmutableProperties is already present (e.g., from the parser),
+  // AddImmutablePropertyList preserves the raw wire bytes.
+  TrackProperties parsed_immutable;
+  parsed_immutable.insert(
+      {PropertyType::kImmutableProperties, "raw_immutable_bytes"});
+  parsed_immutable.AddImmutablePropertyList(immutable);
+  EXPECT_FALSE(parsed_immutable.IsMalformed());
+  EXPECT_EQ(parsed_immutable.immutable_properties(), "raw_immutable_bytes");
+
+  // ForEach only visits outer properties (including the serialized
   // kImmutableProperties entry).
   std::vector<uint64_t> visited_keys;
   properties.ForEach(
@@ -461,31 +471,38 @@ TEST_F(TrackPropertiesTest, ImmutableProperties) {
   // Unparseable immutable properties (std::nullopt) -> malformed.
   TrackProperties unparseable;
   unparseable.insert({PropertyType::kImmutableProperties, "bad"});
-  unparseable.OnImmutablePropertiesParsed(std::nullopt);
+  unparseable.AddImmutablePropertyList(std::nullopt);
   EXPECT_TRUE(unparseable.IsMalformed());
 
   // Nested kImmutableProperties -> malformed.
   TrackProperties nested;
-  nested.insert({PropertyType::kImmutableProperties, "nested"});
   KeyValuePairList nested_inner;
   nested_inner.insert({PropertyType::kImmutableProperties, "inner"});
-  nested.OnImmutablePropertiesParsed(nested_inner);
+  nested.AddImmutablePropertyList(nested_inner);
   EXPECT_TRUE(nested.IsMalformed());
 
   // Known property duplicated between outer and immutable -> malformed.
   TrackProperties duplicate_outer_inner;
   duplicate_outer_inner.insert({PropertyType::kMaxCacheDuration, 10ULL});
-  duplicate_outer_inner.insert({PropertyType::kImmutableProperties, "dup"});
-  duplicate_outer_inner.OnImmutablePropertiesParsed(immutable);
+  duplicate_outer_inner.AddImmutablePropertyList(immutable);
   EXPECT_TRUE(duplicate_outer_inner.IsMalformed());
 
   // Object-only property inside immutable properties -> malformed.
   TrackProperties gap_in_immutable;
-  gap_in_immutable.insert({PropertyType::kImmutableProperties, "gap"});
   KeyValuePairList gap_inner;
   gap_inner.insert({PropertyType::kPriorGroupIdGap, 1ULL});
-  gap_in_immutable.OnImmutablePropertiesParsed(gap_inner);
+  gap_in_immutable.AddImmutablePropertyList(gap_inner);
   EXPECT_TRUE(gap_in_immutable.IsMalformed());
+
+  // Empty immutable property list is a no-op and not malformed.
+  TrackProperties empty_immutable;
+  empty_immutable.AddImmutablePropertyList(KeyValuePairList());
+  EXPECT_TRUE(empty_immutable.Validate());
+  EXPECT_FALSE(empty_immutable.IsMalformed());
+  EXPECT_TRUE(empty_immutable.empty());
+  EXPECT_TRUE(empty_immutable.immutable_properties().empty());
+  EXPECT_FALSE(empty_immutable.contains(
+      static_cast<uint64_t>(PropertyType::kImmutableProperties)));
 }
 
 TEST_F(TrackPropertiesTest, CheckForUnknownMandatoryProperty) {
@@ -530,11 +547,10 @@ TEST_F(TrackPropertiesTest, CheckForUnknownMandatoryProperty) {
 
   // Unknown mandatory property inside kImmutableProperties.
   TrackProperties immutable_mandatory;
-  immutable_mandatory.insert({PropertyType::kImmutableProperties, "mandatory"});
   KeyValuePairList immutable_inner;
   immutable_inner.insert({0x4500, 1ULL});
-  immutable_mandatory.OnImmutablePropertiesParsed(immutable_inner);
-  EXPECT_TRUE(IsFailedPrecondition(
+  immutable_mandatory.AddImmutablePropertyList(immutable_inner);
+  EXPECT_TRUE(absl::IsFailedPrecondition(
       immutable_mandatory.CheckForUnknownMandatoryProperty()));
   EXPECT_EQ(immutable_mandatory.CheckForUnknownMandatoryProperty().message(),
             "Unknown mandatory property: 0x4500");

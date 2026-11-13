@@ -14,7 +14,6 @@
 #include <variant>
 
 #include "absl/container/fixed_array.h"
-#include "absl/functional/overload.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -23,6 +22,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_key_value_serialization.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
@@ -47,90 +47,6 @@ using ::quiche::WireOptional;
 using ::quiche::WireSpan;
 using ::quiche::WireStringWithMoqVarIntLength;
 using ::quiche::WireUint8;
-
-class WireKeyVarIntPair {
- public:
-  explicit WireKeyVarIntPair(uint64_t key, uint64_t value)
-      : key_(key), value_(value) {}
-
-  size_t GetLengthOnWire() {
-    return quiche::ComputeLengthOnWire(WireMoqVarInt(key_),
-                                       WireMoqVarInt(value_));
-  }
-  absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
-    return quiche::SerializeIntoWriter(writer, WireMoqVarInt(key_),
-                                       WireMoqVarInt(value_));
-  }
-
- private:
-  const uint64_t key_;
-  const uint64_t value_;
-};
-
-class WireKeyStringPair {
- public:
-  explicit WireKeyStringPair(uint64_t key, absl::string_view value)
-      : key_(key), value_(value) {}
-  size_t GetLengthOnWire() {
-    return quiche::ComputeLengthOnWire(WireMoqVarInt(key_),
-                                       WireStringWithMoqVarIntLength(value_));
-  }
-  absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
-    return quiche::SerializeIntoWriter(writer, WireMoqVarInt(key_),
-                                       WireStringWithMoqVarIntLength(value_));
-  }
-
- private:
-  const uint64_t key_;
-  const absl::string_view value_;
-};
-
-class WireKeyValuePairList {
- public:
-  explicit WireKeyValuePairList(const KeyValuePairList& list) : list_(list) {}
-
-  size_t GetLengthOnWire() {
-    size_t total = 0;
-    uint64_t last_key = 0;
-    list_.ForEach([&](uint64_t key,
-                      std::variant<uint64_t, absl::string_view> value) {
-      total += std::visit(
-          absl::Overload{
-              [&](uint64_t val) {
-                return WireKeyVarIntPair(key - last_key, val).GetLengthOnWire();
-              },
-              [&](absl::string_view val) {
-                return WireKeyStringPair(key - last_key, val).GetLengthOnWire();
-              }},
-          value);
-      last_key = key;
-      return true;
-    });
-    return total;
-  }
-  absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
-    uint64_t last_key = 0;
-    list_.ForEach(
-        [&](uint64_t key, std::variant<uint64_t, absl::string_view> value) {
-          absl::Status status = std::visit(
-              absl::Overload{[&](uint64_t val) {
-                               return WireKeyVarIntPair(key - last_key, val)
-                                   .SerializeIntoWriter(writer);
-                             },
-                             [&](absl::string_view val) {
-                               return WireKeyStringPair(key - last_key, val)
-                                   .SerializeIntoWriter(writer);
-                             }},
-              value);
-          last_key = key;
-          return quiche::IsWriterStatusOk(status);
-        });
-    return absl::OkStatus();
-  }
-
- private:
-  const KeyValuePairList& list_;
-};
 
 class WireLocation {
  public:

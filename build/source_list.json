@@ -1628,6 +1628,7 @@
     "quiche/quic/moqt/moqt_fetch_task.h",
     "quiche/quic/moqt/moqt_framer.h",
     "quiche/quic/moqt/moqt_key_value_pair.h",
+    "quiche/quic/moqt/moqt_key_value_serialization.h",
     "quiche/quic/moqt/moqt_known_track_publisher.h",
     "quiche/quic/moqt/moqt_live_publisher.h",
     "quiche/quic/moqt/moqt_messages.h",

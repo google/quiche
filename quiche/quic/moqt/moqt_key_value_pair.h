@@ -373,9 +373,10 @@ class TrackProperties : public KeyValuePairList {
     malformed_immutable_properties_ = false;
   }
 
-  // Called when the parser encounters kImmutableProperties. |immutable| is the
-  // parsed inner KeyValuePairList, or std::nullopt if parsing failed.
-  void OnImmutablePropertiesParsed(std::optional<KeyValuePairList> immutable);
+  // Adds the inner KeyValuePairList for kImmutableProperties, or marks it
+  // malformed if |immutable| is std::nullopt. If kImmutableProperties is not
+  // already present in the outer list, serializes |immutable| and inserts it.
+  void AddImmutablePropertyList(std::optional<KeyValuePairList> immutable);
 
   // If present and well-formed, returns the value of the property. Returns the
   // default value if missing or ill-formed.

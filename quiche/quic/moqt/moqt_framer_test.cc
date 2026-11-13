@@ -693,12 +693,10 @@ TEST_F(MoqtFramerSimpleTest, RequestErrorRedirect) {
 TEST_F(MoqtFramerSimpleTest, SerializeTrackPropertiesWithImmutableProperties) {
   TrackProperties properties;
   properties.insert({PropertyType::kObjectDeliveryTimeout, 10ULL});
-  const absl::string_view kRawImmutable("\x04\x14\x2c\x01", 4);
-  properties.insert({PropertyType::kImmutableProperties, kRawImmutable});
   KeyValuePairList immutable;
   immutable.insert({PropertyType::kMaxCacheDuration, 20ULL});
   immutable.insert({PropertyType::kDynamicGroups, 1ULL});
-  properties.OnImmutablePropertiesParsed(immutable);
+  properties.AddImmutablePropertyList(immutable);
 
   quiche::QuicheBuffer buffer = framer_.SerializeRequestOk(
       MoqtRequestOk{MessageParameters(), properties});
@@ -708,11 +706,34 @@ TEST_F(MoqtFramerSimpleTest, SerializeTrackPropertiesWithImmutableProperties) {
       0x00,        // 0 parameters
       0x02, 0x0a,  // kObjectDeliveryTimeout (0x02) = 10
       0x09, 0x04,  // kImmutableProperties (+0x09 = 0x0b), length = 4
-      0x04, 0x14, 0x2c, 0x01,  // verbatim kImmutableProperties bytes
+      0x04, 0x14, 0x2c, 0x01,  // serialized kImmutableProperties bytes
   };
   quiche::test::CompareCharArraysWithHexError(
       "frame encoding", buffer.data(), buffer.size(),
       reinterpret_cast<const char*>(expected), sizeof(expected));
+
+  // If raw kImmutableProperties bytes are already present in the outer list
+  // (e.g., when relaying a parsed message), they are preserved verbatim.
+  TrackProperties verbatim_properties;
+  verbatim_properties.insert({PropertyType::kObjectDeliveryTimeout, 10ULL});
+  verbatim_properties.insert(
+      {PropertyType::kImmutableProperties,
+       absl::string_view("\x04\x14\x2c\x01\x02\x63", 6)});
+  verbatim_properties.AddImmutablePropertyList(immutable);
+  buffer = framer_.SerializeRequestOk(
+      MoqtRequestOk{MessageParameters(), verbatim_properties});
+  const uint8_t expected_verbatim[] = {
+      0x07,        // MoqtMessageType::kRequestOk
+      0x00, 0x0b,  // Payload length = 11
+      0x00,        // 0 parameters
+      0x02, 0x0a,  // kObjectDeliveryTimeout (0x02) = 10
+      0x09, 0x06,  // kImmutableProperties (+0x09 = 0x0b), length = 6
+      0x04, 0x14, 0x2c, 0x01, 0x02, 0x63,  // verbatim kImmutableProperties
+  };
+  quiche::test::CompareCharArraysWithHexError(
+      "frame encoding", buffer.data(), buffer.size(),
+      reinterpret_cast<const char*>(expected_verbatim),
+      sizeof(expected_verbatim));
 }
 
 }  // namespace moqt::test

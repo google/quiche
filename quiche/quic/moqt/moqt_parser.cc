@@ -486,16 +486,16 @@ absl::Status ParseTrackProperties(quic::QuicDataReader& reader,
     return absl::OkStatus();
   }
   if (value_vector.size() > 1) {  // Malformed.
-    properties.OnImmutablePropertiesParsed(std::nullopt);
+    properties.AddImmutablePropertyList(std::nullopt);
     return absl::OkStatus();
   }
   quic::QuicDataReader immutable_reader(
       std::get<absl::string_view>(value_vector[0]));
   KeyValuePairList immutable;
   if (!ParseKeyValuePairList(immutable_reader, immutable).ok()) {
-    properties.OnImmutablePropertiesParsed(std::nullopt);
+    properties.AddImmutablePropertyList(std::nullopt);
   } else {
-    properties.OnImmutablePropertiesParsed(std::move(immutable));
+    properties.AddImmutablePropertyList(std::move(immutable));
   }
   return absl::OkStatus();
 }

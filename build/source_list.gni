@@ -1629,6 +1629,7 @@ moqt_hdrs = [
     "src/quiche/quic/moqt/moqt_fetch_task.h",
     "src/quiche/quic/moqt/moqt_framer.h",
     "src/quiche/quic/moqt/moqt_key_value_pair.h",
+    "src/quiche/quic/moqt/moqt_key_value_serialization.h",
     "src/quiche/quic/moqt/moqt_known_track_publisher.h",
     "src/quiche/quic/moqt/moqt_live_publisher.h",
     "src/quiche/quic/moqt/moqt_messages.h",

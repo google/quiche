@@ -8,16 +8,20 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_key_value_serialization.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/wire_serialization.h"
 
 namespace moqt {
 
@@ -128,14 +132,28 @@ void MessageParameters::Update(const MessageParameters& other) {
   }
 }
 
-void TrackProperties::OnImmutablePropertiesParsed(
+void TrackProperties::AddImmutablePropertyList(
     std::optional<KeyValuePairList> immutable) {
   if (!immutable.has_value() || immutable->contains(static_cast<uint64_t>(
                                     PropertyType::kImmutableProperties))) {
     malformed_immutable_properties_ = true;
     return;
   }
+  if (immutable->size() == 0) {
+    return;
+  }
   immutable_properties_ = *std::move(immutable);
+  if (!contains(static_cast<uint64_t>(PropertyType::kImmutableProperties))) {
+    absl::StatusOr<std::string> serialized = quiche::SerializeIntoString(
+        WireKeyValuePairList(immutable_properties_));
+    if (!serialized.ok()) {
+      QUICHE_BUG(moqt_failed_immutable_serialization)
+          << "Failed to serialize immutable properties: "
+          << serialized.status();
+      return;
+    }
+    insert({PropertyType::kImmutableProperties, *serialized});
+  }
 }
 
 quic::QuicTimeDelta TrackProperties::object_delivery_timeout() const {

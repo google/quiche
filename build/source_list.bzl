@@ -1621,6 +1621,7 @@ moqt_hdrs = [
     "quic/moqt/moqt_fetch_task.h",
     "quic/moqt/moqt_framer.h",
     "quic/moqt/moqt_key_value_pair.h",
+    "quic/moqt/moqt_key_value_serialization.h",
     "quic/moqt/moqt_known_track_publisher.h",
     "quic/moqt/moqt_live_publisher.h",
     "quic/moqt/moqt_messages.h",
