@@ -268,6 +268,10 @@ class QUICHE_EXPORT QuicPathValidator {
   QuicArenaScopedPtr<QuicAlarm> retry_timer_;
   size_t retry_count_;
   PathValidationReason reason_ = PathValidationReason::kReasonUnknown;
+  // Latched value of --quic_clear_probing_data_on_reset_path_validation. If
+  // true, |probing_data_| is cleared whenever path validation is reset, so a
+  // PATH_RESPONSE can only validate the path its PATH_CHALLENGE was sent on.
+  bool clear_probing_data_on_reset_;
 };
 
 }  // namespace quic

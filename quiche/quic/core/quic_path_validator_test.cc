@@ -5,10 +5,12 @@
 #include "quiche/quic/core/quic_path_validator.h"
 
 #include <memory>
+#include <utility>
 
 #include "quiche/quic/core/frames/quic_path_challenge_frame.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -297,6 +299,110 @@ TEST_F(QuicPathValidatorTest, SendPathChallengeReturnsFalse) {
       std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_),
       PathValidationReason::kMultiPort);
   EXPECT_FALSE(path_validator_.HasPendingPathValidation());
+}
+
+TEST_F(QuicPathValidatorTest, StalePathResponseIgnoredInSubsequentValidation) {
+  SetQuicReloadableFlag(quic_clear_probing_data_on_reset_path_validation, true);
+  // The flag is latched at construction, so create a new validator.
+  QuicPathValidator path_validator(&alarm_factory_, &arena_, &send_delegate_,
+                                   &random_, &clock_, /*context=*/nullptr);
+  QuicPathFrameBuffer first_challenge_data;
+  EXPECT_CALL(send_delegate_,
+              SendPathChallenge(_, self_address_, peer_address_,
+                                effective_peer_address_, &writer_))
+      .WillOnce(testing::DoAll(testing::SaveArg<0>(&first_challenge_data),
+                               Return(true)));
+  EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_));
+  path_validator.StartPathValidation(
+      std::unique_ptr<QuicPathValidationContext>(context_),
+      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_),
+      PathValidationReason::kMultiPort);
+  EXPECT_CALL(*result_delegate_, OnPathValidationFailure(_));
+  path_validator.CancelPathValidation(
+      PathValidationFailure::Reason::kNewerValidation);
+  EXPECT_FALSE(path_validator.HasPendingPathValidation());
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(kInitialRttMs));
+  random_.ChangeValue();
+  auto second_result_delegate = std::make_unique<
+      testing::StrictMock<MockQuicPathValidationResultDelegate>>();
+  MockQuicPathValidationResultDelegate* second_result_delegate_ptr =
+      second_result_delegate.get();
+  QuicPathFrameBuffer second_challenge_data;
+  EXPECT_CALL(send_delegate_,
+              SendPathChallenge(_, self_address_, peer_address_,
+                                effective_peer_address_, &writer_))
+      .WillOnce(testing::DoAll(testing::SaveArg<0>(&second_challenge_data),
+                               Return(true)));
+  EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_));
+  const QuicTime second_start_time = clock_.Now();
+  path_validator.StartPathValidation(
+      std::make_unique<MockQuicPathValidationContext>(
+          self_address_, peer_address_, effective_peer_address_, &writer_),
+      std::move(second_result_delegate),
+      PathValidationReason::kConnectionMigration);
+  EXPECT_NE(first_challenge_data, second_challenge_data);
+
+  // A late PATH_RESPONSE matching the canceled validation must not validate
+  // the new path.
+  path_validator.OnPathResponse(first_challenge_data, self_address_);
+  ASSERT_TRUE(path_validator.HasPendingPathValidation());
+
+  EXPECT_CALL(*second_result_delegate_ptr,
+              OnPathValidationSuccess(_, second_start_time));
+  path_validator.OnPathResponse(second_challenge_data, self_address_);
+  EXPECT_FALSE(path_validator.HasPendingPathValidation());
+}
+
+TEST_F(QuicPathValidatorTest, StalePathResponseAcceptedWhenFlagFalse) {
+  SetQuicReloadableFlag(quic_clear_probing_data_on_reset_path_validation,
+                        false);
+  // The flag is latched at construction, so create a new validator.
+  QuicPathValidator path_validator(&alarm_factory_, &arena_, &send_delegate_,
+                                   &random_, &clock_, /*context=*/nullptr);
+  QuicPathFrameBuffer first_challenge_data;
+  EXPECT_CALL(send_delegate_,
+              SendPathChallenge(_, self_address_, peer_address_,
+                                effective_peer_address_, &writer_))
+      .WillOnce(testing::DoAll(testing::SaveArg<0>(&first_challenge_data),
+                               Return(true)));
+  EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_));
+  const QuicTime first_start_time = clock_.Now();
+  path_validator.StartPathValidation(
+      std::unique_ptr<QuicPathValidationContext>(context_),
+      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_),
+      PathValidationReason::kMultiPort);
+  EXPECT_CALL(*result_delegate_, OnPathValidationFailure(_));
+  path_validator.CancelPathValidation(
+      PathValidationFailure::Reason::kNewerValidation);
+  EXPECT_FALSE(path_validator.HasPendingPathValidation());
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(kInitialRttMs));
+  random_.ChangeValue();
+  auto second_result_delegate = std::make_unique<
+      testing::StrictMock<MockQuicPathValidationResultDelegate>>();
+  MockQuicPathValidationResultDelegate* second_result_delegate_ptr =
+      second_result_delegate.get();
+  QuicPathFrameBuffer second_challenge_data;
+  EXPECT_CALL(send_delegate_,
+              SendPathChallenge(_, self_address_, peer_address_,
+                                effective_peer_address_, &writer_))
+      .WillOnce(testing::DoAll(testing::SaveArg<0>(&second_challenge_data),
+                               Return(true)));
+  EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_));
+  path_validator.StartPathValidation(
+      std::make_unique<MockQuicPathValidationContext>(
+          self_address_, peer_address_, effective_peer_address_, &writer_),
+      std::move(second_result_delegate),
+      PathValidationReason::kConnectionMigration);
+  EXPECT_NE(first_challenge_data, second_challenge_data);
+
+  // When the flag is false, probing_data_ is retained across
+  // ResetPathValidation(), so the earlier PATH_RESPONSE validates the new path.
+  EXPECT_CALL(*second_result_delegate_ptr,
+              OnPathValidationSuccess(_, first_start_time));
+  path_validator.OnPathResponse(first_challenge_data, self_address_);
+  EXPECT_FALSE(path_validator.HasPendingPathValidation());
 }
 
 }  // namespace test

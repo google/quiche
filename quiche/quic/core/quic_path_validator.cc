@@ -10,6 +10,8 @@
 
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 
 namespace quic {
@@ -45,7 +47,9 @@ QuicPathValidator::QuicPathValidator(QuicAlarmFactory* alarm_factory,
       clock_(clock),
       retry_timer_(alarm_factory->CreateAlarm(
           arena->New<RetryAlarmDelegate>(this, context), arena)),
-      retry_count_(0u) {}
+      retry_count_(0u),
+      clear_probing_data_on_reset_(GetQuicReloadableFlag(
+          quic_clear_probing_data_on_reset_path_validation)) {}
 
 void QuicPathValidator::OnPathResponse(const QuicPathFrameBuffer& probing_data,
                                        QuicSocketAddress self_address) {
@@ -98,6 +102,11 @@ void QuicPathValidator::ResetPathValidation() {
   result_delegate_ = nullptr;
   retry_timer_->Cancel();
   retry_count_ = 0;
+  if (clear_probing_data_on_reset_) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_clear_probing_data_on_reset_path_validation);
+    probing_data_.clear();
+  }
   reason_ = PathValidationReason::kReasonUnknown;
 }
 
