@@ -357,15 +357,16 @@ inline constexpr MoqtGroupOrder kDefaultGroupOrder = MoqtGroupOrder::kAscending;
 inline constexpr bool kDefaultDynamicGroups = false;
 inline constexpr uint64_t kMinMandatoryTrackProperty = 0x4000;
 inline constexpr uint64_t kMaxMandatoryTrackProperty = 0x7FFF;
-class TrackProperties : public KeyValuePairList {
+class QUICHE_EXPORT MoqtProperties : public KeyValuePairList {
  public:
-  TrackProperties() = default;
-  TrackProperties(const TrackProperties&) = default;
-  explicit TrackProperties(std::initializer_list<KeyValuePair> list) {
+  MoqtProperties() = default;
+  MoqtProperties(const MoqtProperties&) = default;
+  explicit MoqtProperties(std::initializer_list<KeyValuePair> list) {
     for (const auto& pair : list) {
       insert(pair);
     }
   }
+  virtual ~MoqtProperties() = default;
 
   void clear() {
     KeyValuePairList::clear();
@@ -391,10 +392,10 @@ class TrackProperties : public KeyValuePairList {
 
   // Returns false if the property list contains illegal values.
   bool Validate() const;
-  // Returns true if the property list renders the track malformed (e.g., it
-  // contains object-only properties, duplicate known properties, or malformed
-  // immutable properties).
-  bool IsMalformed() const;
+  // Returns true if the property list contains duplicate known properties or
+  // malformed immutable properties. Subclasses override this to also reject
+  // properties invalid for their scope.
+  virtual bool IsMalformed() const;
   // Returns OK if there are no unknown mandatory properties. Otherwise, returns
   // an error.
   absl::Status CheckForUnknownMandatoryProperty() const {
@@ -409,14 +410,16 @@ class TrackProperties : public KeyValuePairList {
                : absl::FailedPreconditionError(absl::StrCat(
                      "Unknown mandatory property: 0x", absl::Hex(*key)));
   }
-  bool operator==(const TrackProperties& other) const = default;
-  TrackProperties& operator=(const TrackProperties& other) = default;
+  bool operator==(const MoqtProperties& other) const = default;
+  MoqtProperties& operator=(const MoqtProperties& other) = default;
 
- private:
+ protected:
   size_t TotalCount(PropertyType header) const {
     uint64_t key = static_cast<uint64_t>(header);
     return count(key) + immutable_properties_.count(key);
   }
+
+ private:
   // Returns the value of the property if there is exactly one, otherwise
   // returns std::nullopt. Must not be called on odd property types.
   std::optional<uint64_t> GetValueIfExactlyOne(PropertyType header) const;
@@ -426,6 +429,38 @@ class TrackProperties : public KeyValuePairList {
 
   KeyValuePairList immutable_properties_;
   bool malformed_immutable_properties_ = false;
+};
+
+class QUICHE_EXPORT TrackProperties : public MoqtProperties {
+ public:
+  using MoqtProperties::MoqtProperties;
+  TrackProperties() = default;
+  explicit TrackProperties(std::initializer_list<KeyValuePair> list)
+      : MoqtProperties(list) {}
+  TrackProperties(const TrackProperties&) = default;
+  bool operator==(const TrackProperties& other) const = default;
+  TrackProperties& operator=(const TrackProperties& other) = default;
+
+  // Returns true if the property list renders the track malformed (e.g., it
+  // contains object-only properties, duplicate known properties, or malformed
+  // immutable properties).
+  bool IsMalformed() const override;
+};
+
+class QUICHE_EXPORT ObjectProperties : public MoqtProperties {
+ public:
+  using MoqtProperties::MoqtProperties;
+  ObjectProperties() = default;
+  explicit ObjectProperties(std::initializer_list<KeyValuePair> list)
+      : MoqtProperties(list) {}
+  ObjectProperties(const ObjectProperties&) = default;
+  bool operator==(const ObjectProperties& other) const = default;
+  ObjectProperties& operator=(const ObjectProperties& other) = default;
+
+  // Returns true if the property list renders the track malformed (e.g., it
+  // contains track-only properties, duplicate known properties, or malformed
+  // immutable properties).
+  bool IsMalformed() const override;
 };
 
 }  // namespace moqt

@@ -132,7 +132,7 @@ void MessageParameters::Update(const MessageParameters& other) {
   }
 }
 
-void TrackProperties::AddImmutablePropertyList(
+void MoqtProperties::AddImmutablePropertyList(
     std::optional<KeyValuePairList> immutable) {
   if (!immutable.has_value() || immutable->contains(static_cast<uint64_t>(
                                     PropertyType::kImmutableProperties))) {
@@ -156,27 +156,27 @@ void TrackProperties::AddImmutablePropertyList(
   }
 }
 
-quic::QuicTimeDelta TrackProperties::object_delivery_timeout() const {
+quic::QuicTimeDelta MoqtProperties::object_delivery_timeout() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kObjectDeliveryTimeout);
   return (value.has_value() && *value > 0)
              ? quic::QuicTimeDelta::FromMilliseconds(*value)
              : kDefaultDeliveryTimeout;
 }
-quic::QuicTimeDelta TrackProperties::max_cache_duration() const {
+quic::QuicTimeDelta MoqtProperties::max_cache_duration() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kMaxCacheDuration);
   return value.has_value() ? quic::QuicTimeDelta::FromMilliseconds(*value)
                            : kDefaultMaxCacheDuration;
 }
-quic::QuicTimeDelta TrackProperties::subgroup_delivery_timeout() const {
+quic::QuicTimeDelta MoqtProperties::subgroup_delivery_timeout() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kSubgroupDeliveryTimeout);
   return (value.has_value() && *value > 0)
              ? quic::QuicTimeDelta::FromMilliseconds(*value)
              : kDefaultDeliveryTimeout;
 }
-absl::string_view TrackProperties::immutable_properties() const {
+absl::string_view MoqtProperties::immutable_properties() const {
   ValueVector values =
       Get(static_cast<uint64_t>(PropertyType::kImmutableProperties));
   return (values.size() != 1 ||
@@ -184,14 +184,14 @@ absl::string_view TrackProperties::immutable_properties() const {
              ? ""
              : std::get<absl::string_view>(values[0]);
 }
-MoqtPriority TrackProperties::default_publisher_priority() const {
+MoqtPriority MoqtProperties::default_publisher_priority() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kDefaultPublisherPriority);
   return (!value.has_value() || *value > kMaxPriority)
              ? kDefaultPublisherPriority
              : static_cast<MoqtPriority>(*value);
 }
-MoqtGroupOrder TrackProperties::default_publisher_group_order() const {
+MoqtGroupOrder MoqtProperties::default_publisher_group_order() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kDefaultPublisherGroupOrder);
   return (!value.has_value() || *value > kMaxMoqtGroupOrder ||
@@ -199,14 +199,14 @@ MoqtGroupOrder TrackProperties::default_publisher_group_order() const {
              ? kDefaultGroupOrder
              : static_cast<MoqtGroupOrder>(*value);
 }
-bool TrackProperties::dynamic_groups() const {
+bool MoqtProperties::dynamic_groups() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kDynamicGroups);
   return (!value.has_value() || *value > 1) ? kDefaultDynamicGroups
                                             : (*value == 1);
 }
 
-bool TrackProperties::Validate() const {
+bool MoqtProperties::Validate() const {
   return (ValidateInner(PropertyType::kDefaultPublisherPriority, std::nullopt,
                         kMaxPriority) &&
           ValidateInner(PropertyType::kDefaultPublisherGroupOrder,
@@ -214,21 +214,21 @@ bool TrackProperties::Validate() const {
           ValidateInner(PropertyType::kDynamicGroups, 0, 1));
 }
 
-bool TrackProperties::IsMalformed() const {
+bool MoqtProperties::IsMalformed() const {
   return malformed_immutable_properties_ ||
-         TotalCount(PropertyType::kPriorGroupIdGap) > 0 ||
-         TotalCount(PropertyType::kPriorObjectIdGap) > 0 ||
          TotalCount(PropertyType::kObjectDeliveryTimeout) > 1 ||
          TotalCount(PropertyType::kMaxCacheDuration) > 1 ||
          TotalCount(PropertyType::kSubgroupDeliveryTimeout) > 1 ||
          TotalCount(PropertyType::kImmutableProperties) > 1 ||
          TotalCount(PropertyType::kDefaultPublisherPriority) > 1 ||
          TotalCount(PropertyType::kDefaultPublisherGroupOrder) > 1 ||
-         TotalCount(PropertyType::kDynamicGroups) > 1;
+         TotalCount(PropertyType::kDynamicGroups) > 1 ||
+         TotalCount(PropertyType::kPriorGroupIdGap) > 1 ||
+         TotalCount(PropertyType::kPriorObjectIdGap) > 1;
 }
 
 // private
-std::optional<uint64_t> TrackProperties::GetValueIfExactlyOne(
+std::optional<uint64_t> MoqtProperties::GetValueIfExactlyOne(
     PropertyType header) const {
   uint64_t key = static_cast<uint64_t>(header);
   QUICHE_BUG_IF(moqt_bug_must_be_even, (key % 2) == 1)
@@ -244,9 +244,9 @@ std::optional<uint64_t> TrackProperties::GetValueIfExactlyOne(
   return std::get<uint64_t>(values[0]);
 }
 
-bool TrackProperties::ValidateInner(PropertyType header,
-                                    std::optional<uint64_t> min,
-                                    std::optional<uint64_t> max) const {
+bool MoqtProperties::ValidateInner(PropertyType header,
+                                   std::optional<uint64_t> min,
+                                   std::optional<uint64_t> max) const {
   uint64_t key = static_cast<uint64_t>(header);
   for (const ValueVector& list : {Get(key), immutable_properties_.Get(key)}) {
     for (const auto& value : list) {
@@ -261,6 +261,21 @@ bool TrackProperties::ValidateInner(PropertyType header,
     }
   }
   return true;
+}
+
+bool TrackProperties::IsMalformed() const {
+  return MoqtProperties::IsMalformed() ||
+         TotalCount(PropertyType::kPriorGroupIdGap) > 0 ||
+         TotalCount(PropertyType::kPriorObjectIdGap) > 0;
+}
+
+bool ObjectProperties::IsMalformed() const {
+  return MoqtProperties::IsMalformed() ||
+         !CheckForUnknownMandatoryProperty().ok() ||
+         TotalCount(PropertyType::kMaxCacheDuration) > 0 ||
+         TotalCount(PropertyType::kDefaultPublisherPriority) > 0 ||
+         TotalCount(PropertyType::kDefaultPublisherGroupOrder) > 0 ||
+         TotalCount(PropertyType::kDynamicGroups) > 0;
 }
 
 }  // namespace moqt

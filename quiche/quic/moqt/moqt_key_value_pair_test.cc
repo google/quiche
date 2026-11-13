@@ -556,4 +556,75 @@ TEST_F(TrackPropertiesTest, CheckForUnknownMandatoryProperty) {
             "Unknown mandatory property: 0x4500");
 }
 
+class ObjectPropertiesTest : public quic::test::QuicTest {};
+
+TEST_F(ObjectPropertiesTest, IsMalformed) {
+  ObjectProperties properties;
+  EXPECT_FALSE(properties.IsMalformed());
+
+  // Object-valid properties and unknown non-mandatory properties (including
+  // boundaries just outside [0x4000, 0x7FFF], both outer and in immutable
+  // properties) are not malformed.
+  properties.insert({PropertyType::kObjectDeliveryTimeout, 5ULL});
+  properties.insert({PropertyType::kSubgroupDeliveryTimeout, 5ULL});
+  properties.insert({PropertyType::kPriorGroupIdGap, 1ULL});
+  properties.insert({PropertyType::kPriorObjectIdGap, 2ULL});
+  properties.insert({0x42, 15ULL});
+  properties.insert({0x43, "unknown_odd"});
+  properties.insert({kMinMandatoryTrackProperty - 2, 1ULL});
+  properties.insert({kMinMandatoryTrackProperty - 1, "below_mandatory"});
+  properties.insert({kMaxMandatoryTrackProperty + 1, 2ULL});
+  properties.insert({kMaxMandatoryTrackProperty + 2, "above_mandatory"});
+  KeyValuePairList optional_immutable;
+  optional_immutable.insert({kMinMandatoryTrackProperty - 2, 3ULL});
+  optional_immutable.insert({kMaxMandatoryTrackProperty + 1, 4ULL});
+  properties.AddImmutablePropertyList(optional_immutable);
+  EXPECT_FALSE(properties.IsMalformed());
+
+  // Unknown mandatory properties in [kMinMandatoryTrackProperty,
+  // kMaxMandatoryTrackProperty] (0x4000-0x7FFF) render ObjectProperties
+  // malformed, whether outer or inside kImmutableProperties.
+  for (const KeyValuePair& mandatory_pair :
+       {KeyValuePair{kMinMandatoryTrackProperty, 0ULL},
+        KeyValuePair{0x5000, 42ULL},
+        KeyValuePair{kMaxMandatoryTrackProperty, "mandatory_string"}}) {
+    ObjectProperties outer_mandatory;
+    outer_mandatory.insert(mandatory_pair);
+    EXPECT_TRUE(outer_mandatory.IsMalformed());
+
+    ObjectProperties inner_mandatory;
+    KeyValuePairList immutable_mandatory;
+    immutable_mandatory.insert(mandatory_pair);
+    inner_mandatory.AddImmutablePropertyList(immutable_mandatory);
+    EXPECT_TRUE(inner_mandatory.IsMalformed());
+  }
+
+  // Track-only properties render ObjectProperties malformed.
+  for (PropertyType track_only : {PropertyType::kMaxCacheDuration,
+                                  PropertyType::kDefaultPublisherPriority,
+                                  PropertyType::kDefaultPublisherGroupOrder,
+                                  PropertyType::kDynamicGroups}) {
+    ObjectProperties outer_track_only;
+    outer_track_only.insert({track_only, 1ULL});
+    EXPECT_TRUE(outer_track_only.IsMalformed());
+
+    ObjectProperties inner_track_only;
+    KeyValuePairList immutable;
+    immutable.insert({track_only, 1ULL});
+    inner_track_only.AddImmutablePropertyList(immutable);
+    EXPECT_TRUE(inner_track_only.IsMalformed());
+  }
+
+  // Duplicate object-valid properties also render ObjectProperties malformed.
+  for (PropertyType known_object_prop :
+       {PropertyType::kObjectDeliveryTimeout,
+        PropertyType::kSubgroupDeliveryTimeout, PropertyType::kPriorGroupIdGap,
+        PropertyType::kPriorObjectIdGap}) {
+    ObjectProperties duplicate;
+    duplicate.insert({known_object_prop, 1ULL});
+    duplicate.insert({known_object_prop, 2ULL});
+    EXPECT_TRUE(duplicate.IsMalformed());
+  }
+}
+
 }  // namespace moqt::test
