@@ -32,7 +32,9 @@ std::string SerializePriorityFieldValue(HttpStreamPriority priority) {
 
   std::optional<std::string> priority_field_value =
       quiche::structured_headers::SerializeDictionary(
-          quiche::structured_headers::Dictionary(std::move(members)));
+          quiche::structured_headers::Dictionary(
+              quiche::structured_headers::Dictionary::unique_keys,
+              std::move(members)));
 
   if (!priority_field_value.has_value()) {
     QUICHE_BUG(priority_field_value_serialization_failed);
