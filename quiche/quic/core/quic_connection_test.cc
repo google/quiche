@@ -2347,6 +2347,124 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   EXPECT_EQ(packet_creator->GetSourceConnectionId(), server_cid0);
 }
 
+// Regression test for b/389056732 and b/501452262.
+TEST_P(QuicConnectionTest,
+       ClientIpAndPortChangesDoNotCauseBandwidthSamplerGrowth) {
+  set_perspective(Perspective::IS_SERVER);
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  SetQuicFlag(quic_max_tracked_packet_count, 50);
+  SetQuicReloadableFlag(quic_sampler_remove_obsolete_packets, true);
+  manager_->SetSendAlgorithm(kBBR);
+  const SendAlgorithmInterface* initial_send_algorithm =
+      connection_.sent_packet_manager().GetSendAlgorithm();
+
+  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  SetClientConnectionId(TestConnectionId(1));
+  connection_.CreateConnectionIdManager();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  EXPECT_CALL(visitor_, OnConnectionMigration(_)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, MaybeSendAddressToken()).Times(AnyNumber());
+  QuicConnectionPeer::SetAddressValidated(&connection_);
+
+  QuicConnectionId server_cid0 = connection_.connection_id();
+  if (server_cid0.IsEmpty()) {
+    return;
+  }
+  QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
+  QuicConnectionPeer::SetEffectivePeerAddress(&connection_,
+                                              QuicSocketAddress());
+
+  QuicIpAddress initial_ip;
+  ASSERT_TRUE(initial_ip.FromString("192.0.2.1"));
+  const QuicSocketAddress kInitialAddr(initial_ip, /*port=*/12345);
+  QuicStreamOffset stream_offset = 0;
+
+  auto send_and_ack_on_address = [&](const QuicSocketAddress& addr,
+                                     int packets_to_send = 18) {
+    for (int p = 0; p < packets_to_send; ++p) {
+      connection_.SendStreamDataWithString(1, "a", stream_offset++, NO_FIN);
+      clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
+      QuicAckFrame ack = InitAckFrame(creator_->packet_number());
+      ProcessFramesPacketWithAddresses(
+          {QuicFrame(&ack), QuicFrame(QuicPaddingFrame())}, kSelfAddress, addr,
+          ENCRYPTION_FORWARD_SECURE);
+    }
+  };
+
+  peer_creator_.SetServerConnectionId(server_cid0);
+  ProcessFramesPacketWithAddresses({QuicFrame(frame1_)}, kSelfAddress,
+                                   kInitialAddr, ENCRYPTION_FORWARD_SECURE);
+  send_and_ack_on_address(kInitialAddr, /*packets_to_send=*/1);
+
+  // 1. With quic_sampler_remove_obsolete_packets enabled, a client changing
+  // across external IPs and ports stashes the validated path's BBR send
+  // algorithm (which has an obsolete acked packet in connection_state_map_) and
+  // advances packet numbers past max_tracked_packets_. When the client returns
+  // to its initial IP and restores the stashed BandwidthSampler, OnPacketSent
+  // evicts the obsolete entries before emplacing new packets.
+  QuicIpAddress current_ip = initial_ip;
+  for (int i = 0; i < 60; ++i) {
+    ASSERT_TRUE(
+        current_ip.FromString(absl::StrCat("198.51.100.", 1 + (i % 200))));
+    const QuicSocketAddress hop_addr(current_ip,
+                                     static_cast<uint16_t>(20000 + i));
+    ProcessFramesPacketWithAddresses(
+        {QuicFrame(QuicPingFrame()), QuicFrame(QuicPaddingFrame())},
+        kSelfAddress, hop_addr, ENCRYPTION_FORWARD_SECURE);
+    send_and_ack_on_address(hop_addr);
+  }
+
+  const QuicSocketAddress kReturnAddr1(initial_ip, /*port=*/54321);
+  ProcessFramesPacketWithAddresses(
+      {QuicFrame(QuicPingFrame()), QuicFrame(QuicPaddingFrame())}, kSelfAddress,
+      kReturnAddr1, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(connection_.sent_packet_manager().GetSendAlgorithm(),
+            initial_send_algorithm);
+  connection_.SendStreamDataWithString(1, "a", stream_offset++, NO_FIN);
+  send_and_ack_on_address(kReturnAddr1, /*packets_to_send=*/1);
+
+  // 2. With quic_sampler_remove_obsolete_packets disabled, the same client IP
+  // and port changes cause the restored BandwidthSampler to resize
+  // connection_state_map_ across the entire packet-number gap upon sending,
+  // triggering quic_bug_10437_1.
+  SetQuicReloadableFlag(quic_sampler_remove_obsolete_packets, false);
+  manager_->SetSendAlgorithm(kCubicBytes);
+  manager_->SetSendAlgorithm(kBBR);
+  const SendAlgorithmInterface* unfixed_send_algorithm =
+      connection_.sent_packet_manager().GetSendAlgorithm();
+  send_and_ack_on_address(kReturnAddr1, /*packets_to_send=*/1);
+
+  for (int i = 0; i < 60; ++i) {
+    ASSERT_TRUE(
+        current_ip.FromString(absl::StrCat("198.51.100.", 1 + (i % 200))));
+    const QuicSocketAddress hop_addr(current_ip,
+                                     static_cast<uint16_t>(30000 + i));
+    ProcessFramesPacketWithAddresses(
+        {QuicFrame(QuicPingFrame()), QuicFrame(QuicPaddingFrame())},
+        kSelfAddress, hop_addr, ENCRYPTION_FORWARD_SECURE);
+    send_and_ack_on_address(hop_addr);
+  }
+
+  const QuicSocketAddress kReturnAddr2(initial_ip, /*port=*/54322);
+  ProcessFramesPacketWithAddresses(
+      {QuicFrame(QuicPingFrame()), QuicFrame(QuicPaddingFrame())}, kSelfAddress,
+      kReturnAddr2, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(connection_.sent_packet_manager().GetSendAlgorithm(),
+            unfixed_send_algorithm);
+  connection_.SendStreamDataWithString(1, "a", stream_offset++, NO_FIN);
+  EXPECT_QUIC_BUG(
+      connection_.SendStreamDataWithString(1, "a", stream_offset++, NO_FIN),
+      "BandwidthSampler in-flight packet map has exceeded maximum number of "
+      "tracked packets");
+}
+
 TEST_P(QuicConnectionTest, ReceivePathProbeWithNoAddressChangeAtServer) {
   if (!version().IsIetfQuic()) {
     return;

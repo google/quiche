@@ -616,9 +616,8 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
   // Maximum number of tracked packets.
   const QuicPacketCount max_tracked_packets_;
 
-  // The main unacked packet map.  Used for outputting extra debugging details.
-  // May be null.
-  // TODO(vasilvv): remove this once it's no longer useful for debugging.
+  // The main unacked packet map. Used for removing obsolete packets and
+  // outputting extra debugging details. May be null.
   const QuicUnackedPacketMap* unacked_packet_map_;
 
   // Handles the actual bandwidth calculations, whereas the outer method handles
@@ -635,6 +634,9 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
 
   // True if connection option 'BBRB' is set.
   bool limit_max_ack_height_tracker_by_send_rate_ = false;
+
+  const bool remove_obsolete_packets_on_send_ =
+      GetQuicReloadableFlag(quic_sampler_remove_obsolete_packets);
 };
 
 }  // namespace quic

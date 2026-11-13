@@ -36,6 +36,7 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_unacked_packet_map.h"
+#include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
@@ -1502,6 +1503,87 @@ TEST_F(QuicSentPacketManagerTest,
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                                    ENCRYPTION_FORWARD_SECURE, kEmptyCounts));
+}
+
+// Regression test for b/389056732 and b/501452262.
+TEST_F(QuicSentPacketManagerTest,
+       BandwidthSamplerRemovesObsoletePacketsAcrossMigrations) {
+  for (CongestionControlType cc_type :
+       {CongestionControlType::kBBR, CongestionControlType::kBBRv2,
+        CongestionControlType::kBBRv3}) {
+    for (bool remove_obsolete : {false, true}) {
+      SetQuicReloadableFlag(quic_sampler_remove_obsolete_packets,
+                            remove_obsolete);
+      SetQuicFlag(quic_max_tracked_packet_count, 50);
+
+      QuicConnectionStats stats;
+      QuicSentPacketManager manager(Perspective::IS_SERVER, &clock_,
+                                    QuicRandom::GetInstance(), &stats, cc_type);
+      StrictMock<MockSessionNotifier> notifier;
+      EXPECT_CALL(notifier, IsFrameOutstanding(_)).WillRepeatedly(Return(true));
+      EXPECT_CALL(notifier, HasUnackedCryptoData())
+          .WillRepeatedly(Return(false));
+      manager.SetSessionNotifier(&notifier);
+
+      auto send_packet = [&](uint64_t packet_number) {
+        SerializedPacket packet(QuicPacketNumber(packet_number),
+                                PACKET_4BYTE_PACKET_NUMBER, nullptr,
+                                kDefaultLength, false, false);
+        packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
+        manager.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
+                             HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+        clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
+      };
+      auto ack_range = [&](uint64_t start, uint64_t end, uint64_t ack_pn) {
+        manager.OnAckFrameStart(QuicPacketNumber(end - 1),
+                                QuicTime::Delta::Zero(), clock_.Now());
+        manager.OnAckRange(QuicPacketNumber(start), QuicPacketNumber(end));
+        EXPECT_EQ(
+            PACKETS_NEWLY_ACKED,
+            manager.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(ack_pn),
+                                  ENCRYPTION_FORWARD_SECURE, kEmptyCounts));
+      };
+
+      // Send packets 1..4 and ACK 2..4 so packet 1 is declared lost.
+      // QuicSentPacketManager::PostProcessNewlyAckedPackets runs
+      // MaybeInvokeCongestionEvent before
+      // unacked_packets_.RemoveObsoletePackets advances least_unacked past 1,
+      // leaving packet 1 in the original BandwidthSampler's
+      // connection_state_map_.
+      for (uint64_t pn = 1; pn <= 4; ++pn) {
+        send_packet(pn);
+      }
+      clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(20));
+      ack_range(2, 5, /*ack_pn=*/1);
+      EXPECT_EQ(QuicPacketNumber(5), manager.GetLeastUnacked());
+
+      // Swap out the original send algorithm on connection migration.
+      std::unique_ptr<SendAlgorithmInterface> old_send_algorithm =
+          manager.OnConnectionMigration(/*reset_send_algorithm=*/true);
+      ASSERT_NE(old_send_algorithm, nullptr);
+
+      // Advance packet numbers on the new send algorithm past
+      // max_tracked_packets_ (50 + 1000 = 1050).
+      uint64_t ack_pn = 2;
+      for (uint64_t pn = 5; pn <= 1100; ++pn) {
+        send_packet(pn);
+        ack_range(pn, pn + 1, ack_pn++);
+      }
+      EXPECT_EQ(QuicPacketNumber(1101), manager.GetLeastUnacked());
+
+      // Restore the original send algorithm and send new packets.
+      manager.SetSendAlgorithm(old_send_algorithm.release());
+      send_packet(1101);
+      if (remove_obsolete) {
+        send_packet(1102);
+      } else {
+        EXPECT_QUIC_BUG(
+            send_packet(1102),
+            "BandwidthSampler in-flight packet map has exceeded maximum "
+            "number of tracked packets");
+      }
+    }
+  }
 }
 
 // Tests that ResetCongestionControlUponPeerAddressChange() resets send

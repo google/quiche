@@ -213,6 +213,21 @@ void BandwidthSampler::OnPacketSent(
     last_acked_packet_sent_time_ = sent_time;
   }
 
+  if (remove_obsolete_packets_on_send_ && unacked_packet_map_ != nullptr &&
+      connection_state_map_.first_packet().IsInitialized() &&
+      unacked_packet_map_->GetLeastUnacked().IsInitialized() &&
+      connection_state_map_.first_packet() <
+          unacked_packet_map_->GetLeastUnacked()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_sampler_remove_obsolete_packets, 1, 2);
+    if (packet_number - connection_state_map_.first_packet() >=
+        max_tracked_packets_) {
+      // Without removing obsolete packets, emplacing packet_number would cause
+      // connection_state_map_ to track more than max_tracked_packets_ entries.
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_sampler_remove_obsolete_packets, 2, 2);
+    }
+    RemoveObsoletePackets(unacked_packet_map_->GetLeastUnacked());
+  }
+
   if (connection_state_map_.entry_slots_used() > max_tracked_packets_) {
     if (unacked_packet_map_ != nullptr && !unacked_packet_map_->empty()) {
       QuicPacketNumber maybe_least_unacked =

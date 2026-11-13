@@ -84,16 +84,19 @@ void MinRttFilter::ForceUpdate(QuicTime::Delta sample_rtt, QuicTime now) {
 Bbr2NetworkModel::Bbr2NetworkModel(const Bbr2Params* params,
                                    QuicTime::Delta initial_rtt,
                                    QuicTime initial_rtt_timestamp,
-                                   const BandwidthSampler* old_sampler)
+                                   const BandwidthSampler* old_sampler,
+                                   const QuicUnackedPacketMap* unacked_packets)
     : params_(params),
       bandwidth_sampler_([](QuicRoundTripCount max_height_tracker_window_length,
-                            const BandwidthSampler* old_sampler) {
+                            const BandwidthSampler* old_sampler,
+                            const QuicUnackedPacketMap* unacked_packets) {
         if (old_sampler != nullptr) {
           return BandwidthSampler(*old_sampler);
         }
-        return BandwidthSampler(/*unacked_packet_map=*/nullptr,
+        return BandwidthSampler(unacked_packets,
                                 max_height_tracker_window_length);
-      }(params->initial_max_ack_height_filter_window, old_sampler)),
+      }(params->initial_max_ack_height_filter_window, old_sampler,
+                         unacked_packets)),
       min_rtt_filter_(initial_rtt, initial_rtt_timestamp),
       cwnd_gain_(params->startup_cwnd_gain),
       pacing_gain_(params->startup_pacing_gain) {}

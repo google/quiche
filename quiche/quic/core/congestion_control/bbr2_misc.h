@@ -368,7 +368,8 @@ class QUICHE_EXPORT Bbr2NetworkModel {
  public:
   Bbr2NetworkModel(const Bbr2Params* params, QuicTime::Delta initial_rtt,
                    QuicTime initial_rtt_timestamp,
-                   const BandwidthSampler* old_sampler);
+                   const BandwidthSampler* old_sampler,
+                   const QuicUnackedPacketMap* unacked_packets = nullptr);
 
   void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                     QuicPacketNumber packet_number, QuicByteCount bytes,

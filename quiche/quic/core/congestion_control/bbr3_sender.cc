@@ -42,7 +42,8 @@ Bbr3Sender::Bbr3Sender(QuicTime now, const RttStats* rtt_stats,
               max_cwnd_in_packets * kDefaultTCPMSS),
       model_(&params_, rtt_stats->SmoothedOrInitialRtt(),
              rtt_stats->last_update_time(),
-             old_sender ? &old_sender->sampler_ : nullptr),
+             old_sender != nullptr ? &old_sender->sampler_ : nullptr,
+             unacked_packets),
       initial_cwnd_(params_.cwnd_limits.ApplyLimits(
           (old_sender) ? old_sender->GetCongestionWindow()
                        : (initial_cwnd_in_packets * kDefaultTCPMSS))),
