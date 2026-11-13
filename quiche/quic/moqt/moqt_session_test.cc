@@ -1249,9 +1249,8 @@ TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
   const MoqtPriority kLocalDefaultPriority = 0x20;
   bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
       ResponseStream(kSubscribeByte));
-  TrackProperties properties(std::nullopt, std::nullopt, std::nullopt,
-                             kLocalDefaultPriority, std::nullopt, std::nullopt,
-                             std::nullopt);
+  TrackProperties properties(
+      {{PropertyType::kDefaultPublisherPriority, kLocalDefaultPriority}});
   EXPECT_CALL(*track, properties)
       .WillRepeatedly(testing::ReturnRef(properties));
   MoqtObjectListener* listener = ReceiveSubscribeSynchronousOk(
@@ -1269,9 +1268,8 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   session_.Subscribe(ftn, &remote_track_visitor_, MessageParameters());
   MoqtSubscribeOk ok(2, MessageParameters(),
-                     TrackProperties(std::nullopt, std::nullopt, std::nullopt,
-                                     kPeerDefaultPriority, std::nullopt,
-                                     std::nullopt, std::nullopt));
+                     TrackProperties({{PropertyType::kDefaultPublisherPriority,
+                                       kPeerDefaultPriority}}));
   EXPECT_CALL(remote_track_visitor_, OnReply);
   bidi_wrapper_->ReceiveMessage(ok);
 
@@ -1314,9 +1312,8 @@ TEST_F(MoqtSessionTest, UsePeerDefaultPriority) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   session_.Subscribe(ftn, &remote_track_visitor_, MessageParameters());
   MoqtSubscribeOk ok(2, MessageParameters(),
-                     TrackProperties(std::nullopt, std::nullopt, std::nullopt,
-                                     kPeerDefaultPriority, std::nullopt,
-                                     std::nullopt, std::nullopt));
+                     TrackProperties({{PropertyType::kDefaultPublisherPriority,
+                                       kPeerDefaultPriority}}));
   EXPECT_CALL(remote_track_visitor_, OnReply);
   bidi_wrapper_->ReceiveMessage(ok);
   // Omit priority from a datagram.
@@ -1358,9 +1355,8 @@ TEST_F(MoqtSessionTest, OmitPublisherPriority) {
   // Create the publisher and the SUBSCRIBE with kLocalDefaultPriority.
   MockTrackPublisher* track = CreateTrackPublisher();
   std::make_shared<MockTrackPublisher>(request.full_track_name);
-  TrackProperties properties(std::nullopt, std::nullopt, std::nullopt,
-                             kLocalDefaultPriority, std::nullopt, std::nullopt,
-                             std::nullopt);
+  TrackProperties properties(
+      {{PropertyType::kDefaultPublisherPriority, kLocalDefaultPriority}});
   EXPECT_CALL(*track, properties)
       .WillRepeatedly(testing::ReturnRef(properties));
   MoqtObjectListener* listener = ReceiveSubscribeSynchronousOk(
@@ -1445,9 +1441,8 @@ TEST_F(MoqtSessionTest, DatagramOutOfWindow) {
   params.location_filter = LocationFilter::AbsoluteStartFilter(Location(1, 0));
   session_.Subscribe(ftn, &remote_track_visitor_, params);
   MoqtSubscribeOk ok(2, MessageParameters(),
-                     TrackProperties(std::nullopt, std::nullopt, std::nullopt,
-                                     kPeerDefaultPriority, std::nullopt,
-                                     std::nullopt, std::nullopt));
+                     TrackProperties({{PropertyType::kDefaultPublisherPriority,
+                                       kPeerDefaultPriority}}));
   EXPECT_CALL(remote_track_visitor_, OnReply);
   bidi_wrapper_->ReceiveMessage(ok);
   char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x80, 0x00, 0x08, 0x64,

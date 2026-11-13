@@ -692,15 +692,12 @@ TEST_F(MoqtFramerSimpleTest, RequestErrorRedirect) {
 
 TEST_F(MoqtFramerSimpleTest, SerializeTrackPropertiesWithImmutableProperties) {
   TrackProperties properties;
-  properties.insert(static_cast<uint64_t>(PropertyType::kObjectDeliveryTimeout),
-                    10ULL);
+  properties.insert({PropertyType::kObjectDeliveryTimeout, 10ULL});
   const absl::string_view kRawImmutable("\x04\x14\x2c\x01", 4);
-  properties.insert(static_cast<uint64_t>(PropertyType::kImmutableProperties),
-                    kRawImmutable);
+  properties.insert({PropertyType::kImmutableProperties, kRawImmutable});
   KeyValuePairList immutable;
-  immutable.insert(static_cast<uint64_t>(PropertyType::kMaxCacheDuration),
-                   20ULL);
-  immutable.insert(static_cast<uint64_t>(PropertyType::kDynamicGroups), 1ULL);
+  immutable.insert({PropertyType::kMaxCacheDuration, 20ULL});
+  immutable.insert({PropertyType::kDynamicGroups, 1ULL});
   properties.OnImmutablePropertiesParsed(immutable);
 
   quiche::QuicheBuffer buffer = framer_.SerializeRequestOk(

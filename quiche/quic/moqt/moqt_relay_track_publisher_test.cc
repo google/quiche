@@ -672,14 +672,7 @@ TEST_F(MoqtRelayTrackPublisherTest, NewGroupRequestFirstListener) {
   MessageParameters ok_parameters;
   ok_parameters.largest_object = kLargestLocation;  // Location(3, 2)
   ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
-  TrackProperties properties(
-      /*object_delivery_timeout=*/std::nullopt,
-      /*max_cache_duration=*/std::nullopt,
-      /*subgroup_delivery_timeout=*/std::nullopt,
-      /*publisher_priority=*/std::nullopt,
-      /*group_order=*/std::nullopt,
-      /*dynamic_groups=*/true,
-      /*immutable_properties=*/std::nullopt);
+  TrackProperties properties({{PropertyType::kDynamicGroups, true}});
   publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, properties});
 
   // Requests with new_group_request <= 4 (including 4 and 0) do not trigger
@@ -825,14 +818,7 @@ TEST_F(MoqtRelayTrackPublisherTest, NewGroupRequestBeforeResponse) {
   MessageParameters ok_parameters;
   ok_parameters.largest_object = Location(5, 2);
   ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
-  TrackProperties properties(
-      /*object_delivery_timeout=*/std::nullopt,
-      /*max_cache_duration=*/std::nullopt,
-      /*subgroup_delivery_timeout=*/std::nullopt,
-      /*publisher_priority=*/std::nullopt,
-      /*group_order=*/std::nullopt,
-      /*dynamic_groups=*/true,
-      /*immutable_properties=*/std::nullopt);
+  TrackProperties properties({{PropertyType::kDynamicGroups, true}});
   publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, properties});
 
   MockMoqtObjectListener listener6;
@@ -874,14 +860,7 @@ TEST_F(MoqtRelayTrackPublisherTest,
   MessageParameters ok_parameters;
   ok_parameters.largest_object = kLargestLocation;  // Location(3, 2)
   ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
-  TrackProperties properties(
-      /*delivery_timeout=*/std::nullopt,
-      /*max_cache_duration=*/std::nullopt,
-      /*subgroup_delivery_timeout=*/std::nullopt,
-      /*publisher_priority=*/std::nullopt,
-      /*group_order=*/std::nullopt,
-      /*dynamic_groups=*/true,
-      /*immutable_properties=*/std::nullopt);
+  TrackProperties properties({{PropertyType::kDynamicGroups, true}});
   publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, properties});
 
   // 1. No new_group_request parameter -> ignored.
@@ -1000,14 +979,7 @@ TEST_F(MoqtRelayTrackPublisherTest,
   MessageParameters ok_parameters;
   ok_parameters.largest_object = kLargestLocation;  // Location(3, 2)
   ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
-  TrackProperties properties(
-      /*object_delivery_timeout=*/std::nullopt,
-      /*max_cache_duration=*/std::nullopt,
-      /*subgroup_delivery_timeout=*/std::nullopt,
-      /*publisher_priority=*/std::nullopt,
-      /*group_order=*/std::nullopt,
-      /*dynamic_groups=*/true,
-      /*immutable_properties=*/std::nullopt);
+  TrackProperties properties({{PropertyType::kDynamicGroups, true}});
   publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, properties});
 
   // 1. Update with new_group_request = 4 forwards to session->SubscribeUpdate

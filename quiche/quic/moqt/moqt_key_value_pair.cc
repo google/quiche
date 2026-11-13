@@ -21,15 +21,16 @@
 
 namespace moqt {
 
-void KeyValuePairList::insert(uint64_t key,
-                              std::variant<uint64_t, absl::string_view> value) {
+void KeyValuePairList::insert(KeyValuePair pair) {
   QUICHE_DCHECK(
-      (key % 2 == 1 && std::holds_alternative<absl::string_view>(value)) ||
-      (key % 2 == 0 && std::holds_alternative<uint64_t>(value)));
-  if (std::holds_alternative<absl::string_view>(value)) {
-    map_.insert({key, std::string(std::get<absl::string_view>(value))});
+      (pair.key % 2 == 1 &&
+       std::holds_alternative<absl::string_view>(pair.value)) ||
+      (pair.key % 2 == 0 && std::holds_alternative<uint64_t>(pair.value)));
+  if (std::holds_alternative<absl::string_view>(pair.value)) {
+    map_.insert(
+        {pair.key, std::string(std::get<absl::string_view>(pair.value))});
   } else {
-    map_.insert({key, std::get<uint64_t>(value)});
+    map_.insert({pair.key, std::get<uint64_t>(pair.value)});
   }
 }
 
@@ -124,50 +125,6 @@ void MessageParameters::Update(const MessageParameters& other) {
   }
   if (location_filter.has_value() && !location_filter->WindowKnown()) {
     location_filter->ConvertRelativeToAbsolute(largest_object);
-  }
-}
-
-TrackProperties::TrackProperties(
-    std::optional<quic::QuicTimeDelta> object_delivery_timeout,
-    std::optional<quic::QuicTimeDelta> max_cache_duration,
-    std::optional<quic::QuicTimeDelta> subgroup_delivery_timeout,
-    std::optional<MoqtPriority> publisher_priority,
-    std::optional<MoqtGroupOrder> group_order,
-    std::optional<bool> dynamic_groups,
-    std::optional<absl::string_view> immutable_properties) {
-  if (object_delivery_timeout.has_value() &&
-      *object_delivery_timeout != kDefaultDeliveryTimeout &&
-      *object_delivery_timeout != quic::QuicTimeDelta::Zero()) {
-    insert(static_cast<uint64_t>(PropertyType::kObjectDeliveryTimeout),
-           static_cast<uint64_t>(object_delivery_timeout->ToMilliseconds()));
-  }
-  if (max_cache_duration.has_value() &&
-      *max_cache_duration != kDefaultMaxCacheDuration) {
-    insert(static_cast<uint64_t>(PropertyType::kMaxCacheDuration),
-           static_cast<uint64_t>(max_cache_duration->ToMilliseconds()));
-  }
-  if (subgroup_delivery_timeout.has_value() &&
-      *subgroup_delivery_timeout != kDefaultDeliveryTimeout &&
-      *subgroup_delivery_timeout != quic::QuicTimeDelta::Zero()) {
-    insert(static_cast<uint64_t>(PropertyType::kSubgroupDeliveryTimeout),
-           static_cast<uint64_t>(subgroup_delivery_timeout->ToMilliseconds()));
-  }
-  if (immutable_properties.has_value() && !immutable_properties->empty()) {
-    insert(static_cast<uint64_t>(PropertyType::kImmutableProperties),
-           *immutable_properties);
-  }
-  if (publisher_priority.has_value() &&
-      *publisher_priority != kDefaultPublisherPriority) {
-    insert(static_cast<uint64_t>(PropertyType::kDefaultPublisherPriority),
-           static_cast<uint64_t>(*publisher_priority));
-  }
-  if (group_order.has_value() && *group_order != kDefaultGroupOrder) {
-    insert(static_cast<uint64_t>(PropertyType::kDefaultPublisherGroupOrder),
-           static_cast<uint64_t>(*group_order));
-  }
-  if (dynamic_groups.has_value() && *dynamic_groups != kDefaultDynamicGroups) {
-    insert(static_cast<uint64_t>(PropertyType::kDynamicGroups),
-           *dynamic_groups ? 1ULL : 0ULL);
   }
 }
 

@@ -7,8 +7,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -27,6 +29,38 @@
 
 namespace moqt {
 
+// Helper struct to quickly create Key-Value pairs to use in
+// KeyValuePairList::insert().
+struct KeyValuePair {
+  uint64_t key;
+  std::variant<uint64_t, absl::string_view> value;
+
+  // Constructor used by the KeyValuePair parser, which is agnostic to whether
+  // the key value pair is an Option or a Property.
+  KeyValuePair(uint64_t key, std::variant<uint64_t, absl::string_view> value)
+      : key(key), value(value) {}
+
+  // Templates to allow callers to use enum key types instead of explicitly
+  // casting to uint64_t.
+  template <
+      typename K, typename V, std::enable_if_t<std::is_enum_v<K>, uint64_t> = 0,
+      std::enable_if_t<std::is_integral_v<V> || std::is_enum_v<V>, uint64_t> =
+          0>
+  KeyValuePair(K key, V raw_value)
+      : key(static_cast<uint64_t>(key)),
+        value(static_cast<uint64_t>(raw_value)) {}
+
+  template <typename K, std::enable_if_t<std::is_enum_v<K>, uint64_t> = 0>
+  KeyValuePair(K key, absl::string_view raw_value)
+      : key(static_cast<uint64_t>(key)), value(raw_value) {}
+
+  // QuicTimeDelta that maps to an int.
+  template <typename K, std::enable_if_t<std::is_enum_v<K>, uint64_t> = 0>
+  KeyValuePair(K key, quic::QuicTimeDelta raw_value)
+      : key(static_cast<uint64_t>(key)),
+        value(static_cast<uint64_t>(raw_value.ToMilliseconds())) {}
+};
+
 // Encodes a list of key-value pairs common to both Options and Properties.
 // If the key is odd, it is a length-prefixed string (which may encode further
 // item-specific structure). If the key is even, it is a varint.
@@ -37,7 +71,7 @@ class QUICHE_EXPORT KeyValuePairList {
   KeyValuePairList() = default;
 
   size_t size() const { return map_.size(); }
-  void insert(uint64_t key, std::variant<uint64_t, absl::string_view> value);
+  void insert(KeyValuePair pair);
   size_t count(uint64_t key) const { return map_.count(key); }
   bool contains(uint64_t key) const { return map_.contains(key); }
 
@@ -327,14 +361,11 @@ class TrackProperties : public KeyValuePairList {
  public:
   TrackProperties() = default;
   TrackProperties(const TrackProperties&) = default;
-  // Constructor for Original publishers to create their track properties.
-  TrackProperties(std::optional<quic::QuicTimeDelta> object_delivery_timeout,
-                  std::optional<quic::QuicTimeDelta> max_cache_duration,
-                  std::optional<quic::QuicTimeDelta> subgroup_delivery_timeout,
-                  std::optional<MoqtPriority> publisher_priority,
-                  std::optional<MoqtGroupOrder> group_order,
-                  std::optional<bool> dynamic_groups,
-                  std::optional<absl::string_view> immutable_properties);
+  explicit TrackProperties(std::initializer_list<KeyValuePair> list) {
+    for (const auto& pair : list) {
+      insert(pair);
+    }
+  }
 
   void clear() {
     KeyValuePairList::clear();

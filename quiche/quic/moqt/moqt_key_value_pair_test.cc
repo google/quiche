@@ -285,8 +285,10 @@ class TrackPropertiesTest : public quic::test::QuicTest {};
 TEST_F(TrackPropertiesTest, DefaultConstructor) {
   TrackProperties properties;
   EXPECT_TRUE(properties.Validate());
+  EXPECT_EQ(properties.size(), 0);
   EXPECT_EQ(properties.object_delivery_timeout(), kDefaultDeliveryTimeout);
   EXPECT_EQ(properties.max_cache_duration(), kDefaultMaxCacheDuration);
+  EXPECT_EQ(properties.subgroup_delivery_timeout(), kDefaultDeliveryTimeout);
   EXPECT_EQ(properties.default_publisher_priority(), kDefaultPublisherPriority);
   EXPECT_EQ(properties.default_publisher_group_order(), kDefaultGroupOrder);
   EXPECT_EQ(properties.dynamic_groups(), kDefaultDynamicGroups);
@@ -294,11 +296,18 @@ TEST_F(TrackPropertiesTest, DefaultConstructor) {
 }
 
 TEST_F(TrackPropertiesTest, AllProperties) {
-  TrackProperties properties(quic::QuicTimeDelta::FromMilliseconds(1),
-                             quic::QuicTimeDelta::FromMilliseconds(2),
-                             quic::QuicTimeDelta::FromMilliseconds(3),
-                             MoqtPriority(10), MoqtGroupOrder::kDescending,
-                             true, "properties");
+  TrackProperties properties({
+      {PropertyType::kObjectDeliveryTimeout,
+       quic::QuicTimeDelta::FromMilliseconds(1)},
+      {PropertyType::kMaxCacheDuration,
+       quic::QuicTimeDelta::FromMilliseconds(2)},
+      {PropertyType::kSubgroupDeliveryTimeout,
+       quic::QuicTimeDelta::FromMilliseconds(3)},
+      {PropertyType::kDefaultPublisherPriority, MoqtPriority(10)},
+      {PropertyType::kDefaultPublisherGroupOrder, MoqtGroupOrder::kDescending},
+      {PropertyType::kDynamicGroups, true},
+      {PropertyType::kImmutableProperties, "properties"},
+  });
   EXPECT_TRUE(properties.Validate());
   EXPECT_EQ(properties.object_delivery_timeout(),
             quic::QuicTimeDelta::FromMilliseconds(1));
@@ -313,54 +322,36 @@ TEST_F(TrackPropertiesTest, AllProperties) {
   EXPECT_EQ(properties.immutable_properties(), "properties");
 }
 
-TEST_F(TrackPropertiesTest, ExplicitDefaults) {
-  TrackProperties properties(kDefaultDeliveryTimeout, kDefaultMaxCacheDuration,
-                             kDefaultDeliveryTimeout, kDefaultPublisherPriority,
-                             kDefaultGroupOrder, kDefaultDynamicGroups, "");
-  EXPECT_TRUE(properties.Validate());
-  EXPECT_EQ(properties.size(), 0);
-  EXPECT_EQ(properties.object_delivery_timeout(), kDefaultDeliveryTimeout);
-  EXPECT_EQ(properties.max_cache_duration(), kDefaultMaxCacheDuration);
-  EXPECT_EQ(properties.subgroup_delivery_timeout(), kDefaultDeliveryTimeout);
-  EXPECT_EQ(properties.default_publisher_priority(), kDefaultPublisherPriority);
-  EXPECT_EQ(properties.default_publisher_group_order(), kDefaultGroupOrder);
-  EXPECT_EQ(properties.dynamic_groups(), kDefaultDynamicGroups);
-  EXPECT_TRUE(properties.immutable_properties().empty());
-}
-
 TEST_F(TrackPropertiesTest, Validate) {
   TrackProperties properties;
   // Unknown property.
-  properties.insert(0x42, 15ULL);
-  properties.insert(0x42, 25ULL);
+  properties.insert({0x42, 15ULL});
+  properties.insert({0x42, 25ULL});
   EXPECT_TRUE(properties.Validate());
 
   properties.clear();
-  properties.insert(
-      static_cast<uint64_t>(PropertyType::kDefaultPublisherPriority), 256ULL);
+  properties.insert({PropertyType::kDefaultPublisherPriority, 256ULL});
   EXPECT_FALSE(properties.Validate());
 
   properties.clear();
-  properties.insert(
-      static_cast<uint64_t>(PropertyType::kDefaultPublisherGroupOrder), 0ULL);
+  properties.insert({PropertyType::kDefaultPublisherGroupOrder, 0ULL});
   EXPECT_FALSE(properties.Validate());
   properties.clear();
-  properties.insert(
-      static_cast<uint64_t>(PropertyType::kDefaultPublisherGroupOrder), 3ULL);
+  properties.insert({PropertyType::kDefaultPublisherGroupOrder, 3ULL});
   EXPECT_FALSE(properties.Validate());
   properties.clear();
-  properties.insert(static_cast<uint64_t>(PropertyType::kDynamicGroups), 2ULL);
-  properties.insert(static_cast<uint64_t>(PropertyType::kDynamicGroups), 1ULL);
+  properties.insert({PropertyType::kDynamicGroups, 2ULL});
+  properties.insert({PropertyType::kDynamicGroups, 1ULL});
   EXPECT_FALSE(properties.Validate());
 
   properties.clear();
-  properties.insert(static_cast<uint64_t>(PropertyType::kDynamicGroups), 2ULL);
+  properties.insert({PropertyType::kDynamicGroups, 2ULL});
   EXPECT_FALSE(properties.Validate());
 
   // Out-of-range value inside immutable properties also fails Validate().
   properties.clear();
   KeyValuePairList immutable;
-  immutable.insert(static_cast<uint64_t>(PropertyType::kDynamicGroups), 2ULL);
+  immutable.insert({PropertyType::kDynamicGroups, 2ULL});
   properties.OnImmutablePropertiesParsed(immutable);
   EXPECT_FALSE(properties.Validate());
 }
@@ -370,92 +361,75 @@ TEST_F(TrackPropertiesTest, IsMalformed) {
   EXPECT_FALSE(properties.IsMalformed());
 
   // Known track properties and unknown properties are not malformed.
-  properties.insert(static_cast<uint64_t>(PropertyType::kObjectDeliveryTimeout),
-                    5ULL);
-  properties.insert(0x42, 15ULL);
-  properties.insert(0x42, 25ULL);
-  properties.insert(0x43, "unknown_odd");
+  properties.insert({PropertyType::kObjectDeliveryTimeout, 5ULL});
+  properties.insert({0x42, 15ULL});
+  properties.insert({0x42, 25ULL});
+  properties.insert({0x43, "unknown_odd"});
   EXPECT_FALSE(properties.IsMalformed());
 
   // Object-only properties render the track malformed.
   TrackProperties prior_group_gap;
-  prior_group_gap.insert(static_cast<uint64_t>(PropertyType::kPriorGroupIdGap),
-                         1ULL);
+  prior_group_gap.insert({PropertyType::kPriorGroupIdGap, 1ULL});
   EXPECT_TRUE(prior_group_gap.IsMalformed());
 
   TrackProperties prior_object_gap;
-  prior_object_gap.insert(
-      static_cast<uint64_t>(PropertyType::kPriorObjectIdGap), 1ULL);
+  prior_object_gap.insert({PropertyType::kPriorObjectIdGap, 1ULL});
   EXPECT_TRUE(prior_object_gap.IsMalformed());
 
   // Duplicate known properties render the track malformed (but pass Validate).
   properties.clear();
-  properties.insert(static_cast<uint64_t>(PropertyType::kObjectDeliveryTimeout),
-                    5ULL);
-  properties.insert(static_cast<uint64_t>(PropertyType::kObjectDeliveryTimeout),
-                    6ULL);
+  properties.insert({PropertyType::kObjectDeliveryTimeout, 5ULL});
+  properties.insert({PropertyType::kObjectDeliveryTimeout, 6ULL});
   EXPECT_TRUE(properties.Validate());
   EXPECT_TRUE(properties.IsMalformed());
 
   properties.clear();
-  properties.insert(static_cast<uint64_t>(PropertyType::kMaxCacheDuration),
-                    5ULL);
-  properties.insert(static_cast<uint64_t>(PropertyType::kMaxCacheDuration),
-                    6ULL);
+  properties.insert({PropertyType::kMaxCacheDuration, 5ULL});
+  properties.insert({PropertyType::kMaxCacheDuration, 6ULL});
   EXPECT_TRUE(properties.Validate());
   EXPECT_TRUE(properties.IsMalformed());
 
   properties.clear();
-  properties.insert(
-      static_cast<uint64_t>(PropertyType::kSubgroupDeliveryTimeout), 5ULL);
-  properties.insert(
-      static_cast<uint64_t>(PropertyType::kSubgroupDeliveryTimeout), 6ULL);
+  properties.insert({PropertyType::kSubgroupDeliveryTimeout, 5ULL});
+  properties.insert({PropertyType::kSubgroupDeliveryTimeout, 6ULL});
   EXPECT_TRUE(properties.Validate());
   EXPECT_TRUE(properties.IsMalformed());
 
   properties.clear();
-  properties.insert(
-      static_cast<uint64_t>(PropertyType::kDefaultPublisherPriority), 0ULL);
-  properties.insert(
-      static_cast<uint64_t>(PropertyType::kDefaultPublisherPriority), 1ULL);
+  properties.insert({PropertyType::kDefaultPublisherPriority, 0ULL});
+  properties.insert({PropertyType::kDefaultPublisherPriority, 1ULL});
   EXPECT_TRUE(properties.Validate());
   EXPECT_TRUE(properties.IsMalformed());
 
   properties.clear();
-  properties.insert(
-      static_cast<uint64_t>(PropertyType::kDefaultPublisherGroupOrder), 1ULL);
-  properties.insert(
-      static_cast<uint64_t>(PropertyType::kDefaultPublisherGroupOrder), 2ULL);
+  properties.insert({PropertyType::kDefaultPublisherGroupOrder, 1ULL});
+  properties.insert({PropertyType::kDefaultPublisherGroupOrder, 2ULL});
   EXPECT_TRUE(properties.Validate());
   EXPECT_TRUE(properties.IsMalformed());
 
   properties.clear();
-  properties.insert(static_cast<uint64_t>(PropertyType::kDynamicGroups), 0ULL);
-  properties.insert(static_cast<uint64_t>(PropertyType::kDynamicGroups), 1ULL);
+  properties.insert({PropertyType::kDynamicGroups, 0ULL});
+  properties.insert({PropertyType::kDynamicGroups, 1ULL});
   EXPECT_TRUE(properties.Validate());
   EXPECT_TRUE(properties.IsMalformed());
 
   properties.clear();
-  properties.insert(static_cast<uint64_t>(PropertyType::kImmutableProperties),
-                    "foo");
-  properties.insert(static_cast<uint64_t>(PropertyType::kImmutableProperties),
-                    "bar");
+  properties.insert({PropertyType::kImmutableProperties, "foo"});
+  properties.insert({PropertyType::kImmutableProperties, "bar"});
   EXPECT_TRUE(properties.Validate());
   EXPECT_TRUE(properties.IsMalformed());
 }
 
 TEST_F(TrackPropertiesTest, ImmutableProperties) {
   TrackProperties properties;
-  properties.insert(static_cast<uint64_t>(PropertyType::kObjectDeliveryTimeout),
-                    10ULL);
-  properties.insert(static_cast<uint64_t>(PropertyType::kImmutableProperties),
-                    "raw_immutable_bytes");
+  properties.insert({PropertyType::kObjectDeliveryTimeout, 10ULL});
+  properties.insert(
+      {PropertyType::kImmutableProperties, "raw_immutable_bytes"});
 
   KeyValuePairList immutable;
-  immutable.insert(static_cast<uint64_t>(PropertyType::kMaxCacheDuration),
-                   20ULL);
-  immutable.insert(static_cast<uint64_t>(PropertyType::kDynamicGroups), 1ULL);
-  immutable.insert(0x42, 99ULL);
+  immutable.insert({PropertyType::kMaxCacheDuration, 20ULL});
+  immutable.insert({PropertyType::kDynamicGroups, 1ULL});
+  immutable.insert({0x42, 99ULL});
   properties.OnImmutablePropertiesParsed(immutable);
 
   EXPECT_TRUE(properties.Validate());
@@ -486,36 +460,30 @@ TEST_F(TrackPropertiesTest, ImmutableProperties) {
 
   // Unparseable immutable properties (std::nullopt) -> malformed.
   TrackProperties unparseable;
-  unparseable.insert(static_cast<uint64_t>(PropertyType::kImmutableProperties),
-                     "bad");
+  unparseable.insert({PropertyType::kImmutableProperties, "bad"});
   unparseable.OnImmutablePropertiesParsed(std::nullopt);
   EXPECT_TRUE(unparseable.IsMalformed());
 
   // Nested kImmutableProperties -> malformed.
   TrackProperties nested;
-  nested.insert(static_cast<uint64_t>(PropertyType::kImmutableProperties),
-                "nested");
+  nested.insert({PropertyType::kImmutableProperties, "nested"});
   KeyValuePairList nested_inner;
-  nested_inner.insert(static_cast<uint64_t>(PropertyType::kImmutableProperties),
-                      "inner");
+  nested_inner.insert({PropertyType::kImmutableProperties, "inner"});
   nested.OnImmutablePropertiesParsed(nested_inner);
   EXPECT_TRUE(nested.IsMalformed());
 
   // Known property duplicated between outer and immutable -> malformed.
   TrackProperties duplicate_outer_inner;
-  duplicate_outer_inner.insert(
-      static_cast<uint64_t>(PropertyType::kMaxCacheDuration), 10ULL);
-  duplicate_outer_inner.insert(
-      static_cast<uint64_t>(PropertyType::kImmutableProperties), "dup");
+  duplicate_outer_inner.insert({PropertyType::kMaxCacheDuration, 10ULL});
+  duplicate_outer_inner.insert({PropertyType::kImmutableProperties, "dup"});
   duplicate_outer_inner.OnImmutablePropertiesParsed(immutable);
   EXPECT_TRUE(duplicate_outer_inner.IsMalformed());
 
   // Object-only property inside immutable properties -> malformed.
   TrackProperties gap_in_immutable;
-  gap_in_immutable.insert(
-      static_cast<uint64_t>(PropertyType::kImmutableProperties), "gap");
+  gap_in_immutable.insert({PropertyType::kImmutableProperties, "gap"});
   KeyValuePairList gap_inner;
-  gap_inner.insert(static_cast<uint64_t>(PropertyType::kPriorGroupIdGap), 1ULL);
+  gap_inner.insert({PropertyType::kPriorGroupIdGap, 1ULL});
   gap_in_immutable.OnImmutablePropertiesParsed(gap_inner);
   EXPECT_TRUE(gap_in_immutable.IsMalformed());
 }
@@ -525,21 +493,20 @@ TEST_F(TrackPropertiesTest, CheckForUnknownMandatoryProperty) {
   QUICHE_EXPECT_OK(properties.CheckForUnknownMandatoryProperty());
 
   // Non-mandatory property types (< 0x4000).
-  properties.insert(static_cast<uint64_t>(PropertyType::kObjectDeliveryTimeout),
-                    5ULL);
-  properties.insert(0x3FFE, 1ULL);
-  properties.insert(0x3FFF, "odd_optional");
+  properties.insert({PropertyType::kObjectDeliveryTimeout, 5ULL});
+  properties.insert({0x3FFE, 1ULL});
+  properties.insert({0x3FFF, "odd_optional"});
   QUICHE_EXPECT_OK(properties.CheckForUnknownMandatoryProperty());
 
   // Non-mandatory property types (> 0x7FFF).
-  properties.insert(0x8000, 2ULL);
-  properties.insert(0x8001, "above_range");
-  properties.insert(0x10000, 3ULL);
+  properties.insert({0x8000, 2ULL});
+  properties.insert({0x8001, "above_range"});
+  properties.insert({0x10000, 3ULL});
   QUICHE_EXPECT_OK(properties.CheckForUnknownMandatoryProperty());
 
   // Min boundary: 0x4000.
   TrackProperties min_mandatory;
-  min_mandatory.insert(kMinMandatoryTrackProperty, 0ULL);
+  min_mandatory.insert({kMinMandatoryTrackProperty, 0ULL});
   EXPECT_TRUE(
       IsFailedPrecondition(min_mandatory.CheckForUnknownMandatoryProperty()));
   EXPECT_EQ(min_mandatory.CheckForUnknownMandatoryProperty().message(),
@@ -547,7 +514,7 @@ TEST_F(TrackPropertiesTest, CheckForUnknownMandatoryProperty) {
 
   // Max boundary: 0x7FFF.
   TrackProperties max_mandatory;
-  max_mandatory.insert(kMaxMandatoryTrackProperty, "mandatory_string");
+  max_mandatory.insert({kMaxMandatoryTrackProperty, "mandatory_string"});
   EXPECT_TRUE(
       IsFailedPrecondition(max_mandatory.CheckForUnknownMandatoryProperty()));
   EXPECT_EQ(max_mandatory.CheckForUnknownMandatoryProperty().message(),
@@ -555,7 +522,7 @@ TEST_F(TrackPropertiesTest, CheckForUnknownMandatoryProperty) {
 
   // In between.
   TrackProperties mid_mandatory;
-  mid_mandatory.insert(0x5000, 42ULL);
+  mid_mandatory.insert({0x5000, 42ULL});
   EXPECT_TRUE(
       IsFailedPrecondition(mid_mandatory.CheckForUnknownMandatoryProperty()));
   EXPECT_EQ(mid_mandatory.CheckForUnknownMandatoryProperty().message(),
@@ -563,10 +530,9 @@ TEST_F(TrackPropertiesTest, CheckForUnknownMandatoryProperty) {
 
   // Unknown mandatory property inside kImmutableProperties.
   TrackProperties immutable_mandatory;
-  immutable_mandatory.insert(
-      static_cast<uint64_t>(PropertyType::kImmutableProperties), "mandatory");
+  immutable_mandatory.insert({PropertyType::kImmutableProperties, "mandatory"});
   KeyValuePairList immutable_inner;
-  immutable_inner.insert(0x4500, 1ULL);
+  immutable_inner.insert({0x4500, 1ULL});
   immutable_mandatory.OnImmutablePropertiesParsed(immutable_inner);
   EXPECT_TRUE(IsFailedPrecondition(
       immutable_mandatory.CheckForUnknownMandatoryProperty()));

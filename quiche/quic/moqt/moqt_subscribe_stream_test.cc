@@ -117,7 +117,7 @@ TEST_F(MoqtSubscribeRequestStreamTest,
                                        /*retry_interval=*/std::nullopt,
                                        "Unknown mandatory property: 0x4000"})));
   MoqtSubscribeOk subscribe_ok(kTrackAlias);
-  subscribe_ok.properties.insert(kMinMandatoryTrackProperty, 1ULL);
+  subscribe_ok.properties.insert({kMinMandatoryTrackProperty, 1ULL});
   QUICHE_EXPECT_OK(stream_->OnControlMessage(subscribe_ok));
 }
 
@@ -132,8 +132,7 @@ TEST_F(MoqtSubscribeRequestStreamTest,
   EXPECT_CALL(mock_remove_callback_, Call);
   EXPECT_CALL(mock_subscribe_visitor_, OnMalformedTrack(track_name_));
   MoqtSubscribeOk subscribe_ok(kTrackAlias);
-  subscribe_ok.properties.insert(
-      static_cast<uint64_t>(PropertyType::kPriorGroupIdGap), 1ULL);
+  subscribe_ok.properties.insert({PropertyType::kPriorGroupIdGap, 1ULL});
   QUICHE_EXPECT_OK(stream_->OnControlMessage(subscribe_ok));
 }
 
@@ -177,9 +176,8 @@ TEST_F(MoqtSubscribeRequestStreamTest, RequestOkWithProperties) {
   EXPECT_CALL(error_callback_, Call(MoqtError::kProtocolViolation, _));
   MoqtRequestOk request_ok(
       MessageParameters(),
-      TrackProperties(quic::QuicTimeDelta::FromSeconds(5), std::nullopt,
-                      std::nullopt, std::nullopt, std::nullopt, std::nullopt,
-                      std::nullopt));
+      TrackProperties({{PropertyType::kObjectDeliveryTimeout,
+                        quic::QuicTimeDelta::FromSeconds(5)}}));
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
   // Test cleanup.
   EXPECT_CALL(mock_remove_callback_, Call);

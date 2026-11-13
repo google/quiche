@@ -115,12 +115,15 @@ TEST_F(MoqtTrackStatusRequestStreamTest, ReceiveOkResponse) {
               Writev(ControlMessageOfType(MoqtMessageType::kTrackStatus), _));
   stream.BindStream(&mock_stream_);
 
-  MoqtRequestOk ok(
-      MessageParameters(),
-      TrackProperties(quic::QuicTimeDelta::FromSeconds(5),
-                      quic::QuicTimeDelta::FromSeconds(10),
-                      quic::QuicTimeDelta::FromSeconds(5), std::nullopt,
-                      std::nullopt, std::nullopt, std::nullopt));
+  MoqtRequestOk ok(MessageParameters(),
+                   TrackProperties({
+                       {PropertyType::kObjectDeliveryTimeout,
+                        quic::QuicTimeDelta::FromSeconds(5)},
+                       {PropertyType::kMaxCacheDuration,
+                        quic::QuicTimeDelta::FromSeconds(10)},
+                       {PropertyType::kSubgroupDeliveryTimeout,
+                        quic::QuicTimeDelta::FromSeconds(5)},
+                   }));
   ok.parameters.largest_object = Location(1, 2);
   EXPECT_CALL(response_callback_, Call)
       .WillOnce([&](std::variant<TrackStatusOkData, MoqtRequestErrorInfo> v) {
@@ -142,8 +145,7 @@ TEST_F(MoqtTrackStatusRequestStreamTest, ReceiveOkWithMalformedProperty) {
 
   MoqtRequestOk ok;
   ok.parameters.largest_object = Location(1, 2);
-  ok.properties.insert(static_cast<uint64_t>(PropertyType::kPriorObjectIdGap),
-                       1ULL);
+  ok.properties.insert({PropertyType::kPriorObjectIdGap, 1ULL});
   EXPECT_CALL(response_callback_, Call)
       .WillOnce([&](std::variant<TrackStatusOkData, MoqtRequestErrorInfo> v) {
         ASSERT_TRUE(std::holds_alternative<MoqtRequestErrorInfo>(v));

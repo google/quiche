@@ -50,12 +50,11 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
       quiche::MultiUseCallback<void()> new_group_callback = nullptr)
       : clock_(clock),
         track_(std::move(track)),
-        properties_(std::nullopt, std::nullopt, std::nullopt, std::nullopt,
-                    std::nullopt,
-                    new_group_callback != nullptr ? std::optional<bool>(true)
-                                                  : std::nullopt,
-                    std::nullopt),
-        new_group_callback_(std::move(new_group_callback)) {}
+        new_group_callback_(std::move(new_group_callback)) {
+    if (new_group_callback_ != nullptr) {
+      properties_.insert({PropertyType::kDynamicGroups, true});
+    }
+  }
 
   MoqtOutgoingQueue(const MoqtOutgoingQueue&) = delete;
   MoqtOutgoingQueue(MoqtOutgoingQueue&&) = default;

@@ -793,15 +793,14 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
   MoqtSubscribeOk subscribe_ok_ = {
       /*track_alias=*/2,
       MessageParameters(),  // Set in the constructor.
-      TrackProperties(
-          /*object_delivery_timeout=*/
-          quic::QuicTimeDelta::FromMilliseconds(10000),
-          /*max_cache_duration=*/quic::QuicTimeDelta::FromMilliseconds(10000),
-          /*subgroup_delivery_timeout=*/std::nullopt,
-          /*publisher_priority=*/std::nullopt,
-          /*group_order=*/MoqtGroupOrder::kDescending,
-          /*dynamic_groups=*/std::nullopt,
-          /*immutable_properties=*/std::nullopt),
+      TrackProperties({
+          {PropertyType::kObjectDeliveryTimeout,
+           quic::QuicTimeDelta::FromMilliseconds(10000)},
+          {PropertyType::kMaxCacheDuration,
+           quic::QuicTimeDelta::FromMilliseconds(10000)},
+          {PropertyType::kDefaultPublisherGroupOrder,
+           MoqtGroupOrder::kDescending},
+      }),
   };
 
  private:
@@ -1141,15 +1140,14 @@ class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
 
   MoqtRequestOk request_ok_ = {
       MessageParameters(),  // Set in the constructor.
-      TrackProperties(
-          /*object_delivery_timeout=*/
-          quic::QuicTimeDelta::FromMilliseconds(10000),
-          /*max_cache_duration=*/quic::QuicTimeDelta::FromMilliseconds(10000),
-          /*subgroup_delivery_timeout=*/std::nullopt,
-          /*publisher_priority=*/std::nullopt,
-          /*group_order=*/MoqtGroupOrder::kDescending,
-          /*dynamic_groups=*/std::nullopt,
-          /*immutable_properties=*/std::nullopt),
+      TrackProperties({
+          {PropertyType::kObjectDeliveryTimeout,
+           quic::QuicTimeDelta::FromMilliseconds(10000)},
+          {PropertyType::kMaxCacheDuration,
+           quic::QuicTimeDelta::FromMilliseconds(10000)},
+          {PropertyType::kDefaultPublisherGroupOrder,
+           MoqtGroupOrder::kDescending},
+      }),
   };
 };
 
@@ -1574,10 +1572,12 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
       /*end_of_track=*/false,
       /*end_location=*/Location{5, 3},
       MessageParameters(),
-      TrackProperties(std::nullopt,
-                      quic::QuicTimeDelta::FromMilliseconds(10000),
-                      std::nullopt, std::nullopt, MoqtGroupOrder::kDescending,
-                      std::nullopt, std::nullopt),
+      TrackProperties({
+          {PropertyType::kMaxCacheDuration,
+           quic::QuicTimeDelta::FromMilliseconds(10000)},
+          {PropertyType::kDefaultPublisherGroupOrder,
+           MoqtGroupOrder::kDescending},
+      }),
   };
 };
 
@@ -1642,8 +1642,10 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
       FullTrackName("foo", "bar"),
       /*track_alias=*/4,
       MessageParameters(),
-      TrackProperties(std::nullopt, std::nullopt, std::nullopt, std::nullopt,
-                      MoqtGroupOrder::kDescending, std::nullopt, std::nullopt),
+      TrackProperties({
+          {PropertyType::kDefaultPublisherGroupOrder,
+           MoqtGroupOrder::kDescending},
+      }),
   };
 };
 

@@ -358,14 +358,7 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishWithDynamicGroups) {
         return true;
       });
   MoqtPublish publish = DefaultPublish();
-  publish.properties = TrackProperties(
-      /*object_delivery_timeout=*/std::nullopt,
-      /*max_cache_duration=*/std::nullopt,
-      /*subgroup_delivery_timeout=*/std::nullopt,
-      /*publisher_priority=*/std::nullopt,
-      /*group_order=*/std::nullopt,
-      /*dynamic_groups=*/true,
-      /*immutable_extensions=*/std::nullopt);
+  publish.properties.insert({PropertyType::kDynamicGroups, true});
   QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
   ASSERT_NE(captured_subscriber, nullptr);
 
@@ -385,7 +378,7 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishWithDynamicGroups) {
 TEST_F(MoqtPublishResponseStreamTest,
        ReceivePublishWithUnknownMandatoryProperty) {
   MoqtPublish publish = DefaultPublish();
-  publish.properties.insert(kMinMandatoryTrackProperty, 1ULL);
+  publish.properties.insert({kMinMandatoryTrackProperty, 1ULL});
   EXPECT_CALL(incoming_publish_callback_mock_, Call).Times(0);
   EXPECT_CALL(mock_add_callback_, Call).Times(0);
   MoqtRequestError expected_error{RequestErrorCode::kUnsupportedExtension,
@@ -398,8 +391,7 @@ TEST_F(MoqtPublishResponseStreamTest,
 
 TEST_F(MoqtPublishResponseStreamTest, ReceivePublishWithMalformedProperty) {
   MoqtPublish publish = DefaultPublish();
-  publish.properties.insert(
-      static_cast<uint64_t>(PropertyType::kPriorGroupIdGap), 1ULL);
+  publish.properties.insert({PropertyType::kPriorGroupIdGap, 1ULL});
   EXPECT_CALL(incoming_publish_callback_mock_, Call).Times(0);
   EXPECT_CALL(mock_add_callback_, Call).Times(0);
   MoqtRequestError expected_error{RequestErrorCode::kMalformedTrack,

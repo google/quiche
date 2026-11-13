@@ -258,9 +258,8 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedNoFilter) {
 
 TEST_F(LivePublisherTest, OnSubscribeAcceptedWithFilter) {
   publisher_->parameters().location_filter = LocationFilter::NextObjectFilter();
-  const TrackProperties properties(std::nullopt, std::nullopt, std::nullopt,
-                                   /*default_publisher_priority=*/64,
-                                   std::nullopt, std::nullopt, std::nullopt);
+  const TrackProperties properties(
+      {{PropertyType::kDefaultPublisherPriority, 64}});
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(*track_publisher_, largest_location())
       .WillOnce(Return(Location(1, 2)));
@@ -939,14 +938,14 @@ TEST_F(LivePublisherTest, OnNewObjectAvailableSessionClosing) {
 }
 
 TEST_F(LivePublisherTest, PublishPropertiesAndTimeouts) {
-  TrackProperties properties(
-      /*object_delivery_timeout=*/quic::QuicTimeDelta::FromMilliseconds(250),
-      /*max_cache_duration=*/std::nullopt,
-      /*subgroup_delivery_timeout=*/quic::QuicTimeDelta::FromMilliseconds(500),
-      /*publisher_priority=*/42,
-      /*group_order=*/MoqtGroupOrder::kDescending,
-      /*dynamic_groups=*/std::nullopt,
-      /*immutable_properties=*/std::nullopt);
+  TrackProperties properties({
+      {PropertyType::kObjectDeliveryTimeout,
+       quic::QuicTimeDelta::FromMilliseconds(250)},
+      {PropertyType::kSubgroupDeliveryTimeout,
+       quic::QuicTimeDelta::FromMilliseconds(500)},
+      {PropertyType::kDefaultPublisherPriority, 42},
+      {PropertyType::kDefaultPublisherGroupOrder, MoqtGroupOrder::kDescending},
+  });
   EXPECT_CALL(*track_publisher_, properties())
       .WillRepeatedly(ReturnRef(properties));
 

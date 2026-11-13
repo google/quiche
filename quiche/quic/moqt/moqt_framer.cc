@@ -598,26 +598,24 @@ quiche::QuicheBuffer SerializeAuthToken(const AuthToken& token) {
 KeyValuePairList SetupOptions::ToKeyValuePairList() const {
   KeyValuePairList out;
   if (max_auth_token_cache_size.has_value()) {
-    out.insert(static_cast<uint64_t>(SetupOption::kMaxAuthTokenCacheSize),
-               *max_auth_token_cache_size);
+    out.insert(
+        {SetupOption::kMaxAuthTokenCacheSize, *max_auth_token_cache_size});
   }
   if (path.has_value()) {
-    out.insert(static_cast<uint64_t>(SetupOption::kPath), *path);
+    out.insert({SetupOption::kPath, *path});
   }
   for (const AuthToken& token : authorization_tokens) {
-    out.insert(static_cast<uint64_t>(SetupOption::kAuthorizationToken),
-               SerializeAuthToken(token).AsStringView());
+    out.insert({SetupOption::kAuthorizationToken,
+                SerializeAuthToken(token).AsStringView()});
   }
   if (authority.has_value()) {
-    out.insert(static_cast<uint64_t>(SetupOption::kAuthority), *authority);
+    out.insert({SetupOption::kAuthority, *authority});
   }
   if (moqt_implementation.has_value()) {
-    out.insert(static_cast<uint64_t>(SetupOption::kMoqtImplementation),
-               *moqt_implementation);
+    out.insert({SetupOption::kMoqtImplementation, *moqt_implementation});
   }
   if (support_object_acks.has_value()) {
-    out.insert(static_cast<uint64_t>(SetupOption::kSupportObjectAcks),
-               *support_object_acks ? 1ULL : 0ULL);
+    out.insert({SetupOption::kSupportObjectAcks, *support_object_acks});
   }
   return out;
 }

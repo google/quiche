@@ -263,7 +263,7 @@ TEST_F(MoqtFetchRequestStreamTest,
   MoqtFetchOk ok_message;
   ok_message.end_location = Location(3, 50);
   ok_message.end_of_track = true;
-  ok_message.properties.insert(kMinMandatoryTrackProperty, 1ULL);
+  ok_message.properties.insert({kMinMandatoryTrackProperty, 1ULL});
   QUICHE_EXPECT_OK(stream->OnControlMessage(ok_message));
 }
 
@@ -282,8 +282,7 @@ TEST_F(MoqtFetchRequestStreamTest,
   MoqtFetchOk ok_message;
   ok_message.end_location = Location(3, 50);
   ok_message.end_of_track = true;
-  ok_message.properties.insert(
-      static_cast<uint64_t>(PropertyType::kPriorObjectIdGap), 1ULL);
+  ok_message.properties.insert({PropertyType::kPriorObjectIdGap, 1ULL});
   QUICHE_EXPECT_OK(stream->OnControlMessage(ok_message));
 }
 

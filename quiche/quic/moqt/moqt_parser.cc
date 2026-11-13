@@ -462,7 +462,7 @@ absl::Status ParseKeyValuePairList(quic::QuicDataReader& reader,
         return absl::InvalidArgumentError(
             "Unable to read the string value in a key-value pair");
       }
-      list.insert(type, bytes);
+      list.insert({type, bytes});
       continue;
     }
     uint64_t value;
@@ -470,7 +470,7 @@ absl::Status ParseKeyValuePairList(quic::QuicDataReader& reader,
       return absl::InvalidArgumentError(
           "Unable to read the integer value in a key-value pair");
     }
-    list.insert(type, value);
+    list.insert({type, value});
   }
   return absl::OkStatus();
 }
