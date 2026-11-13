@@ -6,6 +6,7 @@
 
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#include <linux/sockios.h>
 #include <sys/ioctl.h>
 
 #include <cstdint>
@@ -44,7 +45,8 @@ class TunDeviceTest : public QuicTest {
   }
 
   // Set the expectations for calling Init().
-  void SetInitExpectations(int mtu, bool persist, bool is_tap = false) {
+  void SetInitExpectations(int mtu, int tx_queue_len, bool persist,
+                           bool is_tap = false) {
     EXPECT_CALL(mock_kernel_, open(StrEq("/dev/net/tun"), _))
         .Times(AnyNumber())
         .WillRepeatedly([this](Unused, Unused) {
@@ -84,6 +86,14 @@ class TunDeviceTest : public QuicTest {
         .WillRepeatedly([mtu](Unused, Unused, void* argp) {
           auto* ifr = reinterpret_cast<struct ifreq*>(argp);
           EXPECT_EQ(mtu, ifr->ifr_mtu);
+          EXPECT_THAT(ifr->ifr_name, StrEq(kDeviceName));
+          return 0;
+        });
+    EXPECT_CALL(mock_kernel_, ioctl(_, SIOCSIFTXQLEN, _))
+        .Times(AnyNumber())
+        .WillRepeatedly([tx_queue_len](Unused, Unused, void* argp) {
+          auto* ifr = reinterpret_cast<struct ifreq*>(argp);
+          EXPECT_EQ(tx_queue_len, ifr->ifr_qlen);
           EXPECT_THAT(ifr->ifr_name, StrEq(kDeviceName));
           return 0;
         });
@@ -137,8 +147,10 @@ class TunDeviceTest : public QuicTest {
 
 // A TunTapDevice can be initialized and up
 TEST_F(TunDeviceTest, BasicWorkFlow) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ false);
-  TunTapDevice tun_device(kDeviceName, 1500, false, true, false, &mock_kernel_);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_);
   EXPECT_TRUE(tun_device.Init());
   EXPECT_GT(tun_device.GetReadFileDescriptor(), -1);
   EXPECT_GT(tun_device.GetWriteFileDescriptor(), -1);
@@ -149,10 +161,12 @@ TEST_F(TunDeviceTest, BasicWorkFlow) {
 }
 
 TEST_F(TunDeviceTest, FailToOpenTunDevice) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ false);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false);
   EXPECT_CALL(mock_kernel_, open(StrEq("/dev/net/tun"), _))
       .WillOnce(Return(-1));
-  TunTapDevice tun_device(kDeviceName, 1500, false, true, false, &mock_kernel_);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_);
   EXPECT_FALSE(tun_device.Init());
   EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
   EXPECT_EQ(tun_device.GetWriteFileDescriptor(), -1);
@@ -160,9 +174,11 @@ TEST_F(TunDeviceTest, FailToOpenTunDevice) {
 }
 
 TEST_F(TunDeviceTest, FailToCheckFeature) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ false);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false);
   EXPECT_CALL(mock_kernel_, ioctl(_, TUNGETFEATURES, _)).WillOnce(Return(-1));
-  TunTapDevice tun_device(kDeviceName, 1500, false, true, false, &mock_kernel_);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_);
   EXPECT_FALSE(tun_device.Init());
   EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
   EXPECT_EQ(tun_device.GetWriteFileDescriptor(), -1);
@@ -170,14 +186,16 @@ TEST_F(TunDeviceTest, FailToCheckFeature) {
 }
 
 TEST_F(TunDeviceTest, TooFewFeature) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ false);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false);
   EXPECT_CALL(mock_kernel_, ioctl(_, TUNGETFEATURES, _))
       .WillOnce([](Unused, Unused, void* argp) {
         int* actual_features = reinterpret_cast<int*>(argp);
         *actual_features = IFF_TUN | IFF_ONE_QUEUE;
         return 0;
       });
-  TunTapDevice tun_device(kDeviceName, 1500, false, true, false, &mock_kernel_);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_);
   EXPECT_FALSE(tun_device.Init());
   EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
   EXPECT_EQ(tun_device.GetWriteFileDescriptor(), -1);
@@ -185,44 +203,76 @@ TEST_F(TunDeviceTest, TooFewFeature) {
 }
 
 TEST_F(TunDeviceTest, FailToSetFlag) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ true);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ true);
   EXPECT_CALL(mock_kernel_, ioctl(_, TUNSETIFF, _)).WillOnce(Return(-1));
-  TunTapDevice tun_device(kDeviceName, 1500, true, true, false, &mock_kernel_);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, true, true, false,
+                          &mock_kernel_);
   EXPECT_FALSE(tun_device.Init());
   EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
   EXPECT_EQ(tun_device.GetWriteFileDescriptor(), -1);
 }
 
 TEST_F(TunDeviceTest, FailToPersistDevice) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ true);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ true);
   EXPECT_CALL(mock_kernel_, ioctl(_, TUNSETPERSIST, _)).WillOnce(Return(-1));
-  TunTapDevice tun_device(kDeviceName, 1500, true, true, false, &mock_kernel_);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, true, true, false,
+                          &mock_kernel_);
   EXPECT_FALSE(tun_device.Init());
   EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
   EXPECT_EQ(tun_device.GetWriteFileDescriptor(), -1);
 }
 
 TEST_F(TunDeviceTest, FailToOpenSocket) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ true);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ true);
   EXPECT_CALL(mock_kernel_, socket(AF_INET6, _, _)).WillOnce(Return(-1));
-  TunTapDevice tun_device(kDeviceName, 1500, true, true, false, &mock_kernel_);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, true, true, false,
+                          &mock_kernel_);
   EXPECT_FALSE(tun_device.Init());
   EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
   EXPECT_EQ(tun_device.GetWriteFileDescriptor(), -1);
 }
 
 TEST_F(TunDeviceTest, FailToSetMtu) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ true);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ true);
   EXPECT_CALL(mock_kernel_, ioctl(_, SIOCSIFMTU, _)).WillOnce(Return(-1));
-  TunTapDevice tun_device(kDeviceName, 1500, true, true, false, &mock_kernel_);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, true, true, false,
+                          &mock_kernel_);
   EXPECT_FALSE(tun_device.Init());
   EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
   EXPECT_EQ(tun_device.GetWriteFileDescriptor(), -1);
 }
 
+TEST_F(TunDeviceTest, FailToSetTxQueueLen) {
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ true);
+  EXPECT_CALL(mock_kernel_, ioctl(_, SIOCSIFTXQLEN, _)).WillOnce(Return(-1));
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, true, true, false,
+                          &mock_kernel_);
+  EXPECT_FALSE(tun_device.Init());
+  EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
+  EXPECT_EQ(tun_device.GetWriteFileDescriptor(), -1);
+}
+
+TEST_F(TunDeviceTest, SkipsSetTxQueueLenWhenNonPositive) {
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 0,
+                      /* persist = */ true);
+  EXPECT_CALL(mock_kernel_, ioctl(_, SIOCSIFTXQLEN, _)).Times(0);
+  TunTapDevice tun_device(kDeviceName, 1500, 0, true, true, false,
+                          &mock_kernel_);
+  EXPECT_TRUE(tun_device.Init());
+  EXPECT_GT(tun_device.GetReadFileDescriptor(), -1);
+  EXPECT_GT(tun_device.GetWriteFileDescriptor(), -1);
+}
+
 TEST_F(TunDeviceTest, FailToUp) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ true);
-  TunTapDevice tun_device(kDeviceName, 1500, true, true, false, &mock_kernel_);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ true);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, true, true, false,
+                          &mock_kernel_);
   EXPECT_TRUE(tun_device.Init());
   EXPECT_GT(tun_device.GetReadFileDescriptor(), -1);
   EXPECT_GT(tun_device.GetWriteFileDescriptor(), -1);
@@ -232,8 +282,10 @@ TEST_F(TunDeviceTest, FailToUp) {
 }
 
 TEST_F(TunDeviceTest, OpensMultipleQueuesDynamically) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ false);
-  TunTapDevice tun_device(kDeviceName, 1500, false, true, false, &mock_kernel_);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_);
   ASSERT_TRUE(tun_device.Init());
 
   int fd_0 = tun_device.GetReadFileDescriptor();
@@ -261,8 +313,10 @@ TEST_F(TunDeviceTest, OpensMultipleQueuesDynamically) {
 }
 
 TEST_F(TunDeviceTest, SecondaryQueueOpenFailsCleanly) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ false);
-  TunTapDevice tun_device(kDeviceName, 1500, false, true, false, &mock_kernel_);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_);
   ASSERT_TRUE(tun_device.Init());
 
   // Expect opening queue 1 to fail during TUNSETIFF.
@@ -275,8 +329,10 @@ TEST_F(TunDeviceTest, SecondaryQueueOpenFailsCleanly) {
 }
 
 TEST_F(TunDeviceTest, CallingInitWhileQueuesAreOpenResetsToPrimaryQueue) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ false);
-  TunTapDevice tun_device(kDeviceName, 1500, false, true, false, &mock_kernel_);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_);
   ASSERT_TRUE(tun_device.Init());
   int fd_0_orig = tun_device.GetReadFileDescriptor();
   int fd_1_orig = tun_device.OpenQueue();
@@ -295,10 +351,10 @@ TEST_F(TunDeviceTest, CallingInitWhileQueuesAreOpenResetsToPrimaryQueue) {
 }
 
 TEST_F(TunDeviceTest, TapDeviceSetsTapFlag) {
-  SetInitExpectations(/* mtu = */ 1500, /* persist = */ false,
-                      /* is_tap = */ true);
-  TunTapDevice tap_device(kDeviceName, 1500, false, true, /* is_tap = */ true,
-                          &mock_kernel_);
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false, /* is_tap = */ true);
+  TunTapDevice tap_device(kDeviceName, 1500, 1000, false, true,
+                          /* is_tap = */ true, &mock_kernel_);
   EXPECT_TRUE(tap_device.Init());
 
   int fd_1 = tap_device.OpenQueue();

@@ -54,8 +54,8 @@ class TunDeviceIntegrationTest : public QuicTest {
         "qbone-test-%d",
         QuicRandom::GetInstance()->InsecureRandUint64() % 10000);
     tun_device_ = std::make_unique<TunTapDevice>(
-        interface_name, /*mtu=*/1600, /*persist=*/false, /*setup_tun=*/true,
-        /*is_tap=*/false, &kernel_);
+        interface_name, /*mtu=*/1600, /*tx_queue_len=*/1000, /*persist=*/false,
+        /*setup_tun=*/true, /*is_tap=*/false, &kernel_);
     tun_device_controller_ = std::make_unique<TunDeviceController>(
         interface_name, /*setup_tun=*/true, &netlink_);
   }

@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <linux/if_ether.h>
 #include <linux/if_tun.h>
+#include <linux/sockios.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -41,10 +42,11 @@ ethhdr CreateTapEthHdr(const uint8_t mac[ETH_ALEN]) {
 const int kInvalidFd = -1;
 
 TunTapDevice::TunTapDevice(const std::string& interface_name, int mtu,
-                           bool persist, bool setup_tun, bool is_tap,
-                           KernelInterface* kernel)
+                           int tx_queue_len, bool persist, bool setup_tun,
+                           bool is_tap, KernelInterface* kernel)
     : interface_name_(interface_name),
       mtu_(mtu),
+      tx_queue_len_(tx_queue_len),
       persist_(persist),
       setup_tun_(setup_tun),
       is_tap_(is_tap),
@@ -233,6 +235,18 @@ bool TunTapDevice::ConfigureInterface() {
   if (!NetdeviceIoctl(SIOCSIFMTU, reinterpret_cast<void*>(&if_request))) {
     CloseDevice();
     return false;
+  }
+
+  if (tx_queue_len_ > 0) {
+    // NOMUTANTS(SBR): Zero-initializes union before setting ifr_qlen; ifr_name
+    // is already populated above.
+    memset(&if_request, 0, sizeof(if_request));
+    interface_name_.copy(if_request.ifr_name, IFNAMSIZ);
+    if_request.ifr_qlen = tx_queue_len_;
+    if (!NetdeviceIoctl(SIOCSIFTXQLEN, reinterpret_cast<void*>(&if_request))) {
+      CloseDevice();
+      return false;
+    }
   }
 
   return true;

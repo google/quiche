@@ -39,9 +39,13 @@ class TunTapDevice : public TunDeviceInterface {
   // since once a tun device is destroyed by the kernel, all the associated
   // routing rules go away.
   //
+  // The transmit queue length in packets is configured via tx_queue_len.
+  // Non-positive values leave the kernel default queue length unchanged.
+  //
   // The caller should own kernel and make sure it outlives this.
-  TunTapDevice(const std::string& interface_name, int mtu, bool persist,
-               bool setup_tun, bool is_tap, KernelInterface* kernel);
+  TunTapDevice(const std::string& interface_name, int mtu, int tx_queue_len,
+               bool persist, bool setup_tun, bool is_tap,
+               KernelInterface* kernel);
 
   ~TunTapDevice() override;
 
@@ -89,6 +93,7 @@ class TunTapDevice : public TunDeviceInterface {
 
   const std::string interface_name_;
   const int mtu_;
+  const int tx_queue_len_;
   const bool persist_;
   const bool setup_tun_;
   const bool is_tap_;
