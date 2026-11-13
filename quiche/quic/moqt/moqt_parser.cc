@@ -475,6 +475,31 @@ absl::Status ParseKeyValuePairList(quic::QuicDataReader& reader,
   return absl::OkStatus();
 }
 
+absl::Status ParseTrackProperties(quic::QuicDataReader& reader,
+                                  TrackProperties& properties) {
+  properties.clear();
+  QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(
+      reader, static_cast<KeyValuePairList&>(properties)));
+  const KeyValuePairList::ValueVector value_vector =
+      properties.Get(static_cast<uint64_t>(PropertyType::kImmutableProperties));
+  if (value_vector.empty()) {
+    return absl::OkStatus();
+  }
+  if (value_vector.size() > 1) {  // Malformed.
+    properties.OnImmutablePropertiesParsed(std::nullopt);
+    return absl::OkStatus();
+  }
+  quic::QuicDataReader immutable_reader(
+      std::get<absl::string_view>(value_vector[0]));
+  KeyValuePairList immutable;
+  if (!ParseKeyValuePairList(immutable_reader, immutable).ok()) {
+    properties.OnImmutablePropertiesParsed(std::nullopt);
+  } else {
+    properties.OnImmutablePropertiesParsed(std::move(immutable));
+  }
+  return absl::OkStatus();
+}
+
 }  // namespace
 
 absl::Status SetupOptions::FromKeyValuePairList(const KeyValuePairList& list) {
@@ -751,8 +776,7 @@ absl::StatusOr<MoqtSubscribeOk> MoqtControlMessageParser::ProcessSubscribeOk(
     return absl::InvalidArgumentError(
         "Invalid SUBSCRIBE_OK message parameters");
   }
-  QUICHE_RETURN_IF_ERROR(
-      ParseKeyValuePairList(reader, subscribe_ok.properties));
+  QUICHE_RETURN_IF_ERROR(ParseTrackProperties(reader, subscribe_ok.properties));
   if (!subscribe_ok.properties.Validate()) {
     return absl::InvalidArgumentError("Invalid SUBSCRIBE_OK track properties");
   }
@@ -878,7 +902,7 @@ absl::StatusOr<MoqtRequestOk> MoqtControlMessageParser::ProcessRequestOk(
   MoqtRequestOk request_ok;
   QUICHE_ASSIGN_OR_RETURN(request_ok.parameters,
                           ParseMessageParameters(reader));
-  QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, request_ok.properties));
+  QUICHE_RETURN_IF_ERROR(ParseTrackProperties(reader, request_ok.properties));
   if (!request_ok.properties.Validate()) {
     return absl::InvalidArgumentError("Invalid REQUEST_OK track properties");
   }
@@ -1063,7 +1087,7 @@ absl::StatusOr<MoqtFetchOk> MoqtControlMessageParser::ProcessFetchOk(
                                   MoqtMessageType::kFetchOk)) {
     return absl::InvalidArgumentError("Invalid FETCH_OK message parameters");
   }
-  QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, fetch_ok.properties));
+  QUICHE_RETURN_IF_ERROR(ParseTrackProperties(reader, fetch_ok.properties));
   if (!fetch_ok.properties.Validate()) {
     return absl::InvalidArgumentError("Invalid FETCH_OK track properties");
   }
@@ -1088,7 +1112,7 @@ absl::StatusOr<MoqtPublish> MoqtControlMessageParser::ProcessPublish(
                                   MoqtMessageType::kPublish)) {
     return absl::InvalidArgumentError("Invalid PUBLISH message parameters");
   }
-  QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, publish.properties));
+  QUICHE_RETURN_IF_ERROR(ParseTrackProperties(reader, publish.properties));
   if (!publish.properties.Validate()) {
     return absl::InvalidArgumentError("Invalid PUBLISH track properties");
   }

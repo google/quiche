@@ -690,4 +690,32 @@ TEST_F(MoqtFramerSimpleTest, RequestErrorRedirect) {
   EXPECT_EQ(buffer.size(), 0);
 }
 
+TEST_F(MoqtFramerSimpleTest, SerializeTrackPropertiesWithImmutableProperties) {
+  TrackProperties properties;
+  properties.insert(static_cast<uint64_t>(PropertyType::kObjectDeliveryTimeout),
+                    10ULL);
+  const absl::string_view kRawImmutable("\x04\x14\x2c\x01", 4);
+  properties.insert(static_cast<uint64_t>(PropertyType::kImmutableProperties),
+                    kRawImmutable);
+  KeyValuePairList immutable;
+  immutable.insert(static_cast<uint64_t>(PropertyType::kMaxCacheDuration),
+                   20ULL);
+  immutable.insert(static_cast<uint64_t>(PropertyType::kDynamicGroups), 1ULL);
+  properties.OnImmutablePropertiesParsed(immutable);
+
+  quiche::QuicheBuffer buffer = framer_.SerializeRequestOk(
+      MoqtRequestOk{MessageParameters(), properties});
+  const uint8_t expected[] = {
+      0x07,        // MoqtMessageType::kRequestOk
+      0x00, 0x09,  // Payload length = 9
+      0x00,        // 0 parameters
+      0x02, 0x0a,  // kObjectDeliveryTimeout (0x02) = 10
+      0x09, 0x04,  // kImmutableProperties (+0x09 = 0x0b), length = 4
+      0x04, 0x14, 0x2c, 0x01,  // verbatim kImmutableProperties bytes
+  };
+  quiche::test::CompareCharArraysWithHexError(
+      "frame encoding", buffer.data(), buffer.size(),
+      reinterpret_cast<const char*>(expected), sizeof(expected));
+}
+
 }  // namespace moqt::test

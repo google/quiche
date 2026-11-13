@@ -53,7 +53,6 @@ class QUICHE_EXPORT KeyValuePairList {
   bool operator==(const KeyValuePairList& other) const = default;
   KeyValuePairList& operator=(const KeyValuePairList& other) = default;
 
- protected:
   // Returns the first key in the range [min_key, max_key], or nullopt if
   // there is no such key.
   std::optional<uint64_t> first_key_in_range(uint64_t min_key,
@@ -337,6 +336,16 @@ class TrackProperties : public KeyValuePairList {
                   std::optional<bool> dynamic_groups,
                   std::optional<absl::string_view> immutable_properties);
 
+  void clear() {
+    KeyValuePairList::clear();
+    immutable_properties_.clear();
+    malformed_immutable_properties_ = false;
+  }
+
+  // Called when the parser encounters kImmutableProperties. |immutable| is the
+  // parsed inner KeyValuePairList, or std::nullopt if parsing failed.
+  void OnImmutablePropertiesParsed(std::optional<KeyValuePairList> immutable);
+
   // If present and well-formed, returns the value of the property. Returns the
   // default value if missing or ill-formed.
   quic::QuicTimeDelta object_delivery_timeout() const;
@@ -348,22 +357,21 @@ class TrackProperties : public KeyValuePairList {
   bool dynamic_groups() const;
   bool empty() const { return size() == 0; }
 
-  // Returns false if the property list contains illegal values or illegally
-  // duplicated properties.
+  // Returns false if the property list contains illegal values.
   bool Validate() const;
   // Returns true if the property list renders the track malformed (e.g., it
-  // contains object-only properties).
-  bool IsMalformed() const {
-    // TODO(martinduke): If immutable properties include an immutable properties
-    // property, the track is malformed.
-    return contains(static_cast<uint64_t>(PropertyType::kPriorGroupIdGap)) ||
-           contains(static_cast<uint64_t>(PropertyType::kPriorObjectIdGap));
-  }
+  // contains object-only properties, duplicate known properties, or malformed
+  // immutable properties).
+  bool IsMalformed() const;
   // Returns OK if there are no unknown mandatory properties. Otherwise, returns
   // an error.
   absl::Status CheckForUnknownMandatoryProperty() const {
     std::optional<uint64_t> key = first_key_in_range(
         kMinMandatoryTrackProperty, kMaxMandatoryTrackProperty);
+    if (!key.has_value()) {
+      key = immutable_properties_.first_key_in_range(
+          kMinMandatoryTrackProperty, kMaxMandatoryTrackProperty);
+    }
     return !key.has_value()
                ? absl::OkStatus()
                : absl::FailedPreconditionError(absl::StrCat(
@@ -373,13 +381,19 @@ class TrackProperties : public KeyValuePairList {
   TrackProperties& operator=(const TrackProperties& other) = default;
 
  private:
+  size_t TotalCount(PropertyType header) const {
+    uint64_t key = static_cast<uint64_t>(header);
+    return count(key) + immutable_properties_.count(key);
+  }
   // Returns the value of the property if there is exactly one, otherwise
   // returns std::nullopt. Must not be called on odd property types.
   std::optional<uint64_t> GetValueIfExactlyOne(PropertyType header) const;
-  // Verifies that there is no more that one instance of an property, and if
-  // present, that the value is acceptable.
+  // Verifies that if a property is present, its values are acceptable.
   bool ValidateInner(PropertyType header, std::optional<uint64_t> min_value,
                      std::optional<uint64_t> max_value) const;
+
+  KeyValuePairList immutable_properties_;
+  bool malformed_immutable_properties_ = false;
 };
 
 }  // namespace moqt

@@ -171,6 +171,16 @@ TrackProperties::TrackProperties(
   }
 }
 
+void TrackProperties::OnImmutablePropertiesParsed(
+    std::optional<KeyValuePairList> immutable) {
+  if (!immutable.has_value() || immutable->contains(static_cast<uint64_t>(
+                                    PropertyType::kImmutableProperties))) {
+    malformed_immutable_properties_ = true;
+    return;
+  }
+  immutable_properties_ = *std::move(immutable);
+}
+
 quic::QuicTimeDelta TrackProperties::object_delivery_timeout() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kObjectDeliveryTimeout);
@@ -222,28 +232,38 @@ bool TrackProperties::dynamic_groups() const {
 }
 
 bool TrackProperties::Validate() const {
-  return (ValidateInner(PropertyType::kObjectDeliveryTimeout, std::nullopt,
-                        std::nullopt) &&
-          ValidateInner(PropertyType::kMaxCacheDuration, std::nullopt,
-                        std::nullopt) &&
-          ValidateInner(PropertyType::kSubgroupDeliveryTimeout, std::nullopt,
-                        std::nullopt) &&
-          ValidateInner(PropertyType::kDefaultPublisherPriority, std::nullopt,
+  return (ValidateInner(PropertyType::kDefaultPublisherPriority, std::nullopt,
                         kMaxPriority) &&
           ValidateInner(PropertyType::kDefaultPublisherGroupOrder,
                         kMinMoqtGroupOrder, kMaxMoqtGroupOrder) &&
-          ValidateInner(PropertyType::kDynamicGroups, 0, 1) &&
-          count(static_cast<uint64_t>(PropertyType::kImmutableProperties)) <=
-              1);
+          ValidateInner(PropertyType::kDynamicGroups, 0, 1));
+}
+
+bool TrackProperties::IsMalformed() const {
+  return malformed_immutable_properties_ ||
+         TotalCount(PropertyType::kPriorGroupIdGap) > 0 ||
+         TotalCount(PropertyType::kPriorObjectIdGap) > 0 ||
+         TotalCount(PropertyType::kObjectDeliveryTimeout) > 1 ||
+         TotalCount(PropertyType::kMaxCacheDuration) > 1 ||
+         TotalCount(PropertyType::kSubgroupDeliveryTimeout) > 1 ||
+         TotalCount(PropertyType::kImmutableProperties) > 1 ||
+         TotalCount(PropertyType::kDefaultPublisherPriority) > 1 ||
+         TotalCount(PropertyType::kDefaultPublisherGroupOrder) > 1 ||
+         TotalCount(PropertyType::kDynamicGroups) > 1;
 }
 
 // private
 std::optional<uint64_t> TrackProperties::GetValueIfExactlyOne(
     PropertyType header) const {
-  QUICHE_BUG_IF(moqt_bug_must_be_even, (static_cast<uint64_t>(header) % 2) == 1)
+  uint64_t key = static_cast<uint64_t>(header);
+  QUICHE_BUG_IF(moqt_bug_must_be_even, (key % 2) == 1)
       << "MoqtKeyValuePair extracting integer from odd key.";
-  ValueVector values = Get(static_cast<uint64_t>(header));
-  if (values.size() != 1 || !std::holds_alternative<uint64_t>(values[0])) {
+  if (TotalCount(header) != 1) {
+    return std::nullopt;
+  }
+  ValueVector values =
+      contains(key) ? Get(key) : immutable_properties_.Get(key);
+  if (values.empty() || !std::holds_alternative<uint64_t>(values[0])) {
     return std::nullopt;
   }
   return std::get<uint64_t>(values[0]);
@@ -252,19 +272,20 @@ std::optional<uint64_t> TrackProperties::GetValueIfExactlyOne(
 bool TrackProperties::ValidateInner(PropertyType header,
                                     std::optional<uint64_t> min,
                                     std::optional<uint64_t> max) const {
-  ValueVector values = Get(static_cast<uint64_t>(header));
-  switch (values.size()) {
-    case 0:
-      return true;
-    case 1:
-      if (!std::holds_alternative<uint64_t>(values[0])) {
+  uint64_t key = static_cast<uint64_t>(header);
+  for (const ValueVector& list : {Get(key), immutable_properties_.Get(key)}) {
+    for (const auto& value : list) {
+      if (!std::holds_alternative<uint64_t>(value)) {
         return false;
       }
-      return (!min.has_value() || std::get<uint64_t>(values[0]) >= *min) &&
-             (!max.has_value() || std::get<uint64_t>(values[0]) <= *max);
-    default:
-      return false;
+      uint64_t int_value = std::get<uint64_t>(value);
+      if ((min.has_value() && int_value < *min) ||
+          (max.has_value() && int_value > *max)) {
+        return false;
+      }
+    }
   }
+  return true;
 }
 
 }  // namespace moqt

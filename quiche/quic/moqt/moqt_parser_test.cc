@@ -1487,6 +1487,74 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkExpirationIsZero) {
   EXPECT_EQ(message.parameters.expires, quic::QuicTimeDelta::Infinite());
 }
 
+TEST_F(MoqtMessageSpecificTest, SubscribeOkImmutableProperties) {
+  // Valid SUBSCRIBE_OK with outer kObjectDeliveryTimeout (0x02 = 10) and
+  // kImmutableProperties (0x0b, delta 0x09) containing kMaxCacheDuration
+  // (0x04 = 20), kDynamicGroups (0x30, delta 0x2c = 1), and unknown key
+  // (0x32, delta 0x02 = 99).
+  const uint8_t subscribe_ok[] = {
+      0x04, 0x00, 0x0c,  // type = SUBSCRIBE_OK, length = 12
+      0x01,              // track_alias = 1
+      0x00,              // 0 message parameters
+      0x02, 0x0a,        // kObjectDeliveryTimeout (0x02) = 10
+      0x09, 0x06,        // kImmutableProperties (+0x09 = 0x0b), len 6
+      0x04, 0x14,        //   kMaxCacheDuration (0x04) = 20
+      0x2c, 0x01,        //   kDynamicGroups (+0x2c = 0x30) = 1
+      0x02, 0x63,        //   unknown (+0x02 = 0x32) = 99
+  };
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed = ParseAllMessages(
+      absl::string_view(reinterpret_cast<const char*>(subscribe_ok),
+                        sizeof(subscribe_ok)),
+      kDefaultMoqtVersion, /*uses_web_transport=*/false);
+  ASSERT_TRUE(parsed.ok());
+  ASSERT_EQ(parsed->size(), 1u);
+  MoqtSubscribeOk message = std::get<MoqtSubscribeOk>((*parsed)[0]);
+  EXPECT_FALSE(message.properties.IsMalformed());
+  EXPECT_EQ(message.properties.object_delivery_timeout(),
+            quic::QuicTimeDelta::FromMilliseconds(10));
+  EXPECT_EQ(message.properties.max_cache_duration(),
+            quic::QuicTimeDelta::FromMilliseconds(20));
+  EXPECT_TRUE(message.properties.dynamic_groups());
+  EXPECT_EQ(message.properties.immutable_properties(),
+            absl::string_view("\x04\x14\x2c\x01\x02\x63", 6));
+  EXPECT_FALSE(message.properties.contains(0x32));
+
+  // Unparseable kImmutableProperties marks the track malformed.
+  const uint8_t truncated_immutable[] = {
+      0x04, 0x00,
+      0x05,  // type = SUBSCRIBE_OK, length = 5
+      0x01,  // track_alias = 1
+      0x00,  // 0 message parameters
+      0x0b, 0x01,
+      0x04,  // kImmutableProperties (0x0b), len 1: key 0x04 with missing value
+  };
+  parsed = ParseAllMessages(
+      absl::string_view(reinterpret_cast<const char*>(truncated_immutable),
+                        sizeof(truncated_immutable)),
+      kDefaultMoqtVersion, /*uses_web_transport=*/false);
+  ASSERT_TRUE(parsed.ok());
+  ASSERT_EQ(parsed->size(), 1u);
+  EXPECT_TRUE(std::get<MoqtSubscribeOk>((*parsed)[0]).properties.IsMalformed());
+
+  // Nested kImmutableProperties inside kImmutableProperties marks the track
+  // malformed.
+  const uint8_t nested_immutable[] = {
+      0x04, 0x00, 0x06,  // type = SUBSCRIBE_OK, length = 6
+      0x01,              // track_alias = 1
+      0x00,              // 0 message parameters
+      0x0b, 0x02, 0x0b,
+      0x00,  // kImmutableProperties (0x0b) containing kImmutableProperties
+             // (0x0b)
+  };
+  parsed = ParseAllMessages(
+      absl::string_view(reinterpret_cast<const char*>(nested_immutable),
+                        sizeof(nested_immutable)),
+      kDefaultMoqtVersion, /*uses_web_transport=*/false);
+  ASSERT_TRUE(parsed.ok());
+  ASSERT_EQ(parsed->size(), 1u);
+  EXPECT_TRUE(std::get<MoqtSubscribeOk>((*parsed)[0]).properties.IsMalformed());
+}
+
 TEST_F(MoqtMessageSpecificTest, FetchWholeGroup) {
   FetchMessage fetch;
   fetch.SetEndObject(5, std::nullopt);
