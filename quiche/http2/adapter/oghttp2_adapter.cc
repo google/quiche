@@ -53,6 +53,10 @@ void OgHttp2Adapter::SubmitPing(Http2PingId ping_id) {
   session_.EnqueueFrame(std::make_unique<SpdyPingIR>(ping_id));
 }
 
+void OgHttp2Adapter::SetNeverIndexingPolicy(NeverIndexingPolicy policy) {
+  session_.SetNeverIndexingPolicy(std::move(policy));
+}
+
 void OgHttp2Adapter::SubmitShutdownNotice() {
   session_.StartGracefulShutdown();
 }
