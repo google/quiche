@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -26,6 +27,7 @@
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_mem_slice.h"
@@ -50,11 +52,34 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
       quiche::MultiUseCallback<void()> new_group_callback = nullptr)
       : clock_(clock),
         track_(std::move(track)),
+        properties_(
+            new_group_callback == nullptr
+                ? std::initializer_list<KeyValuePair>{}
+                : std::initializer_list<
+                      KeyValuePair>{{PropertyType::kDynamicGroups, true}}),
+        new_group_callback_(std::move(new_group_callback)) {}
+  // Constructors that allow non-default properties.
+  MoqtOutgoingQueue(
+      FullTrackName track, const TrackProperties& properties,
+      const quic::QuicClock* clock = quic::QuicDefaultClock::Get(),
+      quiche::MultiUseCallback<void()> new_group_callback = nullptr)
+      : clock_(clock),
+        track_(std::move(track)),
+        properties_(properties),
         new_group_callback_(std::move(new_group_callback)) {
-    if (new_group_callback_ != nullptr) {
-      properties_.insert({PropertyType::kDynamicGroups, true});
-    }
+    QUICHE_BUG_IF(moq_invalid_properties, properties.IsMalformed())
+        << "Invalid properties provided to MoqtOutgoingQueue";
+    QUICHE_BUG_IF(
+        moq_dynamic_groups_with_no_callback,
+        properties_.dynamic_groups() && new_group_callback_ == nullptr)
+        << "new_group_callback is null but dynamic_groups is true";
   }
+  MoqtOutgoingQueue(
+      FullTrackName track, std::initializer_list<KeyValuePair> property_list,
+      const quic::QuicClock* clock = quic::QuicDefaultClock::Get(),
+      quiche::MultiUseCallback<void()> new_group_callback = nullptr)
+      : MoqtOutgoingQueue(track, TrackProperties(property_list), clock,
+                          std::move(new_group_callback)) {}
 
   MoqtOutgoingQueue(const MoqtOutgoingQueue&) = delete;
   MoqtOutgoingQueue(MoqtOutgoingQueue&&) = default;

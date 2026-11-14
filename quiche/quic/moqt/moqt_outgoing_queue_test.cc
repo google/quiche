@@ -600,5 +600,157 @@ TEST(MoqtOutgoingQueue, UpdateObjectListenerNewGroupRequest) {
   queue.AddObject(quiche::QuicheMemSlice::Copy("b"), true);
 }
 
+TEST(MoqtOutgoingQueue, ConstructorWithInitializerList) {
+  constexpr MoqtPriority kCustomPriority = 42;
+  TrackProperties expected_properties({
+      {PropertyType::kObjectDeliveryTimeout,
+       quic::QuicTimeDelta::FromMilliseconds(100)},
+      {PropertyType::kMaxCacheDuration,
+       quic::QuicTimeDelta::FromMilliseconds(5000)},
+      {PropertyType::kSubgroupDeliveryTimeout,
+       quic::QuicTimeDelta::FromMilliseconds(200)},
+      {PropertyType::kDefaultPublisherPriority, kCustomPriority},
+      {PropertyType::kDefaultPublisherGroupOrder, MoqtGroupOrder::kDescending},
+      {PropertyType::kDynamicGroups, true},
+  });
+  testing::MockFunction<void()> callback;
+  MoqtOutgoingQueue queue(
+      FullTrackName{"test", "track"},
+      {
+          {PropertyType::kObjectDeliveryTimeout,
+           quic::QuicTimeDelta::FromMilliseconds(100)},
+          {PropertyType::kMaxCacheDuration,
+           quic::QuicTimeDelta::FromMilliseconds(5000)},
+          {PropertyType::kSubgroupDeliveryTimeout,
+           quic::QuicTimeDelta::FromMilliseconds(200)},
+          {PropertyType::kDefaultPublisherPriority, kCustomPriority},
+          {PropertyType::kDefaultPublisherGroupOrder,
+           MoqtGroupOrder::kDescending},
+          {PropertyType::kDynamicGroups, true},
+      },
+      quic::QuicDefaultClock::Get(), callback.AsStdFunction());
+
+  EXPECT_EQ(queue.GetTrackName(), (FullTrackName{"test", "track"}));
+  EXPECT_EQ(queue.properties(), expected_properties);
+
+  MockMoqtObjectListener listener;
+  EXPECT_CALL(listener, OnSubscribeAccepted);
+  EXPECT_CALL(callback, Call());
+  MessageParameters parameters;
+  parameters.new_group_request = 1;
+  queue.AddObjectListener(&listener, parameters);
+
+  EXPECT_CALL(listener,
+              OnNewObjectAvailable(Location(0, 0), testing::Optional(0),
+                                   kCustomPriority));
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+
+  std::optional<PublishedObject> cached = queue.GetCachedObject(0, 0, 0);
+  ASSERT_TRUE(cached.has_value());
+  EXPECT_EQ(cached->metadata.publisher_priority, kCustomPriority);
+
+  std::optional<std::variant<FetchOkData, MoqtRequestErrorInfo>> fetch_response;
+  std::unique_ptr<MoqtFetchTask> fetch = queue.StandaloneFetch(
+      Location(0, 0), Location(0, 0), MoqtGroupOrder::kAscending,
+      [&](std::variant<FetchOkData, MoqtRequestErrorInfo> response) {
+        fetch_response = std::move(response);
+      });
+  ASSERT_TRUE(fetch_response.has_value());
+  ASSERT_TRUE(std::holds_alternative<FetchOkData>(*fetch_response));
+  EXPECT_EQ(std::get<FetchOkData>(*fetch_response).properties,
+            expected_properties);
+}
+
+TEST(MoqtOutgoingQueue, ConstructorWithTrackProperties) {
+  constexpr MoqtPriority kCustomPriority = 64;
+  TrackProperties properties({
+      {PropertyType::kMaxCacheDuration,
+       quic::QuicTimeDelta::FromMilliseconds(5000)},
+  });
+  KeyValuePairList immutable;
+  immutable.insert({PropertyType::kDefaultPublisherPriority, kCustomPriority});
+  immutable.insert({PropertyType::kDynamicGroups, true});
+  properties.AddImmutablePropertyList(immutable);
+
+  testing::MockFunction<void()> callback;
+  MoqtOutgoingQueue queue(FullTrackName{"test", "track"}, properties,
+                          quic::QuicDefaultClock::Get(),
+                          callback.AsStdFunction());
+
+  EXPECT_EQ(queue.GetTrackName(), (FullTrackName{"test", "track"}));
+  EXPECT_EQ(queue.properties(), properties);
+
+  MockMoqtObjectListener listener;
+  EXPECT_CALL(listener, OnSubscribeAccepted);
+  EXPECT_CALL(callback, Call());
+  MessageParameters parameters;
+  parameters.new_group_request = 1;
+  queue.AddObjectListener(&listener, parameters);
+
+  EXPECT_CALL(listener,
+              OnNewObjectAvailable(Location(0, 0), testing::Optional(0),
+                                   kCustomPriority));
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+
+  std::optional<PublishedObject> cached = queue.GetCachedObject(0, 0, 0);
+  ASSERT_TRUE(cached.has_value());
+  EXPECT_EQ(cached->metadata.publisher_priority, kCustomPriority);
+
+  std::optional<std::variant<FetchOkData, MoqtRequestErrorInfo>> fetch_response;
+  std::unique_ptr<MoqtFetchTask> fetch = queue.StandaloneFetch(
+      Location(0, 0), Location(0, 0), MoqtGroupOrder::kAscending,
+      [&](std::variant<FetchOkData, MoqtRequestErrorInfo> response) {
+        fetch_response = std::move(response);
+      });
+  ASSERT_TRUE(fetch_response.has_value());
+  ASSERT_TRUE(std::holds_alternative<FetchOkData>(*fetch_response));
+  EXPECT_EQ(std::get<FetchOkData>(*fetch_response).properties, properties);
+}
+
+TEST(MoqtOutgoingQueue, MalformedPropertiesTriggersBug) {
+  EXPECT_QUICHE_BUG((MoqtOutgoingQueue(FullTrackName{"test", "track"},
+                                       {{PropertyType::kPriorGroupIdGap, 1}})),
+                    "Invalid properties provided to MoqtOutgoingQueue");
+  EXPECT_QUICHE_BUG(
+      (MoqtOutgoingQueue(FullTrackName{"test", "track"},
+                         {{PropertyType::kDefaultPublisherPriority, 10},
+                          {PropertyType::kDefaultPublisherPriority, 20}})),
+      "Invalid properties provided to MoqtOutgoingQueue");
+
+  TrackProperties malformed_immutable;
+  malformed_immutable.AddImmutablePropertyList(std::nullopt);
+  EXPECT_QUICHE_BUG(
+      MoqtOutgoingQueue(FullTrackName{"test", "track"}, malformed_immutable),
+      "Invalid properties provided to MoqtOutgoingQueue");
+}
+
+TEST(MoqtOutgoingQueue, DynamicGroupsTrueWithoutCallbackTriggersBug) {
+  EXPECT_QUICHE_BUG((MoqtOutgoingQueue(FullTrackName{"test", "track"},
+                                       {{PropertyType::kDynamicGroups, true}})),
+                    "new_group_callback is null but dynamic_groups is true");
+
+  TrackProperties properties({{PropertyType::kDynamicGroups, true}});
+  EXPECT_QUICHE_BUG(
+      MoqtOutgoingQueue(FullTrackName{"test", "track"}, properties),
+      "new_group_callback is null but dynamic_groups is true");
+}
+
+TEST(MoqtOutgoingQueue, DynamicGroupsFalseWithCallbackDoesNotRequestNewGroup) {
+  testing::MockFunction<void()> callback;
+  EXPECT_CALL(callback, Call()).Times(0);
+  TrackProperties properties({{PropertyType::kDynamicGroups, false}});
+  MoqtOutgoingQueue queue(FullTrackName{"test", "track"}, properties,
+                          quic::QuicDefaultClock::Get(),
+                          callback.AsStdFunction());
+
+  EXPECT_FALSE(queue.properties().dynamic_groups());
+
+  MockMoqtObjectListener listener;
+  EXPECT_CALL(listener, OnSubscribeAccepted);
+  MessageParameters parameters;
+  parameters.new_group_request = 0;
+  queue.AddObjectListener(&listener, parameters);
+}
+
 }  // namespace
 }  // namespace moqt::test
