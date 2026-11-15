@@ -118,6 +118,8 @@ void MessageParameters::Update(const MessageParameters& other) {
     location_filter = other.location_filter;
   }
   // GROUP_ORDER cannot be updated.
+  // FILL_PARAMETERS always updates.
+  fill_parameters = other.fill_parameters;
   if (other.new_group_request.has_value()) {
     new_group_request = other.new_group_request;
   }

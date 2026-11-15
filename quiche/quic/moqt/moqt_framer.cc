@@ -223,6 +223,9 @@ class WireMessageParameters {
     if (parameters_.group_order.has_value()) {
       ++num_parameters_;
     }
+    if (parameters_.fill_parameters.has_value()) {
+      ++num_parameters_;
+    }
     if (parameters_.new_group_request.has_value()) {
       ++num_parameters_;
     }
@@ -300,6 +303,13 @@ class WireMessageParameters {
       length += quiche::ComputeLengthOnWire(
           WireMoqVarInt(key_delta(MessageParameter::kGroupOrder)),
           WireUint8(static_cast<uint8_t>(*parameters_.group_order)));
+    }
+    if (parameters_.fill_parameters.has_value()) {
+      MessageParameters fill(*parameters_.fill_parameters);
+      WireMessageParameters wire_fill(fill);
+      length += quiche::ComputeLengthOnWire(
+          WireMoqVarInt(key_delta(MessageParameter::kFillParameters)),
+          WireMoqVarInt(wire_fill.GetLengthOnWire()), wire_fill);
     }
     if (parameters_.new_group_request.has_value()) {
       length += WireKeyVarIntPair(key_delta(MessageParameter::kNewGroupRequest),
@@ -393,6 +403,13 @@ class WireMessageParameters {
       QUICHE_RETURN_IF_ERROR(quiche::SerializeIntoWriter(
           writer, WireMoqVarInt(key_delta(MessageParameter::kGroupOrder)),
           WireUint8(static_cast<uint8_t>(*parameters_.group_order))));
+    }
+    if (parameters_.fill_parameters.has_value()) {
+      MessageParameters fill(*parameters_.fill_parameters);
+      WireMessageParameters wire_fill(fill);
+      QUICHE_RETURN_IF_ERROR(quiche::SerializeIntoWriter(
+          writer, WireMoqVarInt(key_delta(MessageParameter::kFillParameters)),
+          WireMoqVarInt(wire_fill.GetLengthOnWire()), wire_fill));
     }
     if (parameters_.new_group_request.has_value()) {
       QUICHE_RETURN_IF_ERROR(quiche::SerializeIntoWriter(

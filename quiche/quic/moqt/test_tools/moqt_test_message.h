@@ -108,6 +108,13 @@ inline MessageParameters SubscribeForTest() {
   parameters.location_filter =
       LocationFilter::AbsoluteStartFilter(Location(4, 1));
   parameters.group_order = MoqtGroupOrder::kDescending;
+  parameters.fill_parameters = FillParameters{
+      .fill_timeout = quic::QuicTimeDelta::FromMilliseconds(100),
+      .subscriber_priority = 0x20,
+      .location_filter =
+          LocationFilter::AbsoluteRangeFilter(Location(1, 0), Location(3, 5)),
+      .group_order = MoqtGroupOrder::kAscending,
+  };
   return parameters;
 }
 
@@ -723,7 +730,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvv---v----vv--vv-----vvv-v-vvvvv-");
+    ExpandVarintsImpl("vvv---v----vv--vv-----vvv-v-vvvvv-vv-------------");
   }
 
   MessageStructuredData structured_data() const override {
@@ -738,11 +745,11 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   };
 
  private:
-  uint8_t raw_packet_[37] = {
-      0x03, 0x00, 0x22, 0x01,        // request_id = 1
+  uint8_t raw_packet_[52] = {
+      0x03, 0x00, 0x31, 0x01,        // request_id = 1
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
-      0x07,                          // 7 parameters
+      0x08,                          // 8 parameters
       0x02, 0xa7, 0x10,              // object_delivery_timeout = 10000 ms
       0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
       0x01, 0x64,                                // rendezvous_timeout = 100 ms
@@ -750,6 +757,12 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       0x10, 0x20,                                // subscriber_priority = 0x20
       0x01, 0x02, 0x04, 0x01,  // filter_type = kAbsoluteStart (4, 1)
       0x01, 0x02,              // group_order = kDescending
+      0x01, 0x0d,              // fill_parameters (13 bytes)
+      0x04,                    // 4 fill parameters
+      0x0a, 0x64,              // fill_timeout = 100 ms
+      0x16, 0x20,              // subscriber_priority = 0x20
+      0x01, 0x04, 0x01, 0x00, 0x02, 0x05,  // kAbsoluteRange (1, 0) to (3, 5)
+      0x01, 0x01,                          // group_order = kAscending
   };
 };
 

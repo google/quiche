@@ -862,6 +862,54 @@ TEST_F(MoqtMessageSpecificTest, SubscribeInvalidFilter) {
             MoqtError::kProtocolViolation);
 }
 
+TEST_F(MoqtMessageSpecificTest, SubscribeFillParametersInvalidInnerParameter) {
+  char subscribe[] = {
+      0x03, 0x00, 0x11, 0x01,        // id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x01,                          // 1 parameter
+      0x23, 0x03,                    // fill_parameters (3 bytes)
+      0x01, 0x10, 0x01,  // kForward (0x10) = 1 (not allowed in fill)
+  };
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
+      ParseAllMessages(absl::string_view(subscribe, sizeof(subscribe)),
+                       kDefaultMoqtVersion, kRawQuic);
+  EXPECT_EQ(ExtractMoqtErrorForStatus(parsed.status()),
+            MoqtError::kProtocolViolation);
+}
+
+TEST_F(MoqtMessageSpecificTest, SubscribeFillParametersTrailingData) {
+  char subscribe[] = {
+      0x03, 0x00, 0x10, 0x01,        // id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x01,                          // 1 parameter
+      0x23, 0x02,                    // fill_parameters (2 bytes)
+      0x00, 0xff,                    // 0 params followed by 1 trailing byte
+  };
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
+      ParseAllMessages(absl::string_view(subscribe, sizeof(subscribe)),
+                       kDefaultMoqtVersion, kRawQuic);
+  EXPECT_EQ(ExtractMoqtErrorForStatus(parsed.status()),
+            MoqtError::kProtocolViolation);
+}
+
+TEST_F(MoqtMessageSpecificTest, SubscribeFillParametersTwice) {
+  char subscribe[] = {
+      0x03, 0x00, 0x12, 0x01,        // id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x02,                          // 2 parameters
+      0x23, 0x01, 0x00,              // fill_parameters (empty)
+      0x00, 0x01, 0x00,              // duplicate fill_parameters
+  };
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
+      ParseAllMessages(absl::string_view(subscribe, sizeof(subscribe)),
+                       kDefaultMoqtVersion, kRawQuic);
+  EXPECT_EQ(ExtractMoqtErrorForStatus(parsed.status()),
+            MoqtError::kProtocolViolation);
+}
+
 TEST_F(MoqtMessageSpecificTest, SubscribeMaxRendezvousTimeout) {
   char subscribe[] = {
       0x03, 0x00, 0x10, 0x01,        // id

@@ -31,6 +31,7 @@ struct AllowedParameters {
   bool subscriber_priority = false;
   bool location_filter = false;
   bool group_order = false;
+  bool fill_parameters = false;
   bool new_group_request = false;
   bool track_namespace_prefix = false;
   bool oack_window_size = false;
@@ -53,6 +54,7 @@ AllowedParameters GetAllowedParametersForMessage(MoqtMessageType message_type) {
       allowed.authorization_tokens = true;
       allowed.rendezvous_timeout = true;
       allowed.group_order = true;
+      allowed.fill_parameters = true;
       return allowed;
     }
     case MoqtMessageType::kSubscribeOk:
@@ -117,6 +119,7 @@ AllowedParameters GetAllowedParametersForUpdate(MoqtMessageType updated_type) {
     case MoqtMessageType::kRequestOk: {  // PUBLISH_OK
       AllowedParameters allowed = kCommonSubscriberParameters;
       allowed.authorization_tokens = true;
+      allowed.fill_parameters = true;
       return allowed;
     }
     case MoqtMessageType::kFetch:
@@ -217,6 +220,7 @@ bool CheckAllowedParameters(const MessageParameters& parameters,
           !parameters.subscriber_priority.has_value()) &&
          (allowed.location_filter || !parameters.location_filter.has_value()) &&
          (allowed.group_order || !parameters.group_order.has_value()) &&
+         (allowed.fill_parameters || !parameters.fill_parameters.has_value()) &&
          (allowed.new_group_request ||
           !parameters.new_group_request.has_value()) &&
          (allowed.track_namespace_prefix ||
@@ -258,6 +262,9 @@ void ApplyAllowedParameters(MessageParameters& parameters,
   }
   if (!allowed.group_order) {
     parameters.group_order.reset();
+  }
+  if (!allowed.fill_parameters) {
+    parameters.fill_parameters.reset();
   }
   if (!allowed.new_group_request) {
     parameters.new_group_request.reset();

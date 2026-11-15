@@ -51,6 +51,14 @@ void SetLocationFilter(MessageParameters& p) {
 void SetGroupOrder(MessageParameters& p) {
   p.group_order = MoqtGroupOrder::kAscending;
 }
+void SetFillParameters(MessageParameters& p) {
+  p.fill_parameters = FillParameters{
+      .fill_timeout = quic::QuicTimeDelta::FromSeconds(7),
+      .subscriber_priority = 8,
+      .location_filter = LocationFilter::RelativeStartFilter(0),
+      .group_order = MoqtGroupOrder::kAscending,
+  };
+}
 void SetNewGroupRequest(MessageParameters& p) { p.new_group_request = 9; }
 void SetTrackNamespacePrefix(MessageParameters& p) {
   p.track_namespace_prefix = TrackNamespace({"foo"});
@@ -71,6 +79,7 @@ constexpr ParameterMutator kAllParameterMutators[] = {
     SetSubscriberPriority,
     SetLocationFilter,
     SetGroupOrder,
+    SetFillParameters,
     SetNewGroupRequest,
     SetTrackNamespacePrefix,
     SetOackWindowSize,
@@ -149,7 +158,8 @@ TEST(MoqtMessagesTest, ParametersAllowedAndSanitizedByMessage) {
       MakeParameters({SetSubgroupDeliveryTimeout, SetAuthorizationTokens,
                       SetRendezvousTimeout, SetObjectDeliveryTimeout,
                       SetForward, SetSubscriberPriority, SetLocationFilter,
-                      SetGroupOrder, SetNewGroupRequest, SetOackWindowSize}),
+                      SetGroupOrder, SetFillParameters, SetNewGroupRequest,
+                      SetOackWindowSize}),
       ParametersAllowedByMessage, SanitizeParameters);
 
   VerifyParameterHandling(MoqtMessageType::kSubscribeOk,
@@ -210,7 +220,8 @@ TEST(MoqtMessagesTest, ParametersAllowedAndSanitizedByRequestUpdate) {
         MakeParameters({SetSubgroupDeliveryTimeout, SetAuthorizationTokens,
                         SetObjectDeliveryTimeout, SetForward,
                         SetSubscriberPriority, SetLocationFilter,
-                        SetNewGroupRequest, SetOackWindowSize}),
+                        SetFillParameters, SetNewGroupRequest,
+                        SetOackWindowSize}),
         ParametersAllowedByRequestUpdate, SanitizeUpdateParameters);
   }
 

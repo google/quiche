@@ -285,6 +285,11 @@ enum class MessageParameter : uint64_t {
   kSubscriberPriority = 0x20,
   kLocationFilter = 0x21,
   kGroupOrder = 0x22,
+  kFillParameters = 0x23,
+  kSubgroupFilter = 0x25,
+  kObjectIdFilter = 0x26,
+  kPriorityFilter = 0x27,
+  kObjectPropertyFilter = 0x28,
   kNewGroupRequest = 0x32,
   kTrackNamespacePrefix = 0x34,
 
@@ -301,15 +306,31 @@ constexpr quic::QuicTimeDelta kDefaultRendezvousTimeout =
 // Limit to prevent the publisher from waiting too long for a rendezvous.
 constexpr quic::QuicTimeDelta kMaxRendezvousTimeout =
     quic::QuicTimeDelta::FromSeconds(30);
+// Parameters that apply to the fill fetch stream in SUBSCRIBE or REQUEST_UPDATE
+// (draft-ietf-moq-transport section 9.20.15).
+struct FillParameters {
+  std::optional<quic::QuicTimeDelta> fill_timeout;
+  std::optional<MoqtPriority> subscriber_priority;
+  std::optional<LocationFilter> location_filter;
+  std::optional<MoqtGroupOrder> group_order;
+
+  bool operator==(const FillParameters& other) const = default;
+};
 struct MessageParameters {
   MessageParameters() = default;
   MessageParameters(const MessageParameters&) = default;
+  explicit MessageParameters(const FillParameters& fill)
+      : fill_timeout(fill.fill_timeout),
+        subscriber_priority(fill.subscriber_priority),
+        location_filter(fill.location_filter),
+        group_order(fill.group_order) {}
   // Constructor for a LocationFilter.
   explicit MessageParameters(const LocationFilter& filter)
       : location_filter(filter) {}
 
   // If |other| has a value in a particular field, replace the current value
-  // with it. Otherwise, leave unchanged.
+  // with it. Otherwise, leave unchanged. The exception is FILL_PARAMETERS,
+  // which does not persist across updates.
   void Update(const MessageParameters& other);
 
   std::optional<quic::QuicTimeDelta> subgroup_delivery_timeout;
@@ -326,6 +347,7 @@ struct MessageParameters {
   std::optional<MoqtPriority> subscriber_priority;
   std::optional<LocationFilter> location_filter;
   std::optional<MoqtGroupOrder> group_order;
+  std::optional<FillParameters> fill_parameters;
   std::optional<uint64_t> new_group_request;
   std::optional<TrackNamespace> track_namespace_prefix;
 

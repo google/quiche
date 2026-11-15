@@ -222,6 +222,10 @@ TEST_F(MessageParametersTest, Update) {
   p1.expires = quic::QuicTimeDelta::FromMilliseconds(100);
   p1.set_forward(false);
   p1.subscriber_priority = 100;
+  p1.fill_parameters = FillParameters{
+      .fill_timeout = quic::QuicTimeDelta::FromMilliseconds(50),
+      .subscriber_priority = 5,
+  };
   p1.new_group_request = 1;
   p1.track_namespace_prefix = TrackNamespace({"foo"});
   MessageParameters p2;
@@ -241,6 +245,7 @@ TEST_F(MessageParametersTest, Update) {
   EXPECT_TRUE(p1.forward());
   EXPECT_EQ(p1.subscriber_priority, 100);
   EXPECT_EQ(p1.group_order, std::nullopt);
+  EXPECT_EQ(p1.fill_parameters, std::nullopt);
   EXPECT_EQ(p1.new_group_request, 1);
   EXPECT_EQ(p1.track_namespace_prefix, TrackNamespace({"bar"}));
 }
