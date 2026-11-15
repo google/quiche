@@ -57,7 +57,7 @@ PublishedObject DefaultObject() {
   PublishedObject object;
   object.metadata = PublishedObjectMetadata{Location(0, 0),
                                             0,
-                                            "",
+                                            ObjectProperties(),
                                             MoqtObjectStatus::kNormal,
                                             kDefaultPublisherPriority,
                                             true,

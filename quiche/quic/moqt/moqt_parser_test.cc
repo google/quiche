@@ -2123,7 +2123,7 @@ TEST_F(MoqtDataParserStateMachineTest, EndOfGroupFinArrivesLater) {
   EXPECT_EQ(visitor_.last_message()->object_id, 7);
   EXPECT_EQ(visitor_.last_message()->subgroup_id, 8);
   EXPECT_EQ(visitor_.last_message()->publisher_priority, 7);
-  EXPECT_EQ(visitor_.last_message()->properties, "");
+  EXPECT_TRUE(visitor_.last_message()->properties.empty());
   EXPECT_EQ(visitor_.last_message()->object_status,
             MoqtObjectStatus::kEndOfGroup);
   EXPECT_EQ(visitor_.last_message()->first_object_in_subgroup, false);
@@ -2158,7 +2158,7 @@ TEST_F(MoqtDataParserStateMachineTest,
   EXPECT_EQ(visitor_.parsing_error(), std::nullopt);
   EXPECT_EQ(visitor_.last_message()->object_id, second_object_id + 1);
   EXPECT_EQ(visitor_.last_message()->subgroup_id, 8);
-  EXPECT_EQ(visitor_.last_message()->properties, "");
+  EXPECT_TRUE(visitor_.last_message()->properties.empty());
   EXPECT_EQ(visitor_.last_message()->payload_length, 0);
   EXPECT_EQ(visitor_.last_message()->object_status,
             MoqtObjectStatus::kEndOfGroup);
@@ -2202,6 +2202,51 @@ TEST_F(MoqtMessageSpecificTest, DatagramHasStatusAndProperties) {
   EXPECT_THAT(ParseDatagram(kBadDatagram, object, use_default_priority),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        "Datagram has status and properties"));
+}
+
+TEST_F(MoqtMessageSpecificTest, InvalidObjectProperties) {
+  // Type 0x01 (kProperties), track_alias = 4, group_id = 5, object_id = 6,
+  // priority = 7, 2-byte property blob with kDynamicGroups (0x30) = 2 (invalid
+  // value > 1).
+  constexpr absl::string_view kInvalidPropertyValueDatagram(
+      "\x01\x04\x05\x06\x07\x02\x30\x02", 8);
+  MoqtObject object;
+  bool use_default_priority = false;
+  EXPECT_THAT(ParseDatagram(kInvalidPropertyValueDatagram, object,
+                            use_default_priority),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       "Invalid object properties"));
+
+  // Missing property value inside property blob.
+  constexpr absl::string_view kMalformedPropertyDatagram(
+      "\x01\x04\x05\x06\x07\x01\x02", 7);
+  EXPECT_THAT(
+      ParseDatagram(kMalformedPropertyDatagram, object, use_default_priority),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               "Unable to read the integer value in a key-value pair"));
+
+  // Invalid property value on a subgroup stream.
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtStreamTypeParser type_parser(&stream);
+  MoqtParserTestVisitor data_visitor;
+  MoqtDataParser data_parser(std::move(type_parser), &data_visitor);
+  MoqtDataStreamType stream_type = MoqtDataStreamType::Subgroup(
+      /*subgroup_id=*/0, /*first_object_id=*/0, /*no_properties=*/false,
+      /*default_priority=*/true, /*has_first_object=*/true,
+      /*end_of_group=*/false);
+  char buffer[32];
+  quic::QuicDataWriter writer(sizeof(buffer), buffer);
+  ASSERT_TRUE(writer.WriteMoqVarInt(stream_type.value()));
+  ASSERT_TRUE(writer.WriteMoqVarInt(4));     // track_alias
+  ASSERT_TRUE(writer.WriteMoqVarInt(5));     // group_id
+  ASSERT_TRUE(writer.WriteMoqVarInt(0));     // object_id
+  ASSERT_TRUE(writer.WriteMoqVarInt(2));     // properties length = 2
+  ASSERT_TRUE(writer.WriteMoqVarInt(0x30));  // kDynamicGroups
+  ASSERT_TRUE(writer.WriteMoqVarInt(2));     // value = 2 (invalid)
+  ASSERT_TRUE(writer.WriteMoqVarInt(0));     // payload_length = 0
+  stream.Receive(absl::string_view(buffer, writer.length()), /*fin=*/false);
+  data_parser.ReadAllData();
+  EXPECT_EQ(data_visitor.parsing_error(), "Failed to parse object properties");
 }
 
 TEST_F(MoqtMessageSpecificTest, StreamTypeParserToControlStream) {

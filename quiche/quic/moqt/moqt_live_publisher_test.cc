@@ -99,7 +99,7 @@ std::optional<PublishedObject> DefaultPublishedObject(
   object.metadata.subgroup = subgroup;
   object.metadata.status = MoqtObjectStatus::kNormal;
   object.metadata.publisher_priority = publisher_priority;
-  object.metadata.properties = "properties";
+  object.metadata.properties = ObjectProperties({{0, 1ULL}});
   object.metadata.first_object_in_subgroup =
       subgroup.has_value() ? std::optional<bool>(location.object == 0)
                            : std::nullopt;
@@ -491,7 +491,7 @@ TEST_F(LivePublisherTest, UpdatePriorityWithPendingStreams) {
 TEST_F(LivePublisherTest, UpdatePriorityWithActiveStreams) {
   CreateStream(
       Location(1, 0), 0, 127,
-      {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x0a});
+      {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x02});
   MessageParameters new_params;
   new_params.subscriber_priority = 20;
   EXPECT_CALL(mock_uni_stream_, SetPriority);
@@ -529,7 +529,7 @@ TEST_F(LivePublisherTest, OnNewObjectAvailableDatagram) {
 TEST_F(LivePublisherTest, OnNewObjectAvailableStatusDatagram) {
   PublishedObjectMetadata metadata{Location(1, 0),
                                    /*subgroup=*/std::nullopt,
-                                   /*properties=*/"",
+                                   /*properties=*/ObjectProperties(),
                                    MoqtObjectStatus::kEndOfGroup,
                                    /*publisher_priority=*/128,
                                    /*first_object_in_subgroup=*/std::nullopt,
@@ -887,7 +887,7 @@ TEST_F(LivePublisherTest, IncomingUpdateTruncatesSubscription) {
 TEST_F(LivePublisherTest, OnNewFinAvailable) {
   CreateStream(
       Location(1, 0), 0, 127,
-      {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x0a});
+      {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x02});
   EXPECT_CALL(mock_uni_stream_, Writev(testing::IsEmpty(), _))
       .WillOnce([](absl::Span<quiche::QuicheMemSlice> data,
                    const webtransport::StreamWriteOptions& options) {
@@ -900,7 +900,7 @@ TEST_F(LivePublisherTest, OnNewFinAvailable) {
 TEST_F(LivePublisherTest, OnSubgroupAbandoned) {
   CreateStream(
       Location(1, 0), 0, 127,
-      {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x0a});
+      {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x02});
   EXPECT_CALL(mock_uni_stream_, ResetWithUserCode(1234));
   publisher_->OnSubgroupAbandoned(1, 0, 1234);
 }

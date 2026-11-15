@@ -1278,13 +1278,13 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
-      /*properties=*/"foo",
+      /*properties=*/ObjectProperties({{0, 12ULL}}),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/std::nullopt,
       /*first_object_in_subgroup=*/std::nullopt,
       /*payload_length=*/8,
   };
-  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x00, 0x03, 0x66, 0x6f, 0x6f,
+  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x0c,
                      0x64, 0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(remote_track_visitor_, OnObjectFragment)
       .WillOnce([&](const FullTrackName& track_name,
@@ -1382,7 +1382,7 @@ TEST_F(MoqtSessionTest, OmitPublisherPriority) {
   EXPECT_CALL(*track, GetCachedObject(_, _, _, _))
       .WillOnce(Return(PublishedObject{
           PublishedObjectMetadata{
-              Location(0, 0), 0, "", MoqtObjectStatus::kNormal,
+              Location(0, 0), 0, ObjectProperties(), MoqtObjectStatus::kNormal,
               kLocalDefaultPriority, true, 8, MoqtSessionPeer::Now(&session_)},
           PayloadFromString("deadbeef")}))
       .WillOnce(Return(std::nullopt));
@@ -1398,8 +1398,8 @@ TEST_F(MoqtSessionTest, OmitPublisherPriority) {
   // Send a datagram with the default priority.
   EXPECT_CALL(*track, GetCachedObject(_, _, _, _))
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(0, 1), std::nullopt, "",
-                                  MoqtObjectStatus::kNormal,
+          PublishedObjectMetadata{Location(0, 1), std::nullopt,
+                                  ObjectProperties(), MoqtObjectStatus::kNormal,
                                   kLocalDefaultPriority, std::nullopt, 8,
                                   MoqtSessionPeer::Now(&session_)},
           PayloadFromString("deadbeef")}));
@@ -1415,8 +1415,8 @@ TEST_F(MoqtSessionTest, OmitPublisherPriority) {
   // Non-default priority
   EXPECT_CALL(*track, GetCachedObject(_, _, _, _))
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(0, 2), std::nullopt, "",
-                                  MoqtObjectStatus::kNormal,
+          PublishedObjectMetadata{Location(0, 2), std::nullopt,
+                                  ObjectProperties(), MoqtObjectStatus::kNormal,
                                   kLocalDefaultPriority + 1, std::nullopt, 8,
                                   MoqtSessionPeer::Now(&session_)},
           PayloadFromString("deadbeef")}));
@@ -1671,7 +1671,8 @@ TEST_F(MoqtSessionTest, SendFragmentedFetchObject) {
   // Trigger stream opening (calls SetObjectAvailableCallback with lambda1).
   // Setting the stream visitor will cause a second call to the callback.
   PublishedObjectMetadata metadata = {
-      Location(0, 0), 0, "", MoqtObjectStatus::kNormal, 128, true, 10};
+      Location(0, 0), 0, ObjectProperties(), MoqtObjectStatus::kNormal, 128,
+      true,           10};
   EXPECT_CALL(*fetch_task, GetNextObject)
       .WillOnce([&](PublishedObject& output) {
         output.metadata = metadata;
@@ -2005,7 +2006,7 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
       /*group_id, object_id=*/2,
       0,
       /*publisher_priority=*/128,
-      /*properties=*/"",
+      /*properties=*/ObjectProperties(),
       /*status=*/MoqtObjectStatus::kNormal,
       /*subgroup=*/0,
       /*first_object_in_subgroup=*/true,
@@ -2232,7 +2233,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
       /*group_id, object_id=*/0,
       0,
       /*publisher_priority=*/128,
-      /*properties=*/"",
+      /*properties=*/ObjectProperties(),
       /*status=*/MoqtObjectStatus::kNormal,
       /*subgroup=*/0,
       /*first_object_in_subgroup=*/true,
@@ -2301,7 +2302,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
       /*group_id, object_id=*/0,
       0,
       /*publisher_priority=*/128,
-      /*properties=*/"",
+      /*properties=*/ObjectProperties(),
       /*status=*/MoqtObjectStatus::kNormal,
       /*subgroup=*/0,
       /*first_object_in_subgroup=*/true,
@@ -2646,7 +2647,7 @@ TEST_F(MoqtSessionTest, FinReportedToVisitor) {
       /*group_id=*/0,
       /*object_id=*/0,
       /*publisher_priority=*/7,
-      /*properties=*/"",
+      /*properties=*/ObjectProperties(),
       /*object_status=*/MoqtObjectStatus::kEndOfGroup,
       /*subgroup_id=*/0,
       /*first_object_in_subgroup=*/true,
@@ -2684,7 +2685,7 @@ TEST_F(MoqtSessionTest, ResetReportedToVisitor) {
       /*group_id=*/0,
       /*object_id=*/0,
       /*publisher_priority=*/7,
-      /*properties=*/"",
+      /*properties=*/ObjectProperties(),
       /*object_status=*/MoqtObjectStatus::kEndOfGroup,
       /*subgroup_id=*/0,
       /*first_object_in_subgroup=*/true,
@@ -2827,7 +2828,7 @@ TEST_F(MoqtSessionTest, StopSendingBlocksSubgroup) {
   EXPECT_CALL(mock_uni_stream_, CanWrite).WillRepeatedly(Return(true));
   EXPECT_CALL(*track, GetCachedObject(0, Optional(1), 0, 0))
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(0, 0), 1, "",
+          PublishedObjectMetadata{Location(0, 0), 1, ObjectProperties(),
                                   MoqtObjectStatus::kNormal, 0x80, true, 0,
                                   MoqtSessionPeer::Now(&session_)},
           PayloadFromString(""), false}));

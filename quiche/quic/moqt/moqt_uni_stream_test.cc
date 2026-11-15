@@ -389,7 +389,7 @@ TEST_F(OutgoingSubgroupStreamTest, EndOfGroupWithProperties) {
   obj0.metadata.status = MoqtObjectStatus::kEndOfGroup;
   obj0.metadata.payload_length = 0;
   obj0.payload.clear();
-  obj0.metadata.properties = "prop";
+  obj0.metadata.properties = ObjectProperties({{0, 1ULL}});
   obj0.fin_after_this = true;
   EXPECT_CALL(mock_stream_, CanWrite())
       .WillOnce(Return(true))
@@ -604,11 +604,11 @@ TEST_F(OutgoingFetchStreamTest, ObjectAvailableCallback) {
 }
 
 MoqtObject kDefaultObject = {
-    2,     // track_alias
-    0,     // group_id
-    0,     // object_id
-    0x80,  // publisher_priority
-    "",    // properties
+    2,                   // track_alias
+    0,                   // group_id
+    0,                   // object_id
+    0x80,                // publisher_priority
+    ObjectProperties(),  // properties
     MoqtObjectStatus::kNormal,
     0,     // subgroup_id
     true,  // first_object_in_subgroup
@@ -724,7 +724,7 @@ TEST_F(IncomingDataStreamTest, OnObjectMessage) {
         EXPECT_EQ(track_name, ftn_);
         EXPECT_EQ(metadata.location, Location(0, 0));
         EXPECT_EQ(metadata.subgroup, 0);
-        EXPECT_EQ(metadata.properties, "");
+        EXPECT_TRUE(metadata.properties.empty());
         EXPECT_EQ(metadata.status, MoqtObjectStatus::kNormal);
         EXPECT_EQ(metadata.publisher_priority, 0x80);
         EXPECT_EQ(metadata.payload_length, 8);
@@ -828,9 +828,10 @@ TEST_F(IncomingDataStreamTest, PartialObjectFetch) {
 
   const MoqtObject sent_object = MoqtObject(
       /*request_id=*/0, /*group_id=*/0,
-      /*object_id=*/0, /*publisher_priority=*/0x80, /*properties=*/"",
-      MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
-      /*first_object_in_subgroup=*/true, /*payload_length=*/12);
+      /*object_id=*/0, /*publisher_priority=*/0x80,
+      /*properties=*/ObjectProperties(), MoqtObjectStatus::kNormal,
+      /*subgroup_id=*/0, /*first_object_in_subgroup=*/true,
+      /*payload_length=*/12);
   EXPECT_CALL(mock_fetch_task_, HasObject).WillOnce(Return(false));
   EXPECT_CALL(mock_fetch_task_, NewObject)
       .WillOnce([&](const MoqtObject& message) {

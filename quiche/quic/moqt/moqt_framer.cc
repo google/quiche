@@ -553,7 +553,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
   std::optional<uint64_t> subgroup_id;
   std::optional<uint64_t> object_id;
   std::optional<uint8_t> publisher_priority;
-  std::optional<absl::string_view> properties;
+  std::optional<const KeyValuePairList*> properties;
   bool is_first_in_stream = !previous_object_in_stream.has_value();
   if (is_first_in_stream) {
     stream_type = message_type.value();
@@ -595,21 +595,22 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
       publisher_priority = message.publisher_priority;
     }
     if (serialization.has_properties()) {
-      properties = message.properties;
+      properties = &message.properties;
     }
     if (!serialization.end_of_non_existent_range() &&
         !serialization.end_of_unknown_range()) {
       payload_length = message.payload_length;
     }
-    return Serialize(WireOptional<WireMoqVarInt>(stream_type),
-                     WireOptional<WireMoqVarInt>(track_id),
-                     WireMoqVarInt(serialization.value()),
-                     WireOptional<WireMoqVarInt>(group_id),
-                     WireOptional<WireMoqVarInt>(subgroup_id),
-                     WireOptional<WireMoqVarInt>(object_id),
-                     WireOptional<WireUint8>(publisher_priority),
-                     WireOptional<WireStringWithMoqVarIntLength>(properties),
-                     WireOptional<WireMoqVarInt>(payload_length));
+    return Serialize(
+        WireOptional<WireMoqVarInt>(stream_type),
+        WireOptional<WireMoqVarInt>(track_id),
+        WireMoqVarInt(serialization.value()),
+        WireOptional<WireMoqVarInt>(group_id),
+        WireOptional<WireMoqVarInt>(subgroup_id),
+        WireOptional<WireMoqVarInt>(object_id),
+        WireOptional<WireUint8>(publisher_priority),
+        WireOptional<WireKeyValuePairListWithLengthPrefix>(properties),
+        WireOptional<WireMoqVarInt>(payload_length));
   }
   // Subgroup stream.
   if (!message.subgroup_id.has_value()) {
@@ -631,21 +632,21 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     *object_id -= (previous_object_in_stream->location.object + 1);
   }
   if (message_type.ArePropertiesPresent()) {
-    properties = message.properties;
+    properties = &message.properties;
   }
   std::optional<uint64_t> object_status;
   if (message.payload_length == 0) {
     object_status = static_cast<uint64_t>(message.object_status);
   }
-  return Serialize(WireOptional<WireMoqVarInt>(stream_type),
-                   WireOptional<WireMoqVarInt>(track_id),
-                   WireOptional<WireMoqVarInt>(group_id),
-                   WireOptional<WireMoqVarInt>(subgroup_id),
-                   WireOptional<WireUint8>(publisher_priority),
-                   WireMoqVarInt(*object_id),
-                   WireOptional<WireStringWithMoqVarIntLength>(properties),
-                   WireMoqVarInt(message.payload_length),
-                   WireOptional<WireMoqVarInt>(object_status));
+  return Serialize(
+      WireOptional<WireMoqVarInt>(stream_type),
+      WireOptional<WireMoqVarInt>(track_id),
+      WireOptional<WireMoqVarInt>(group_id),
+      WireOptional<WireMoqVarInt>(subgroup_id),
+      WireOptional<WireUint8>(publisher_priority), WireMoqVarInt(*object_id),
+      WireOptional<WireKeyValuePairListWithLengthPrefix>(properties),
+      WireMoqVarInt(message.payload_length),
+      WireOptional<WireMoqVarInt>(object_status));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
@@ -675,9 +676,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
       datagram_type.has_default_priority()
           ? std::nullopt
           : std::optional<uint8_t>(message.publisher_priority);
-  std::optional<absl::string_view> properties =
+  std::optional<const KeyValuePairList*> properties =
       datagram_type.has_properties()
-          ? std::optional<absl::string_view>(message.properties)
+          ? std::optional<const KeyValuePairList*>(&message.properties)
           : std::nullopt;
   std::optional<uint64_t> object_status =
       datagram_type.has_status()
@@ -691,7 +692,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
       WireMoqVarInt(datagram_type.value()), WireMoqVarInt(message.track_alias),
       WireMoqVarInt(message.group_id), WireOptional<WireMoqVarInt>(object_id),
       WireOptional<WireUint8>(publisher_priority),
-      WireOptional<WireStringWithMoqVarIntLength>(properties),
+      WireOptional<WireKeyValuePairListWithLengthPrefix>(properties),
       WireOptional<WireMoqVarInt>(object_status),
       WireOptional<WireBytes>(raw_payload));
 }

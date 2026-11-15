@@ -246,7 +246,7 @@ struct QUICHE_EXPORT MoqtObject {
   uint64_t group_id;
   uint64_t object_id;
   MoqtPriority publisher_priority;
-  std::string properties;  // Raw, unparsed properties.
+  ObjectProperties properties;
   MoqtObjectStatus object_status;
   std::optional<uint64_t> subgroup_id;           // Only for subgroup objects.
   std::optional<bool> first_object_in_subgroup;  // Only for subgroup objects.

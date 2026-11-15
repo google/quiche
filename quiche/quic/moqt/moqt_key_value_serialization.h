@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <variant>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/overload.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
@@ -104,6 +105,31 @@ class QUICHE_EXPORT WireKeyValuePairList {
 
  private:
   const KeyValuePairList& list_;
+};
+
+class QUICHE_EXPORT WireKeyValuePairListWithLengthPrefix {
+ public:
+  using DataType = const KeyValuePairList*;
+
+  explicit WireKeyValuePairListWithLengthPrefix(const KeyValuePairList& list)
+      : list_(list) {}
+  explicit WireKeyValuePairListWithLengthPrefix(
+      const KeyValuePairList* absl_nonnull list)
+      : list_(*list) {}
+
+  size_t GetLengthOnWire() {
+    size_t list_length = list_.GetLengthOnWire();
+    return quiche::WireMoqVarInt(list_length).GetLengthOnWire() + list_length;
+  }
+  absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
+    size_t list_length = list_.GetLengthOnWire();
+    return quiche::SerializeIntoWriter(
+        writer, quiche::WireMoqVarInt(list_length), list_);
+  }
+
+ private:
+  WireKeyValuePairList list_;  // Can't be const because it's passed above and
+                               // is not trivially copyable.
 };
 
 }  // namespace moqt

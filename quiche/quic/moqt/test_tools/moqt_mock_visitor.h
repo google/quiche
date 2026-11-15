@@ -181,7 +181,6 @@ class TestTrackPublisher : public MoqtTrackPublisher {
     PublishedObjectMetadata metadata;
     metadata.location = location;
     metadata.subgroup = subgroup;
-    metadata.properties = "";
     metadata.status = MoqtObjectStatus::kNormal;
     metadata.publisher_priority = 128;
     metadata.first_object_in_subgroup = location.object == 0;

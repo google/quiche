@@ -35,7 +35,14 @@
 namespace moqt::test {
 
 inline constexpr absl::string_view kDefaultPropertyBlob(
-    "\x00\x0c\x01\x03\x66\x6f\x6f", 7);
+    "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8);
+
+inline ObjectProperties DefaultObjectProperties() {
+  return ObjectProperties({
+      KeyValuePair(0, 12ULL),
+      KeyValuePair(1, "foo"),
+  });
+}
 
 inline std::vector<MoqtDatagramType> AllMoqtDatagramTypes() {
   std::vector<MoqtDatagramType> types;
@@ -282,7 +289,7 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       .group_id = 5,
       .object_id = 6,
       .publisher_priority = 7,
-      .properties = std::string(kDefaultPropertyBlob),
+      .properties = DefaultObjectProperties(),
       .object_status = MoqtObjectStatus::kNormal,
       .subgroup_id = 8,
       .first_object_in_subgroup = false,
@@ -306,8 +313,9 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
                                   : MoqtObjectStatus::kNormal;
       object_.payload_length = 3;
     }
-    object_.properties =
-        datagram_type.has_properties() ? std::string(kDefaultPropertyBlob) : "";
+    object_.properties = datagram_type.has_properties()
+                             ? DefaultObjectProperties()
+                             : ObjectProperties();
     object_.object_id = datagram_type.has_object_id() ? 6 : 0;
     object_.subgroup_id = std::nullopt;
     quic::QuicDataWriter writer(sizeof(raw_packet_),
@@ -321,7 +329,7 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
       EXPECT_TRUE(writer.WriteStringPiece(kRawPriority));
     }
     if (datagram_type.has_properties()) {
-      EXPECT_TRUE(writer.WriteStringPiece(kRawProperties));
+      EXPECT_TRUE(writer.WriteStringPiece(kDefaultPropertyBlob));
     }
     if (datagram_type.has_status()) {
       EXPECT_TRUE(
@@ -358,8 +366,6 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
   static constexpr absl::string_view kRawAliasGroup = "\x04\x05";
   static constexpr absl::string_view kRawObject = "\x06";
   static constexpr absl::string_view kRawPriority = "\x07";
-  static constexpr absl::string_view kRawProperties{
-      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultPropertyBlob
   static constexpr absl::string_view kRawPayload = "foo";
 };
 
@@ -374,9 +380,6 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
       object_.subgroup_id = 0;
     } else if (type.SubgroupIsFirstObjectId()) {
       object_.subgroup_id = object_.object_id;
-    }
-    if (!type.ArePropertiesPresent()) {
-      object_.properties = "";
     }
     // Build raw_packet_ from the type.
     quic::QuicDataWriter writer(sizeof(raw_packet_), raw_packet_);
@@ -393,8 +396,10 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
     }
     EXPECT_TRUE(writer.WriteBytes(kRawObjectId.data(), kRawObjectId.length()));
     if (type.ArePropertiesPresent()) {
-      EXPECT_TRUE(
-          writer.WriteBytes(kRawProperties.data(), kRawProperties.length()));
+      EXPECT_TRUE(writer.WriteBytes(kDefaultPropertyBlob.data(),
+                                    kDefaultPropertyBlob.length()));
+    } else {
+      object_.properties.clear();
     }
     payload_length_offset_ = writer.length();
     EXPECT_TRUE(writer.WriteBytes(kRawPayload.data(), kRawPayload.length()));
@@ -444,8 +449,6 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
   static constexpr absl::string_view kRawSubgroupId = "\x08";
   static constexpr absl::string_view kRawPublisherPriority = "\x07";
   static constexpr absl::string_view kRawObjectId = "\x06";
-  static constexpr absl::string_view kRawProperties{
-      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultPropertyBlob
   static constexpr absl::string_view kRawPayload = "\x03\x66\x6f\x6f";
   char raw_packet_[18];
   size_t payload_length_offset_;
@@ -466,8 +469,10 @@ class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
     quic::QuicDataWriter writer(sizeof(raw_packet_), raw_packet_);
     EXPECT_TRUE(writer.WriteMoqVarInt(2));  // Object ID delta - 1
     if (type.ArePropertiesPresent()) {
-      EXPECT_TRUE(
-          writer.WriteBytes(kRawProperties.data(), kRawProperties.length()));
+      EXPECT_TRUE(writer.WriteBytes(kDefaultPropertyBlob.data(),
+                                    kDefaultPropertyBlob.length()));
+    } else {
+      object_.properties.clear();
     }
     EXPECT_TRUE(writer.WriteBytes(kRawPayload.data(), kRawPayload.length()));
     EXPECT_LE(writer.length(), kMaxMessageHeaderSize);
@@ -484,8 +489,6 @@ class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
 
  private:
   MoqtDataStreamType type_;
-  static constexpr absl::string_view kRawProperties{
-      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultPropertyBlob
   static constexpr absl::string_view kRawPayload = "\x03\x62\x61\x72";
   char raw_packet_[13];
 };
@@ -565,11 +568,11 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
       object_.publisher_priority = MoqtPriority(0x09);
     }
     if (serialization.has_properties()) {
-      memcpy(&raw_packet_[length], kRawProperties.data(),
-             kRawProperties.length());
-      length += kRawProperties.length();
+      memcpy(&raw_packet_[length], kDefaultPropertyBlob.data(),
+             kDefaultPropertyBlob.length());
+      length += kDefaultPropertyBlob.length();
     } else {
-      object_.properties = "";
+      object_.properties.clear();
     }
     memcpy(&raw_packet_[length], kRawPayload.data(), kRawPayload.length());
     length += kRawPayload.length();
@@ -601,8 +604,6 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
  private:
   MoqtFetchSerialization serialization_;
   uint8_t raw_packet_[17];
-  static constexpr absl::string_view kRawProperties{
-      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultPropertyBlob
   static constexpr absl::string_view kRawPayload = "\x03\x62\x61\x72";
 };
 

@@ -82,7 +82,7 @@ void MoqtOutgoingQueue::AddRawObject(MoqtObjectStatus status,
   bool fin = status == MoqtObjectStatus::kEndOfGroup;
   PublishedObjectMetadata metadata{sequence,
                                    0,
-                                   "",
+                                   ObjectProperties(),
                                    status,
                                    default_publisher_priority(),
                                    queue_.back().empty(),

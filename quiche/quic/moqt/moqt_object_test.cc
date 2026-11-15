@@ -83,7 +83,7 @@ TEST(PublishedObjectMetadataTest, IsMalformed) {
   EXPECT_FALSE(metadata.IsMalformed(other));
   other.payload_length = 20;
   EXPECT_FALSE(metadata.IsMalformed(other));
-  other.properties = "ext";
+  other.properties = ObjectProperties({{0, 1ULL}});
   EXPECT_FALSE(metadata.IsMalformed(other));
 }
 
@@ -94,7 +94,7 @@ TEST(PublishedObjectMetadataTest, Equality) {
   metadata.status = MoqtObjectStatus::kNormal;
   metadata.publisher_priority = 4;
   metadata.payload_length = 10;
-  metadata.properties = "ext";
+  metadata.properties = ObjectProperties({{0, 1ULL}});
   metadata.arrival_time =
       quic::QuicTime::Zero() + quic::QuicTimeDelta::FromSeconds(1);
 
@@ -121,7 +121,7 @@ TEST(PublishedObjectMetadataTest, Equality) {
   EXPECT_NE(metadata, other);
   other = metadata;
 
-  other.properties = "something else";
+  other.properties = ObjectProperties({{0, 2ULL}});
   EXPECT_NE(metadata, other);
   other = metadata;
 

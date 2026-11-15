@@ -16,6 +16,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/quiche_cord_utils.h"
@@ -28,7 +29,7 @@ namespace moqt {
 struct PublishedObjectMetadata {
   Location location;
   std::optional<uint64_t> subgroup;  // nullopt for datagrams.
-  std::string properties;
+  ObjectProperties properties;
   MoqtObjectStatus status = MoqtObjectStatus::kNormal;
   MoqtPriority publisher_priority = kDefaultPublisherPriority;
   // `first_object_in_subgroup` is only available in objects communicated via

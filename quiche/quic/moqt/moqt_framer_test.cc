@@ -320,7 +320,7 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
-      std::string(kDefaultPropertyBlob.data(), kDefaultPropertyBlob.size()),
+      DefaultObjectProperties(),
       /*object_status=*/MoqtObjectStatus::kEndOfTrack,
       /*subgroup_id=*/8,
       /*first_object_in_subgroup=*/true,
@@ -373,7 +373,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
-      std::string(kDefaultPropertyBlob),
+      DefaultObjectProperties(),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/std::nullopt,
       /*first_object_in_subgroup=*/std::nullopt,
@@ -414,7 +414,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
   EXPECT_TRUE(buffer.empty());
 
   // Range indicators cannot be sent in datagrams.
-  object.properties = "";
+  object.properties.clear();
   object.payload_length = 0;
   object.object_status = MoqtObjectStatus::kEndOfNonExistentRange;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(
@@ -429,7 +429,7 @@ TEST_F(MoqtFramerSimpleTest, FetchEndOfRangeSerialization) {
       /*group_id=*/5,
       /*object_id=*/7,
       /*publisher_priority=*/0,
-      /*properties=*/"",
+      /*properties=*/ObjectProperties(),
       /*object_status=*/MoqtObjectStatus::kEndOfNonExistentRange,
       /*subgroup_id=*/std::nullopt,
       /*first_object_in_subgroup=*/std::nullopt,
