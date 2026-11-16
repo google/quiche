@@ -9,6 +9,7 @@
 #include "absl/memory/memory.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/http/web_transport_only_server_session.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_time.h"
@@ -33,6 +34,10 @@ class MoqtServerPeer {
       MoqtServer& server, webtransport::Session* session,
       const quic::WebTransportIncomingRequestDetails& details) {
     return server.dispatcher_.parameters().handler_factory(session, details);
+  }
+  static int SelectSubprotocol(
+      MoqtServer& server, absl::Span<const absl::string_view> subprotocols) {
+    return server.dispatcher_.parameters().subprotocol_callback(subprotocols);
   }
 };
 
@@ -101,6 +106,16 @@ TEST_F(MoqtServerTest, CustomSessionParameters) {
   EXPECT_EQ(MoqtSessionPeer::GetParameters(session_).max_undelivered_object, 0);
   EXPECT_EQ(MoqtSessionPeer::GetParameters(session_).perspective,
             quic::Perspective::IS_SERVER);
+}
+
+TEST_F(MoqtServerTest, SubprotocolNegotiation) {
+  EXPECT_EQ(MoqtServerPeer::SelectSubprotocol(server_, {kDraft22}), 0);
+  EXPECT_EQ(MoqtServerPeer::SelectSubprotocol(server_, {kDraft18}), 0);
+  EXPECT_EQ(MoqtServerPeer::SelectSubprotocol(server_, {kDraft18, kDraft22}),
+            1);
+  EXPECT_EQ(MoqtServerPeer::SelectSubprotocol(server_,
+                                              {kUnrecognizedVersionForTests}),
+            -1);
 }
 
 }  // namespace moqt::test

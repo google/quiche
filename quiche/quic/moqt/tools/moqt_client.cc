@@ -48,8 +48,6 @@ void MoqtClient::Connect(std::string path, MoqtSessionCallbacks callbacks) {
 
 absl::Status MoqtClient::ConnectInner(std::string path,
                                       MoqtSessionCallbacks& callbacks) {
-  const std::string version = std::string(kDefaultMoqtVersion);
-
   MoqtSessionDeletedCallback deleted_callback =
       std::move(callbacks.session_deleted_callback);
   callbacks.session_deleted_callback =
@@ -70,7 +68,7 @@ absl::Status MoqtClient::ConnectInner(std::string path,
         session_ = moqt_session.get();
         return moqt_session;
       },
-      absl::MakeSpan(&version, 1));
+      parameters_.versions);
 }
 
 }  // namespace moqt

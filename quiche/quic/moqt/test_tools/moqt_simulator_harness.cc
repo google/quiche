@@ -32,7 +32,7 @@ namespace {
 MoqtSessionParameters CreateParameters(quic::Perspective perspective,
                                        absl::string_view version) {
   MoqtSessionParameters parameters(perspective, "/foo", "example.com");
-  parameters.version = version;
+  parameters.versions = {std::string(version)};
   return parameters;
 }
 

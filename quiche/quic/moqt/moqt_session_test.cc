@@ -2765,6 +2765,27 @@ TEST_F(MoqtSessionTest, NoSubprotocol) {
   session_.OnSessionReady();
 }
 
+TEST_F(MoqtSessionTest, ServerAcceptsDraft18AndDraft22) {
+  for (absl::string_view draft : {kDraft18, kDraft22}) {
+    MockSessionCallbacks server_callbacks;
+    MoqtSession server_session(
+        &mock_session_, MoqtSessionParameters(quic::Perspective::IS_SERVER),
+        std::make_unique<quic::test::TestAlarmFactory>(),
+        server_callbacks.AsSessionCallbacks());
+    webtransport::test::InMemoryStreamWithWriteBuffer control_stream(0);
+    EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
+        .WillOnce(Return(std::optional<std::string>(draft)));
+    EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream)
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream)
+        .WillOnce(Return(&control_stream));
+    EXPECT_CALL(server_callbacks.session_terminated_callback, Call).Times(0);
+    EXPECT_CALL(server_callbacks.session_deleted_callback, Call);
+    server_session.OnSessionReady();
+    EXPECT_FALSE(control_stream.write_buffer().empty()) << draft;
+  }
+}
+
 TEST_F(MoqtSessionTest, NamespaceNotAllowedOnControlStream) {
   bidi_wrapper_ =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);

@@ -12,6 +12,7 @@
 #include <utility>
 #include <variant>
 
+#include "absl/algorithm/container.h"
 #include "absl/base/casts.h"
 #include "absl/base/nullability.h"
 #include "absl/container/btree_map.h"
@@ -108,6 +109,9 @@ MoqtSession::MoqtSession(webtransport::Session* session,
       std::move(callback)(absl::string_view(), quic::QuicTimeDelta::Zero());
     });
   }
+  if (!parameters_.versions.empty()) {
+    negotiated_version_ = parameters_.versions[0];
+  }
   if (parameters_.perspective == Perspective::IS_SERVER) {
     next_request_id_ = 1;
   }
@@ -128,11 +132,13 @@ void MoqtSession::SendControlMessage(quiche::QuicheBuffer message) {
 void MoqtSession::OnSessionReady() {
   QUICHE_DLOG(INFO) << ENDPOINT << "Underlying session ready";
   std::optional<std::string> version = session_->GetNegotiatedSubprotocol();
-  if (version != parameters_.version) {
+  if (!version.has_value() ||
+      !absl::c_linear_search(parameters_.versions, *version)) {
     Error(MoqtError::kVersionNegotiationFailed,
           "MOQT peer chose wrong subprotocol");
     return;
   }
+  negotiated_version_ = *std::move(version);
   if (!session_->CanOpenNextOutgoingUnidirectionalStream()) {
     Error(MoqtError::kControlMessageTimeout, "Unable to open a control stream");
     return;

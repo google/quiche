@@ -29,7 +29,8 @@ class QUICHE_EXPORT MoqtClient {
              const quic::QuicServerId& server_id,
              std::unique_ptr<quic::ProofVerifier> proof_verifier,
              quic::QuicEventLoop* event_loop,
-             MoqtSessionParameters parameters = MoqtSessionParameters());
+             MoqtSessionParameters parameters =
+                 MoqtSessionParameters(quic::Perspective::IS_CLIENT));
 
   // Establishes the connection to the specified endpoint. The errors are
   // returned via the session termination callback.

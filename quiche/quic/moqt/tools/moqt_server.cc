@@ -93,10 +93,16 @@ MoqtServer::MoqtServer(std::unique_ptr<quic::ProofSource> proof_source,
   dispatcher_.parameters().handler_factory = CreateWebTransportCallback(
       std::move(callback), event_loop_.get(), session_parameters_);
   dispatcher_.parameters().subprotocol_callback =
-      +[](absl::Span<const absl::string_view> subprotocols) {
-        return absl::c_find(subprotocols, kDefaultMoqtVersion) -
-               subprotocols.begin();
-      };
+      [versions = session_parameters_.versions](
+          absl::Span<const absl::string_view> subprotocols) -> int {
+    for (const std::string& supported : versions) {
+      auto it = absl::c_find(subprotocols, supported);
+      if (it != subprotocols.end()) {
+        return static_cast<int>(it - subprotocols.begin());
+      }
+    }
+    return -1;
+  };
 }
 
 absl::Status MoqtServer::CreateUDPSocketAndListen(

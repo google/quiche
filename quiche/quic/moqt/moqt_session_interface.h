@@ -31,27 +31,39 @@
 namespace moqt {
 
 inline constexpr absl::string_view kDraft18 = "moqt-18";
-inline constexpr absl::string_view kDefaultMoqtVersion = kDraft18;
+inline constexpr absl::string_view kDraft22 = "moqt-22";
+inline constexpr absl::string_view kDefaultMoqtVersion = kDraft22;
 inline constexpr absl::string_view kUnrecognizedVersionForTests = "moqt-15";
 
 inline constexpr absl::string_view kImplementationName =
-    "Google QUICHE MOQT draft 18";
+    "Google QUICHE MOQT draft 22";
 struct QUICHE_EXPORT MoqtSessionParameters {
-  // TODO: support multiple versions.
   MoqtSessionParameters() = default;
   explicit MoqtSessionParameters(quic::Perspective perspective)
-      : perspective(perspective), using_webtrans(true) {}
+      : versions(DefaultVersionsForPerspective(perspective)),
+        perspective(perspective),
+        using_webtrans(true) {}
   explicit MoqtSessionParameters(size_t max_undelivered_object)
       : max_undelivered_object(max_undelivered_object) {}
   MoqtSessionParameters(quic::Perspective perspective, std::string path,
                         std::string authority)
-      : perspective(perspective),
+      : versions(DefaultVersionsForPerspective(perspective)),
+        perspective(perspective),
         using_webtrans(false),
         path(std::move(path)),
         authority(std::move(authority)) {}
   bool operator==(const MoqtSessionParameters& other) const = default;
 
-  std::string version = std::string(kDefaultMoqtVersion);
+  static std::vector<std::string> DefaultVersionsForPerspective(
+      quic::Perspective perspective) {
+    if (perspective == quic::Perspective::IS_SERVER) {
+      return {std::string(kDraft22), std::string(kDraft18)};
+    }
+    return {std::string(kDefaultMoqtVersion)};
+  }
+
+  std::vector<std::string> versions =
+      DefaultVersionsForPerspective(quic::Perspective::IS_SERVER);
   // If zero, partial object payloads are always delivered. If non-zero, the
   // session will buffer objects up to this size before delivering. If an
   // object is larger than the specified limit, the session will reset the

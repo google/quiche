@@ -405,7 +405,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   void CleanUpState();
 
   MoqtControlMessageParser ControlMessageParser() const {
-    return MoqtControlMessageParser(parameters_.version,
+    return MoqtControlMessageParser(negotiated_version_,
                                     parameters_.using_webtrans,
                                     parameters_.perspective);
   }
@@ -417,6 +417,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool is_closing_ = false;
   webtransport::Session* session_;
   MoqtSessionParameters parameters_;
+  std::string negotiated_version_ = std::string(kDefaultMoqtVersion);
   MoqtSessionCallbacks callbacks_;
   MoqtFramer framer_;
 

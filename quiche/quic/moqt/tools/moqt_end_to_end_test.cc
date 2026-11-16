@@ -19,7 +19,10 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
@@ -72,10 +75,13 @@ class MoqtEndToEndTest : public quiche::test::QuicheTest {
     };
   }
 
-  std::unique_ptr<MoqtClient> CreateClient() {
+  std::unique_ptr<MoqtClient> CreateClient(
+      MoqtSessionParameters parameters =
+          MoqtSessionParameters(quic::Perspective::IS_CLIENT)) {
     return std::make_unique<MoqtClient>(
         server_address_, quic::QuicServerId("test.example.com", 443),
-        quic::test::crypto_test_utils::ProofVerifierForTesting(), event_loop_);
+        quic::test::crypto_test_utils::ProofVerifierForTesting(), event_loop_,
+        std::move(parameters));
   }
 
   bool RunEventsUntil(quiche::UnretainedCallback<bool()> callback) {
@@ -172,6 +178,21 @@ TEST_F(MoqtEndToEndTest, CustomParametersHandshake) {
   ASSERT_NE(server_session, nullptr);
   EXPECT_EQ(
       MoqtSessionPeer::GetParameters(server_session).max_undelivered_object, 0);
+}
+
+TEST_F(MoqtEndToEndTest, Draft18Handshake) {
+  MoqtSessionParameters client_parameters(quic::Perspective::IS_CLIENT);
+  client_parameters.versions = {std::string(kDraft18)};
+  std::unique_ptr<MoqtClient> client = CreateClient(client_parameters);
+
+  MoqtSessionCallbacks callbacks;
+  bool established = false;
+  callbacks.session_established_callback = [&] { established = true; };
+  callbacks.session_terminated_callback = UnexpectedClose;
+  client->Connect("/test", std::move(callbacks));
+
+  bool success = RunEventsUntil([&] { return established; });
+  EXPECT_TRUE(success);
 }
 
 }  // namespace
