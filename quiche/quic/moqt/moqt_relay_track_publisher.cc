@@ -41,10 +41,15 @@ void MoqtRelayTrackPublisher::OnReply(
     object_ack_function_ = nullptr;
     // Delete upstream_ to avoid sending UNSUBSCRIBE.
     upstream_ = quiche::QuicheWeakPtr<MoqtSessionInterface>();
-    // Sessions will delete listeners, causing the track to delete itself.
-    for (MoqtObjectListener* listener : listeners_) {
+    is_closing_ = true;
+    while (!listeners_.empty()) {
+      auto it = listeners_.begin();
+      MoqtObjectListener* listener = *it;
+      listeners_.erase(it);
       listener->OnSubscribeRejected(request_error);
     }
+    DeleteTrack();
+    // No class access below this line!
     return;
   }
   SubscribeOkData ok_data = std::get<SubscribeOkData>(response);

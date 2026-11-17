@@ -309,6 +309,25 @@ TEST_F(MoqtRelayTrackPublisherTest, SubscribeRejected) {
   EXPECT_TRUE(track_deleted_);
 }
 
+TEST_F(MoqtRelayTrackPublisherTest, SubscribeRejectedMultipleListeners) {
+  EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener_, MessageParameters());
+  MockMoqtObjectListener listener2;
+  publisher_.AddObjectListener(&listener2, MessageParameters());
+  EXPECT_CALL(listener_, OnSubscribeRejected).WillOnce([this] {
+    publisher_.RemoveObjectListener(&listener_);
+    EXPECT_FALSE(track_deleted_);
+  });
+  EXPECT_CALL(listener2, OnSubscribeRejected).WillOnce([this, &listener2] {
+    publisher_.RemoveObjectListener(&listener2);
+    EXPECT_FALSE(track_deleted_);
+  });
+  publisher_.OnReply(kTrackName,
+                     MoqtRequestErrorInfo{RequestErrorCode::kUnauthorized,
+                                          std::nullopt, "Unauthorized"});
+  EXPECT_TRUE(track_deleted_);
+}
+
 TEST_F(MoqtRelayTrackPublisherTest, LastListenerGone) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
   publisher_.AddObjectListener(&listener_, MessageParameters());
