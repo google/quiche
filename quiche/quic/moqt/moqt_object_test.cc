@@ -6,6 +6,7 @@
 
 #include <cstring>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -19,6 +20,9 @@
 namespace moqt {
 namespace test {
 namespace {
+
+static_assert(std::is_nothrow_move_constructible_v<PublishedObject>);
+static_assert(std::is_move_assignable_v<PublishedObject>);
 
 class CachedObjectTest : public quiche::test::QuicheTest {
  public:

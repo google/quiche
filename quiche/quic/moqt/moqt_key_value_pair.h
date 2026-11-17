@@ -69,6 +69,10 @@ struct KeyValuePair {
 class QUICHE_EXPORT KeyValuePairList {
  public:
   KeyValuePairList() = default;
+  KeyValuePairList(const KeyValuePairList&) = default;
+  KeyValuePairList(KeyValuePairList&&) noexcept = default;
+  KeyValuePairList& operator=(const KeyValuePairList& other) = default;
+  KeyValuePairList& operator=(KeyValuePairList&& other) noexcept = default;
 
   size_t size() const { return map_.size(); }
   void insert(KeyValuePair pair);
@@ -85,7 +89,6 @@ class QUICHE_EXPORT KeyValuePairList {
   ValueVector Get(uint64_t key) const;
   void clear() { map_.clear(); }
   bool operator==(const KeyValuePairList& other) const = default;
-  KeyValuePairList& operator=(const KeyValuePairList& other) = default;
 
   // Returns the first key in the range [min_key, max_key], or nullopt if
   // there is no such key.
@@ -381,13 +384,6 @@ inline constexpr uint64_t kMinMandatoryTrackProperty = 0x4000;
 inline constexpr uint64_t kMaxMandatoryTrackProperty = 0x7FFF;
 class QUICHE_EXPORT MoqtProperties : public KeyValuePairList {
  public:
-  MoqtProperties() = default;
-  MoqtProperties(const MoqtProperties&) = default;
-  explicit MoqtProperties(std::initializer_list<KeyValuePair> list) {
-    for (const auto& pair : list) {
-      insert(pair);
-    }
-  }
   virtual ~MoqtProperties() = default;
 
   void clear() {
@@ -433,9 +429,19 @@ class QUICHE_EXPORT MoqtProperties : public KeyValuePairList {
                      "Unknown mandatory property: 0x", absl::Hex(*key)));
   }
   bool operator==(const MoqtProperties& other) const = default;
-  MoqtProperties& operator=(const MoqtProperties& other) = default;
 
  protected:
+  MoqtProperties() = default;
+  explicit MoqtProperties(std::initializer_list<KeyValuePair> list) {
+    for (const auto& pair : list) {
+      insert(pair);
+    }
+  }
+  MoqtProperties(const MoqtProperties&) = default;
+  MoqtProperties(MoqtProperties&&) noexcept = default;
+  MoqtProperties& operator=(const MoqtProperties& other) = default;
+  MoqtProperties& operator=(MoqtProperties&& other) noexcept = default;
+
   size_t TotalCount(PropertyType header) const {
     uint64_t key = static_cast<uint64_t>(header);
     return count(key) + immutable_properties_.count(key);
@@ -455,13 +461,14 @@ class QUICHE_EXPORT MoqtProperties : public KeyValuePairList {
 
 class QUICHE_EXPORT TrackProperties : public MoqtProperties {
  public:
-  using MoqtProperties::MoqtProperties;
   TrackProperties() = default;
   explicit TrackProperties(std::initializer_list<KeyValuePair> list)
       : MoqtProperties(list) {}
   TrackProperties(const TrackProperties&) = default;
-  bool operator==(const TrackProperties& other) const = default;
+  TrackProperties(TrackProperties&&) noexcept = default;
   TrackProperties& operator=(const TrackProperties& other) = default;
+  TrackProperties& operator=(TrackProperties&& other) noexcept = default;
+  bool operator==(const TrackProperties& other) const = default;
 
   // Returns true if the property list renders the track malformed (e.g., it
   // contains object-only properties, duplicate known properties, or malformed
@@ -471,13 +478,14 @@ class QUICHE_EXPORT TrackProperties : public MoqtProperties {
 
 class QUICHE_EXPORT ObjectProperties : public MoqtProperties {
  public:
-  using MoqtProperties::MoqtProperties;
   ObjectProperties() = default;
   explicit ObjectProperties(std::initializer_list<KeyValuePair> list)
       : MoqtProperties(list) {}
   ObjectProperties(const ObjectProperties&) = default;
-  bool operator==(const ObjectProperties& other) const = default;
+  ObjectProperties(ObjectProperties&&) noexcept = default;
   ObjectProperties& operator=(const ObjectProperties& other) = default;
+  ObjectProperties& operator=(ObjectProperties&& other) noexcept = default;
+  bool operator==(const ObjectProperties& other) const = default;
 
   // Returns true if the property list renders the track malformed (e.g., it
   // contains track-only properties, duplicate known properties, or malformed

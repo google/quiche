@@ -6,6 +6,8 @@
 
 #include <cstdint>
 #include <optional>
+#include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -20,6 +22,17 @@
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace moqt::test {
+
+static_assert(std::is_nothrow_move_constructible_v<KeyValuePairList>);
+static_assert(std::is_nothrow_move_assignable_v<KeyValuePairList>);
+static_assert(!std::is_copy_constructible_v<MoqtProperties>);
+static_assert(!std::is_move_constructible_v<MoqtProperties>);
+static_assert(!std::is_copy_assignable_v<MoqtProperties>);
+static_assert(!std::is_move_assignable_v<MoqtProperties>);
+static_assert(std::is_nothrow_move_constructible_v<TrackProperties>);
+static_assert(std::is_nothrow_move_assignable_v<TrackProperties>);
+static_assert(std::is_nothrow_move_constructible_v<ObjectProperties>);
+static_assert(std::is_nothrow_move_assignable_v<ObjectProperties>);
 
 class LocationTest : public quic::test::QuicTest {};
 
@@ -630,6 +643,46 @@ TEST_F(ObjectPropertiesTest, IsMalformed) {
     duplicate.insert({known_object_prop, 2ULL});
     EXPECT_TRUE(duplicate.IsMalformed());
   }
+}
+
+TEST_F(ObjectPropertiesTest, MoveOperations) {
+  TrackProperties track_props({
+      {PropertyType::kObjectDeliveryTimeout,
+       quic::QuicTimeDelta::FromMilliseconds(10)},
+  });
+  KeyValuePairList track_immutable;
+  track_immutable.insert({PropertyType::kDynamicGroups, 1ULL});
+  track_props.AddImmutablePropertyList(track_immutable);
+  TrackProperties expected_track_props = track_props;
+
+  TrackProperties moved_track_props(std::move(track_props));
+  EXPECT_EQ(moved_track_props, expected_track_props);
+  EXPECT_TRUE(moved_track_props.dynamic_groups());
+
+  TrackProperties assigned_track_props;
+  assigned_track_props = std::move(moved_track_props);
+  EXPECT_EQ(assigned_track_props, expected_track_props);
+  EXPECT_TRUE(assigned_track_props.dynamic_groups());
+
+  ObjectProperties object_props({
+      {PropertyType::kPriorGroupIdGap, 2ULL},
+      {PropertyType::kPriorObjectIdGap, 3ULL},
+  });
+  KeyValuePairList object_immutable;
+  object_immutable.insert({PropertyType::kObjectDeliveryTimeout, 15ULL});
+  object_props.AddImmutablePropertyList(object_immutable);
+  ObjectProperties expected_object_props = object_props;
+
+  ObjectProperties moved_object_props(std::move(object_props));
+  EXPECT_EQ(moved_object_props, expected_object_props);
+  EXPECT_EQ(moved_object_props.object_delivery_timeout(),
+            quic::QuicTimeDelta::FromMilliseconds(15));
+
+  ObjectProperties assigned_object_props;
+  assigned_object_props = std::move(moved_object_props);
+  EXPECT_EQ(assigned_object_props, expected_object_props);
+  EXPECT_EQ(assigned_object_props.object_delivery_timeout(),
+            quic::QuicTimeDelta::FromMilliseconds(15));
 }
 
 }  // namespace moqt::test
