@@ -5,8 +5,11 @@
 #include "quiche/quic/qbone/platform/netlink.h"
 
 #include <linux/fib_rules.h>
+#include <linux/if_link.h>
 
+#include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -104,6 +107,7 @@ class LinkInfoParser : public NetlinkParserInterface {
     char broadcast_address[kHwAddrSize];
     size_t broadcast_address_length = 0;
     std::string name;
+    std::optional<uint64_t> tx_dropped;
 
     // loop through the attributes
     struct rtattr* rta;
@@ -139,6 +143,14 @@ class LinkInfoParser : public NetlinkParserInterface {
           name = name.substr(0, name.find('\0'));
           break;
         }
+        case IFLA_STATS64: {
+          if (RTA_PAYLOAD(rta) >= sizeof(struct rtnl_link_stats64)) {
+            struct rtnl_link_stats64 stats;
+            memcpy(&stats, RTA_DATA(rta), sizeof(stats));
+            tx_dropped = stats.tx_dropped;
+          }
+          break;
+        }
       }
     }
 
@@ -158,6 +170,7 @@ class LinkInfoParser : public NetlinkParserInterface {
         memmove(&link_info_->broadcast_address, broadcast_address,
                 broadcast_address_length);
       }
+      link_info_->tx_dropped = tx_dropped;
       found_link_ = true;
     }
   }

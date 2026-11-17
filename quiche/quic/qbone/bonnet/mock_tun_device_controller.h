@@ -5,6 +5,9 @@
 #ifndef QUICHE_QUIC_QBONE_BONNET_MOCK_TUN_DEVICE_CONTROLLER_H_
 #define QUICHE_QUIC_QBONE_BONNET_MOCK_TUN_DEVICE_CONTROLLER_H_
 
+#include <cstdint>
+#include <optional>
+
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/bonnet/tun_device_controller.h"
 
@@ -20,6 +23,8 @@ class MockTunDeviceController : public TunDeviceController {
               (override));
 
   MOCK_METHOD(QuicIpAddress, current_address, (), (override));
+
+  MOCK_METHOD(std::optional<uint64_t>, GetTxDropped, (), (override));
 };
 
 }  // namespace quic

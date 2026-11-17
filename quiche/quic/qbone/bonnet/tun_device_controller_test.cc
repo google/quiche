@@ -236,6 +236,31 @@ TEST_F(TunDeviceControllerTest, DisablingRoutingRulesSkipsRuleCreation) {
   EXPECT_TRUE(controller_.UpdateRoutes(kIpRange, {kIpRange, kIpRange}));
 }
 
+TEST_F(TunDeviceControllerTest, GetTxDroppedReturnsValue) {
+  EXPECT_CALL(netlink_, GetLinkInfo(kIfname, _))
+      .WillOnce(
+          [](absl::string_view ifname, NetlinkInterface::LinkInfo* link_info) {
+            link_info->index = kIfindex;
+            link_info->tx_dropped = 17;
+            return true;
+          });
+
+  EXPECT_THAT(controller_.GetTxDropped(), Eq(17));
+}
+
+TEST_F(TunDeviceControllerTest, GetTxDroppedReturnsNulloptWhenUnavailable) {
+  EXPECT_CALL(netlink_, GetLinkInfo(kIfname, _))
+      .WillOnce(
+          [](absl::string_view ifname, NetlinkInterface::LinkInfo* link_info) {
+            link_info->index = kIfindex;
+            return true;
+          });
+  EXPECT_THAT(controller_.GetTxDropped(), Eq(std::nullopt));
+
+  EXPECT_CALL(netlink_, GetLinkInfo(kIfname, _)).WillOnce(Return(false));
+  EXPECT_THAT(controller_.GetTxDropped(), Eq(std::nullopt));
+}
+
 class DisabledTunDeviceControllerTest : public QuicTest {
  public:
   DisabledTunDeviceControllerTest()

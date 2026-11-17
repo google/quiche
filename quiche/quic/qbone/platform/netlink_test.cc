@@ -4,6 +4,8 @@
 
 #include "quiche/quic/qbone/platform/netlink.h"
 
+#include <linux/if_link.h>
+
 #include <functional>
 #include <memory>
 #include <string>
@@ -266,6 +268,75 @@ TEST_F(NetlinkTest, GetLinkInfoWorks) {
   for (int i = 0; i < link_info.broadcast_address_length; ++i) {
     EXPECT_EQ(bcaddr[i], link_info.broadcast_address[i]);
   }
+  EXPECT_FALSE(link_info.tx_dropped.has_value());
+}
+
+TEST_F(NetlinkTest, GetLinkInfoParsesStats64) {
+  auto netlink = std::make_unique<Netlink>(&mock_kernel_);
+
+  uint8_t hwaddr[] = {'a', 'b', 'c', 'd', 'e', 'f'};
+  uint8_t bcaddr[] = {'c', 'b', 'a', 'f', 'e', 'd'};
+  struct rtnl_link_stats64 stats{};
+  stats.tx_dropped = 42;
+
+  ExpectNetlinkPacket(
+      RTM_GETLINK, NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST,
+      [&hwaddr, &bcaddr, &stats](void* buf, size_t len, int seq) {
+        int ret = 0;
+
+        struct nlmsghdr* netlink_message =
+            CreateNetlinkMessage(buf, nullptr, RTM_NEWLINK, seq);
+        CreateIfinfomsg(netlink_message, "tun0", /* type = */ 1,
+                        /* index = */ 7,
+                        /* flags = */ 0,
+                        /* change = */ 0xFFFFFFFF, hwaddr, 6, bcaddr, 6);
+        AddRTA(netlink_message, IFLA_STATS64, &stats, sizeof(stats));
+        ret += NLMSG_ALIGN(netlink_message->nlmsg_len);
+
+        netlink_message =
+            CreateNetlinkMessage(buf, netlink_message, NLMSG_DONE, seq);
+        ret += NLMSG_ALIGN(netlink_message->nlmsg_len);
+
+        return ret;
+      });
+
+  Netlink::LinkInfo link_info;
+  EXPECT_TRUE(netlink->GetLinkInfo("tun0", &link_info));
+  EXPECT_EQ(link_info.tx_dropped, 42);
+}
+
+TEST_F(NetlinkTest, GetLinkInfoIgnoresTruncatedStats64) {
+  auto netlink = std::make_unique<Netlink>(&mock_kernel_);
+
+  uint8_t hwaddr[] = {'a', 'b', 'c', 'd', 'e', 'f'};
+  uint8_t bcaddr[] = {'c', 'b', 'a', 'f', 'e', 'd'};
+  char truncated_stats[sizeof(struct rtnl_link_stats64) - 1] = {};
+
+  ExpectNetlinkPacket(
+      RTM_GETLINK, NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST,
+      [&hwaddr, &bcaddr, &truncated_stats](void* buf, size_t len, int seq) {
+        int ret = 0;
+
+        struct nlmsghdr* netlink_message =
+            CreateNetlinkMessage(buf, nullptr, RTM_NEWLINK, seq);
+        CreateIfinfomsg(netlink_message, "tun0", /* type = */ 1,
+                        /* index = */ 7,
+                        /* flags = */ 0,
+                        /* change = */ 0xFFFFFFFF, hwaddr, 6, bcaddr, 6);
+        AddRTA(netlink_message, IFLA_STATS64, truncated_stats,
+               sizeof(truncated_stats));
+        ret += NLMSG_ALIGN(netlink_message->nlmsg_len);
+
+        netlink_message =
+            CreateNetlinkMessage(buf, netlink_message, NLMSG_DONE, seq);
+        ret += NLMSG_ALIGN(netlink_message->nlmsg_len);
+
+        return ret;
+      });
+
+  Netlink::LinkInfo link_info;
+  EXPECT_TRUE(netlink->GetLinkInfo("tun0", &link_info));
+  EXPECT_FALSE(link_info.tx_dropped.has_value());
 }
 
 TEST_F(NetlinkTest, GetAddressesWorks) {

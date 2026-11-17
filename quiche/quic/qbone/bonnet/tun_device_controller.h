@@ -5,6 +5,9 @@
 #ifndef QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_CONTROLLER_H_
 #define QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_CONTROLLER_H_
 
+#include <cstdint>
+#include <optional>
+
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/qbone/bonnet/tun_device.h"
 #include "quiche/quic/qbone/platform/netlink_interface.h"
@@ -55,6 +58,10 @@ class TunDeviceController {
       quiche::MultiUseCallback<void(const QuicIpAddress&)> cb);
 
   virtual QuicIpAddress current_address();
+
+  // Returns the number of packets dropped on the TUN device's TX queue, or
+  // std::nullopt if unavailable.
+  virtual std::optional<uint64_t> GetTxDropped();
 
  private:
   // Update the IP Rules, this should only be used by UpdateRoutes.

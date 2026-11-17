@@ -7,6 +7,9 @@
 
 #include <linux/rtnetlink.h>
 
+#include <cstdint>
+#include <optional>
+
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/qbone/platform/ip_range.h"
 
@@ -34,6 +37,7 @@ class NetlinkInterface {
     uint8_t broadcast_address[kHwAddrSize];
     size_t hardware_address_length;   // 0 if no hardware address found
     size_t broadcast_address_length;  // 0 if no broadcast address found
+    std::optional<uint64_t> tx_dropped;
   };
 
   // Gets the link information for the interface referred by the given

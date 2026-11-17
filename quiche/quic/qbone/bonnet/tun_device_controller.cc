@@ -6,6 +6,8 @@
 
 #include <linux/rtnetlink.h>
 
+#include <cstdint>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -168,6 +170,17 @@ bool TunDeviceController::UpdateRules(IpRange desired_range) {
 
 QuicIpAddress TunDeviceController::current_address() {
   return current_address_;
+}
+
+std::optional<uint64_t> TunDeviceController::GetTxDropped() {
+  if (netlink_ == nullptr) {
+    return std::nullopt;
+  }
+  NetlinkInterface::LinkInfo link_info{};
+  if (!netlink_->GetLinkInfo(ifname_, &link_info)) {
+    return std::nullopt;
+  }
+  return link_info.tx_dropped;
 }
 
 void TunDeviceController::RegisterAddressUpdateCallback(
