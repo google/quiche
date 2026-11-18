@@ -1107,6 +1107,10 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
     if (server_padding_enabled_.has_value()) {
       ssl_config.server_padding_enabled = *server_padding_enabled_;
     }
+    if (require_retry_token_for_zero_rtt_.has_value()) {
+      ssl_config.require_retry_token_for_zero_rtt =
+          *require_retry_token_for_zero_rtt_;
+    }
 
     return ssl_config;
   }
@@ -1117,6 +1121,9 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
 
   void set_server_padding_enabled(std::optional<bool> enabled) {
     server_padding_enabled_ = enabled;
+  }
+  void set_require_retry_token_for_zero_rtt(std::optional<bool> required) {
+    require_retry_token_for_zero_rtt_ = required;
   }
 
  private:
@@ -1131,6 +1138,9 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
   // If not nullopt, override the server_padding_enabled value from base class'
   // ssl_config.
   std::optional<bool> server_padding_enabled_;
+  // If not nullopt, override the require_retry_token_for_zero_rtt value from
+  // base class' ssl_config.
+  std::optional<bool> require_retry_token_for_zero_rtt_;
 };
 
 class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {

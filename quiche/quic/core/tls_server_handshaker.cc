@@ -1061,6 +1061,18 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     return ssl_select_cert_error;
   }
 
+  if (early_data_attempted_ &&
+      tls_connection_.ssl_config().early_data_enabled.value_or(true)) {
+    if (session()->connection()->GetStats().address_validated_via_token) {
+      QUIC_CODE_COUNT(quic_address_validated_for_zero_rtt);
+    } else {
+      QUIC_CODE_COUNT(quic_address_not_validated_for_zero_rtt);
+      if (tls_connection_.ssl_config().require_retry_token_for_zero_rtt) {
+        tls_connection_.DisableEarlyData();
+      }
+    }
+  }
+
   can_disable_resumption_ = false;
   const QuicAsyncStatus status = proof_source_handle_->SelectCertificate(
       session()->connection()->self_address().Normalized(),

@@ -175,8 +175,22 @@ void MovePackets(const QuicConnection& source_conn,
         }
       }
     }
+    if (dest_conn.version().IsIetfQuic() &&
+        dest_conn.perspective() == Perspective::IS_SERVER &&
+        !framer.header().retry_token.empty() &&
+        QuicConnectionPeer::GetVisitor(&dest_conn) != nullptr &&
+        QuicConnectionPeer::GetVisitor(&dest_conn)
+            ->ValidateToken(framer.header().retry_token)) {
+      QuicConnectionPeer::SetAddressValidatedViaToken(&dest_conn, true);
+    }
     for (const auto& crypto_frame : framer.crypto_frames()) {
       dest_stream.OnCryptoFrame(*crypto_frame);
+    }
+    if (dest_conn.version().IsIetfQuic() &&
+        dest_conn.perspective() == Perspective::IS_CLIENT) {
+      for (const auto& new_token_frame : framer.new_token_frames()) {
+        dest_conn.OnNewTokenFrame(new_token_frame);
+      }
     }
     if (!framer.connection_close_frames().empty() && dest_conn.connected()) {
       dest_conn.OnConnectionCloseFrame(framer.connection_close_frames()[0]);
@@ -350,6 +364,10 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                                    testing::_, testing::_))
       .Times(testing::AnyNumber());
   EXPECT_CALL(*server_conn, OnCanWrite()).Times(testing::AnyNumber());
+  EXPECT_CALL(*server_conn, SendControlFrame(_))
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Invoke(
+          server_conn, &PacketSavingConnection::ReallySendControlFrame));
   EXPECT_CALL(*client_conn, OnCanWrite()).Times(testing::AnyNumber());
   EXPECT_CALL(*server_conn, SendCryptoData(_, _, _))
       .Times(testing::AnyNumber());

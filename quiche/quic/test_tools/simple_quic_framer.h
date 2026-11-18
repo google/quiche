@@ -46,6 +46,7 @@ class SimpleQuicFramer {
   const std::vector<QuicWindowUpdateFrame>& window_update_frames() const;
   const std::vector<QuicGoAwayFrame>& goaway_frames() const;
   const std::vector<QuicRstStreamFrame>& rst_stream_frames() const;
+  const std::vector<QuicNewTokenFrame>& new_token_frames() const;
   const std::vector<std::unique_ptr<QuicStreamFrame>>& stream_frames() const;
   const std::vector<std::unique_ptr<QuicCryptoFrame>>& crypto_frames() const;
   const std::vector<QuicPaddingFrame>& padding_frames() const;

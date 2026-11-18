@@ -927,6 +927,9 @@ struct QUICHE_EXPORT QuicSSLConfig {
   // server_padding_to_request.
   // This is experimental, and will be removed once the experiment is complete.
   bool server_padding_enabled = false;
+  // Only used by the server. If true, require a validated retry token in the
+  // client Initial packet to accept 0-RTT in IETF QUIC.
+  bool require_retry_token_for_zero_rtt = false;
 };
 
 QUICHE_EXPORT bool operator==(const QuicSSLConfig& lhs,

@@ -680,5 +680,17 @@ QuicConnectionPeer::GetLastReceivedPacketInfo(QuicConnection* connection) {
   return connection->last_received_packet_info_;
 }
 
+// static
+QuicConnectionVisitorInterface* QuicConnectionPeer::GetVisitor(
+    QuicConnection* connection) {
+  return connection->visitor_;
+}
+
+// static
+void QuicConnectionPeer::SetAddressValidatedViaToken(QuicConnection* connection,
+                                                     bool validated) {
+  connection->stats_.address_validated_via_token = validated;
+}
+
 }  // namespace test
 }  // namespace quic

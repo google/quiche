@@ -285,6 +285,9 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   const std::vector<QuicGoAwayFrame>& goaway_frames() const {
     return goaway_frames_;
   }
+  const std::vector<QuicNewTokenFrame>& new_token_frames() const {
+    return new_token_frames_;
+  }
   const std::vector<QuicMaxStreamsFrame>& max_streams_frames() const {
     return max_streams_frames_;
   }
@@ -475,6 +478,11 @@ const std::vector<QuicRstStreamFrame>& SimpleQuicFramer::rst_stream_frames()
 
 const std::vector<QuicGoAwayFrame>& SimpleQuicFramer::goaway_frames() const {
   return visitor_->goaway_frames();
+}
+
+const std::vector<QuicNewTokenFrame>& SimpleQuicFramer::new_token_frames()
+    const {
+  return visitor_->new_token_frames();
 }
 
 const std::vector<QuicConnectionCloseFrame>&

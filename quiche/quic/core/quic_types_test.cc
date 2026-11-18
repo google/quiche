@@ -40,6 +40,11 @@ TEST(QuicSSLConfigTest, Equality) {
   EXPECT_NE(config1, config2);
   config2.reject_unusable_ech_config = true;
   EXPECT_EQ(config1, config2);
+
+  config1.require_retry_token_for_zero_rtt = true;
+  EXPECT_NE(config1, config2);
+  config2.require_retry_token_for_zero_rtt = true;
+  EXPECT_EQ(config1, config2);
 }
 
 }  // namespace

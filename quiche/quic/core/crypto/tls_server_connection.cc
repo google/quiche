@@ -115,6 +115,14 @@ void TlsServerConnection::SetClientCertMode(ClientCertMode client_cert_mode) {
   UpdateCertVerifyCallback();
 }
 
+void TlsServerConnection::DisableEarlyData() {
+  if (!ssl_config().early_data_enabled.value_or(true)) {
+    return;
+  }
+  mutable_ssl_config().early_data_enabled = false;
+  SSL_set_early_data_enabled(ssl(), 0);
+}
+
 void TlsServerConnection::UpdateCertVerifyCallback() {
   const ClientCertMode client_cert_mode = ssl_config().client_cert_mode;
   if (client_cert_mode == ClientCertMode::kNone) {

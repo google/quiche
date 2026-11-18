@@ -321,6 +321,8 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
             server_connection_, DefaultQuicConfig(), supported_versions_,
             server_crypto_config_.get(), &server_compressed_certs_cache_);
     server_session->set_client_cert_mode(initial_client_cert_mode_);
+    server_session->set_require_retry_token_for_zero_rtt(
+        initial_require_retry_token_for_zero_rtt_);
     server_session->Initialize();
 
     // We advance the clock initially because the default time is zero and the
@@ -349,6 +351,16 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
     crypto_test_utils::SetupCryptoServerConfigForTest(
         server_connection_->clock(), server_connection_->random_generator(),
         server_crypto_config_.get());
+  }
+
+  void RunSyncHandshakeWithFakeProofSourceHandle() {
+    InitializeServerWithFakeProofSourceHandle();
+    server_handshaker_->SetupProofSourceHandle(
+        /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+        /*compute_signature_action=*/
+        FakeProofSourceHandle::Action::DELEGATE_SYNC);
+    InitializeFakeClient();
+    CompleteCryptoHandshake();
   }
 
   // Initializes the crypto server stream state for testing.  May be
@@ -430,6 +442,11 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
     EXPECT_CALL(*server_connection_, OnCanWrite()).Times(testing::AnyNumber());
     // Call CryptoConnect if we haven't moved any client messages yet.
     if (moved_messages_counts_.first == 0) {
+      EXPECT_CALL(*server_connection_, SendControlFrame(_))
+          .Times(testing::AnyNumber())
+          .WillRepeatedly(
+              testing::Invoke(server_connection_,
+                              &PacketSavingConnection::ReallySendControlFrame));
       client_stream()->CryptoConnect();
     }
     moved_messages_counts_ = crypto_test_utils::AdvanceHandshake(
@@ -536,6 +553,7 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
   QuicCompressedCertsCache server_compressed_certs_cache_;
   QuicServerId server_id_;
   ClientCertMode initial_client_cert_mode_ = ClientCertMode::kNone;
+  std::optional<bool> initial_require_retry_token_for_zero_rtt_;
 
   // Client state.
   PacketSavingConnection* client_connection_;
@@ -1947,6 +1965,100 @@ TEST_P(TlsServerHandshakerTest, CachedSslInfoAfterResetSsl) {
   EXPECT_EQ(server_stream()->TlsGroupId(), tls_group_id);
   EXPECT_EQ(server_stream()->TlsGroupString(), tls_group_string);
   EXPECT_EQ(TlsServerHandshakerPeer::GetServerParams(handshaker), nullptr);
+}
+
+TEST_P(TlsServerHandshakerTest, ZeroRttRejectedWithoutRetryToken) {
+  if (GetParam().disable_resumption) {
+    return;
+  }
+  initial_require_retry_token_for_zero_rtt_ = true;
+  SetQuicFlag(quic_reject_retry_token_in_initial_packet, false);
+
+  // Initial 1-RTT connection has no retry token and does not attempt early
+  // data, so early data remains enabled in SelectCertArgs and a 0-RTT-capable
+  // ticket plus NEW_TOKEN are issued.
+  RunSyncHandshakeWithFakeProofSourceHandle();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(server_connection_->GetStats().address_validated_via_token);
+  EXPECT_FALSE(server_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->IsZeroRtt());
+  EXPECT_TRUE(
+      last_select_cert_args().ssl_config.early_data_enabled.value_or(true));
+
+  // Resumed connection where retry token validation fails (simulating no
+  // valid retry token on 0-RTT) rejects 0-RTT when the option is enabled and
+  // sets early_data_enabled=false before SelectCertificate.
+  SetQuicFlag(quic_reject_retry_token_in_initial_packet, true);
+  RunSyncHandshakeWithFakeProofSourceHandle();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(server_connection_->GetStats().address_validated_via_token);
+  EXPECT_TRUE(client_stream()->IsResumption());
+  EXPECT_TRUE(server_stream()->IsResumption());
+  EXPECT_EQ(last_select_cert_args().ssl_config.early_data_enabled,
+            std::optional<bool>(false));
+  EXPECT_FALSE(server_stream()->IsZeroRtt());
+  EXPECT_FALSE(client_stream()->EarlyDataAccepted());
+}
+
+TEST_P(TlsServerHandshakerTest,
+       ZeroRttAllowedWithoutRetryTokenWhenNotRequired) {
+  if (GetParam().disable_resumption) {
+    return;
+  }
+  initial_require_retry_token_for_zero_rtt_ = false;
+  SetQuicFlag(quic_reject_retry_token_in_initial_packet, false);
+
+  // Initial 1-RTT connection issues a 0-RTT-capable ticket.
+  RunSyncHandshakeWithFakeProofSourceHandle();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(server_connection_->GetStats().address_validated_via_token);
+  EXPECT_FALSE(server_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->IsZeroRtt());
+  EXPECT_TRUE(
+      last_select_cert_args().ssl_config.early_data_enabled.value_or(true));
+
+  // Resumed connection without a validated retry token still accepts 0-RTT
+  // when require_retry_token_for_zero_rtt is false.
+  SetQuicFlag(quic_reject_retry_token_in_initial_packet, true);
+  RunSyncHandshakeWithFakeProofSourceHandle();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(server_connection_->GetStats().address_validated_via_token);
+  EXPECT_TRUE(client_stream()->IsResumption());
+  EXPECT_TRUE(server_stream()->IsResumption());
+  EXPECT_TRUE(
+      last_select_cert_args().ssl_config.early_data_enabled.value_or(true));
+  EXPECT_TRUE(server_stream()->IsZeroRtt());
+  EXPECT_TRUE(client_stream()->EarlyDataAccepted());
+}
+
+TEST_P(TlsServerHandshakerTest,
+       ZeroRttAcceptedWithRetryTokenAfterInitialConnectionWithoutToken) {
+  if (GetParam().disable_resumption) {
+    return;
+  }
+  initial_require_retry_token_for_zero_rtt_ = true;
+  SetQuicFlag(quic_reject_retry_token_in_initial_packet, false);
+
+  // Connection 1: initial 1-RTT handshake without a retry token still issues a
+  // 0-RTT-capable session ticket and NEW_TOKEN.
+  RunSyncHandshakeWithFakeProofSourceHandle();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(server_connection_->GetStats().address_validated_via_token);
+  EXPECT_FALSE(server_stream()->IsZeroRtt());
+  EXPECT_TRUE(
+      last_select_cert_args().ssl_config.early_data_enabled.value_or(true));
+
+  // Connection 2: resumed handshake carrying the validated retry token accepts
+  // 0-RTT when require_retry_token_for_zero_rtt is enabled.
+  RunSyncHandshakeWithFakeProofSourceHandle();
+  ExpectHandshakeSuccessful();
+  EXPECT_TRUE(server_connection_->GetStats().address_validated_via_token);
+  EXPECT_TRUE(client_stream()->IsResumption());
+  EXPECT_TRUE(server_stream()->IsResumption());
+  EXPECT_TRUE(
+      last_select_cert_args().ssl_config.early_data_enabled.value_or(true));
+  EXPECT_TRUE(server_stream()->IsZeroRtt());
+  EXPECT_TRUE(client_stream()->EarlyDataAccepted());
 }
 
 }  // namespace

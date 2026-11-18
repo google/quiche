@@ -279,6 +279,11 @@ class QuicConnectionPeer {
 
   static QuicConnection::ReceivedPacketInfo& GetLastReceivedPacketInfo(
       QuicConnection* connection);
+
+  static QuicConnectionVisitorInterface* GetVisitor(QuicConnection* connection);
+
+  static void SetAddressValidatedViaToken(QuicConnection* connection,
+                                          bool validated);
 };
 
 }  // namespace test

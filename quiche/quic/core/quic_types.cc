@@ -502,7 +502,9 @@ bool operator==(const QuicSSLConfig& lhs, const QuicSSLConfig& rhs) {
          lhs.client_cert_mode == rhs.client_cert_mode &&
          lhs.ech_config_list == rhs.ech_config_list &&
          lhs.ech_grease_enabled == rhs.ech_grease_enabled &&
-         lhs.reject_unusable_ech_config == rhs.reject_unusable_ech_config;
+         lhs.reject_unusable_ech_config == rhs.reject_unusable_ech_config &&
+         lhs.require_retry_token_for_zero_rtt ==
+             rhs.require_retry_token_for_zero_rtt;
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

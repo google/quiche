@@ -147,6 +147,10 @@ class QUICHE_EXPORT TlsServerConnection : public TlsConnection {
   // to has an effect.
   void SetClientCertMode(ClientCertMode client_cert_mode);
 
+  // Disables TLS 1.3 0-RTT early data on this connection. Must be called before
+  // cert selection / session selection completes.
+  void DisableEarlyData();
+
  private:
   // Specialization of TlsConnection::ConnectionFromSsl.
   static TlsServerConnection* ConnectionFromSsl(SSL* ssl);
