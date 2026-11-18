@@ -244,9 +244,9 @@ std::string ValidAckPayload() {
   constexpr char kPayload[] =
       "\x52\x34\x00\x00\x00"                  // ACK header
       "\x03"                                  // range count
-      "\x02\x03\xa9\xff\xff\xff\x51\x11\x01"  // range 1
-      "\x0b\x01\x50\x00"                      // range 2
-      "\x15\x02\x10\x41\x00";                 // range 3
+      "\x02\x02\xa9\xff\xff\xff\x51\x11\x01"  // range 1
+      "\x0b\x00\x50\x00"                      // range 2
+      "\x15\x01\x10\x41\x00";                 // range 3
   return std::string(kPayload, std::size(kPayload) - 1);
 }
 

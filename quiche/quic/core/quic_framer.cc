@@ -3886,7 +3886,7 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
   //
   // Timestamp Range {
   //    Delta Largest Acknowledged (i),
-  //    Timestamp Delta Count (i),
+  //    Additional Timestamp Delta Count (i),
   //    Timestamp Delta (i) ...,
   //  }
   for (uint64_t i = 0; i < timestamp_range_count; i++) {
@@ -3900,16 +3900,17 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
       set_detailed_error("Receive delta largest acked too high.");
       return false;
     }
-    QuicPacketNumber packet_number = largest_acked - delta;
-    uint64_t timestamp_count;
-    if (!reader->ReadVarInt62(&timestamp_count)) {
+    const QuicPacketNumber first_packet_number = largest_acked - delta;
+    uint64_t additional_timestamp_count;
+    if (!reader->ReadVarInt62(&additional_timestamp_count)) {
       set_detailed_error("Unable to read receive timestamp count.");
       return false;
     }
-    if (packet_number.ToUint64() < timestamp_count) {
+    if (first_packet_number.ToUint64() < additional_timestamp_count) {
       set_detailed_error("Receive timestamp count too high.");
       return false;
     }
+    const uint64_t timestamp_count = additional_timestamp_count + 1;
     total_timestamp_count += timestamp_count;
     if (total_timestamp_count > local_max_receive_timestamps_per_ack_) {
       set_detailed_error("Too many receive timestamps in ACK frame.");
@@ -3946,12 +3947,11 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
         set_detailed_error("Receive timestamp delta too high.");
         return false;
       }
-      if (!visitor_->OnAckTimestamp(packet_number, *receive_time)) {
+      if (!visitor_->OnAckTimestamp(first_packet_number - j, *receive_time)) {
         set_detailed_error(
             "Visitor suppresses further processing of ACK frame.");
         return false;
       }
-      packet_number--;
     }
   }
   return true;

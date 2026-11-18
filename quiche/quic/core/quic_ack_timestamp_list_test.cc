@@ -59,7 +59,7 @@ TEST_F(QuicAckTimestampListTest, EmptyList) {
                        "00");
 }
 
-// Based on Section 8, Table 1 of draft-ietf-quic-receive-ts-02.
+// Based on Section 8, Table 1 of draft-ietf-quic-receive-ts-04.
 TEST_F(QuicAckTimestampListTest, DraftExampleTable1) {
   ack_.largest_acked = QuicPacketNumber(100);
   ack_.received_packet_times = {
@@ -81,16 +81,16 @@ TEST_F(QuicAckTimestampListTest, DraftExampleTable1) {
                        "02"            // Range count = 2
                                        // ------------ Range 1 ------------
                        "00"            // Delta largest acked = 0
-                       "05"            // Count = 5
+                       "04"            // Additional count = 4 (5 timestamps)
                        "417c0a0a0505"  // Deltas = 380, 10, 10, 5, 5
                                        // ------------ Range 2 ------------
                        "09"            // Delta largest acked = 9
-                       "05"            // Count = 5
+                       "04"            // Additional count = 4 (5 timestamps)
                        "140a0a0505"    // Deltas = 20, 10, 10, 5, 5
   );
 }
 
-// Based on Section 8, Table 2 of draft-ietf-quic-receive-ts-02.
+// Based on Section 8, Table 2 of draft-ietf-quic-receive-ts-04.
 TEST_F(QuicAckTimestampListTest, DraftExampleTable2OutOfOrder) {
   ack_.largest_acked = QuicPacketNumber(100);
   ack_.received_packet_times = {
@@ -116,15 +116,15 @@ TEST_F(QuicAckTimestampListTest, DraftExampleTable2OutOfOrder) {
                        "03"          // Range count = 3
                                      // ------------ Range 1 ------------
                        "05"          // Delta largest acked = 5
-                       "04"          // Count = 4
+                       "03"          // Additional count = 3 (4 timestamps)
                        "418b010202"  // Deltas = 395, 1, 2, 2
                                      // ------------ Range 2 ------------
                        "00"          // Delta largest acked = 0
-                       "05"          // Count = 5
+                       "04"          // Additional count = 4 (5 timestamps)
                        "0a0a0a0505"  // Deltas = 10, 10, 10, 5, 5
                                      // ------------ Range 3 ------------
                        "09"          // Delta largest acked = 9
-                       "05"          // Count = 5
+                       "04"          // Additional count = 4 (5 timestamps)
                        "140a0a0505"  // Deltas = 20, 10, 10, 5, 5
   );
 }
@@ -152,15 +152,15 @@ TEST_F(QuicAckTimestampListTest, InspiredByFramerTestMultipleRanges) {
                        "03"        // Range count = 3
                                    // ------------ Range 1 ------------
                        "02"        // Delta largest acked = 2
-                       "03"        // Count = 3
+                       "02"        // Additional count = 2 (3 timestamps)
                        "41903232"  // Deltas = 400, 50, 50
                                    // ------------ Range 2 ------------
                        "0b"        // Delta largest acked = 11
-                       "01"        // Count = 1
+                       "00"        // Additional count = 0 (1 timestamp)
                        "4064"      // Deltas = 100
                                    // ------------ Range 3 ------------
                        "15"        // Delta largest acked = 21
-                       "02"        // Count = 2
+                       "01"        // Additional count = 1 (2 timestamps)
                        "405a0a"    // Deltas = 90, 10
   );
 }
@@ -184,7 +184,7 @@ TEST_F(QuicAckTimestampListTest, MaxAckCountTruncation) {
                        "01"        // Range count = 1
                                    // Range 1
                        "00"        // Delta largest acked = 0
-                       "03"        // Count = 3
+                       "02"        // Additional count = 2 (3 timestamps)
                        "40640a0a"  // Deltas = 100, 10, 10
   );
 }
@@ -213,7 +213,7 @@ TEST_F(QuicAckTimestampListTest, ExponentAndRounding) {
                        "01"      // Range count = 1
                                  // Range 1
                        "00"      // Delta largest acked = 0
-                       "03"      // Count = 3
+                       "02"      // Additional count = 2 (3 timestamps)
                        "060201"  // Deltas = 6, 2, 1
   );
 }
@@ -232,7 +232,7 @@ TEST_F(QuicAckTimestampListTest, EncodeWhileRoundingUpZeroDelta) {
                        "01"      // Range count = 1
                                  // Range 1
                        "00"      // Delta largest acked = 0
-                       "03"      // Count = 3
+                       "02"      // Additional count = 2 (3 timestamps)
                        "000000"  // Deltas = 0, 0, 0
   );
 }
@@ -310,7 +310,7 @@ TEST_F(QuicAckTimestampListTest, BufferTruncationSingleRange) {
   QuicDataWriter writer(buffer.size(), buffer.data());
   EXPECT_TRUE(list.Write(writer));
   EXPECT_EQ(writer.remaining(), 0u);
-  EXPECT_EQ(absl::BytesToHexString(buffer), "010002140a");
+  EXPECT_EQ(absl::BytesToHexString(buffer), "010001140a");
 }
 
 TEST_F(QuicAckTimestampListTest, BufferTruncationMultipleRanges) {
@@ -336,7 +336,7 @@ TEST_F(QuicAckTimestampListTest, BufferTruncationMultipleRanges) {
     EXPECT_TRUE(list.Write(writer)) << "buf_len: " << buf_len;
     EXPECT_EQ(writer.length(), 5u) << "buf_len: " << buf_len;
     EXPECT_EQ(absl::BytesToHexString(absl::string_view(buffer.data(), 5)),
-              "010002140a")
+              "010001140a")
         << "buf_len: " << buf_len;
   }
 
@@ -347,7 +347,7 @@ TEST_F(QuicAckTimestampListTest, BufferTruncationMultipleRanges) {
     QuicDataWriter writer(buffer.size(), buffer.data());
     EXPECT_TRUE(list.Write(writer));
     EXPECT_EQ(writer.length(), 4u);
-    EXPECT_EQ(absl::BytesToHexString(buffer), "01000114");
+    EXPECT_EQ(absl::BytesToHexString(buffer), "01000014");
   }
 
   // Buffer sizes 1, 2, and 3 are not large enough to encode any range (as even
@@ -377,7 +377,7 @@ TEST_F(QuicAckTimestampListTest, UnacknowledgedPacketTriggersQuicBug) {
       {
         QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0);
         EXPECT_EQ(list.error(), "");
-        ExpectBinaryEncoding(list, "020002140a0a0105");
+        ExpectBinaryEncoding(list, "020001140a0a0005");
       },
       "Sending receive timestamp for unacknowledged packet 90");
 }

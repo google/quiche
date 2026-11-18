@@ -137,8 +137,9 @@ QuicByteCount QuicAckTimestampList::MaxEncodedSize() const {
   QuicByteCount total_size = 0;
   total_size += VarintSize(ranges_.size());
   for (const TimestampRange& range : ranges_) {
+    QUICHE_DCHECK_GE(range.timestamp_count, 1u);
     total_size += VarintSize(range.delta_from_largest_acked);
-    total_size += VarintSize(range.timestamp_count);
+    total_size += VarintSize(range.timestamp_count - 1);
   }
   // Every element in `timestamps_` belongs to exactly one TimestampRange.
   for (const uint64_t timestamp : timestamps_) {
@@ -211,13 +212,13 @@ QuicByteCount QuicAckTimestampList::MaxEncodedSize() const {
     // Atomically write the range header and the first timestamp, since an empty
     // range is generally unhelpful.
     pending_size += VarintSize(range.delta_from_largest_acked) +
-                    VarintSize(range.timestamp_count) +
+                    VarintSize(range.timestamp_count - 1) +
                     VarintSize(timestamps_in_range[0]);
     if (pending_size > max_size) {
       return true;
     }
     encoded.push_back(range.delta_from_largest_acked);
-    encoded.push_back(1);
+    encoded.push_back(0);
     size_t timestamp_count_offset = encoded.size() - 1;
     encoded.push_back(timestamps_in_range[0]);
     ++encoded[range_count_offset];

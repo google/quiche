@@ -19,7 +19,7 @@
 namespace quic {
 
 // QuicAckTimestampList stores the block of ACK timestamps
-// (draft-ietf-quic-receive-ts-02) in a form suitable for serialization.
+// (draft-ietf-quic-receive-ts-04) in a form suitable for serialization.
 class QUICHE_EXPORT QuicAckTimestampList {
  public:
   // Constructs the ACK timestamp list from the provided `ack` frame.  If an
@@ -44,7 +44,7 @@ class QUICHE_EXPORT QuicAckTimestampList {
   const std::string& error() const { return error_; }
 
  private:
-  // `Timestamp Range` as defined in draft-ietf-quic-receive-ts-02.
+  // `Timestamp Range` as defined in draft-ietf-quic-receive-ts-04.
   struct QUICHE_EXPORT TimestampRange {
     QuicPacketCount delta_from_largest_acked;
     // Offset into `timestamps_` list.
