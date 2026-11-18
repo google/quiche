@@ -50,6 +50,7 @@
 #include "quiche/quic/test_tools/quic_spdy_session_peer.h"
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/quic/test_tools/web_transport_test_tools.h"
 #include "quiche/common/quiche_endian.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
@@ -4415,6 +4416,94 @@ TEST_P(QuicSpdySessionTestServer, ResetOutgoingWebTransportStreams) {
               OnStreamReset(stream_id, QUIC_STREAM_WEBTRANSPORT_SESSION_GONE));
   session_->ResetStream(session_id, QUIC_STREAM_INTERNAL_ERROR);
   EXPECT_EQ(web_transport->NumberOfAssociatedStreams(), 0u);
+}
+
+TEST_P(QuicSpdySessionTestServer, WebTransportCloseAfterStopSending) {
+  Initialize();
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  session_->set_local_http_datagram_support(
+      HttpDatagramSupport::kRfcAndDraft04);
+  session_->set_supports_webtransport(true);
+
+  CompleteHandshake();
+  ReceiveWebTransportSettings();
+
+  QuicStreamId session_id =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 1);
+  ReceiveWebTransportSession(session_id);
+  WebTransportHttp3* web_transport =
+      session_->GetWebTransportSession(session_id);
+  ASSERT_TRUE(web_transport != nullptr);
+  QuicSpdyStream* connect_stream =
+      static_cast<QuicSpdyStream*>(session_->GetActiveStream(session_id));
+  ASSERT_TRUE(connect_stream != nullptr);
+
+  auto visitor = std::make_unique<StrictMock<MockWebTransportSessionVisitor>>();
+  MockWebTransportSessionVisitor* visitor_ptr = visitor.get();
+  web_transport->SetVisitor(std::move(visitor));
+
+  // Peer sends STOP_SENDING on the CONNECT stream before
+  // CLOSE_WEBTRANSPORT_SESSION.
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(&ClearControlFrame);
+  EXPECT_CALL(*connection_, OnStreamReset(session_id, QUIC_STREAM_NO_ERROR));
+  session_->OnStopSendingFrame(QuicStopSendingFrame(
+      kInvalidControlFrameId, session_id,
+      QuicResetStreamError::FromIetf(QuicHttp3ErrorCode::HTTP3_NO_ERROR)));
+  EXPECT_TRUE(connect_stream->write_side_closed());
+  EXPECT_FALSE(connect_stream->fin_sent());
+
+  // Receiving CLOSE_WEBTRANSPORT_SESSION should not attempt to write a FIN to
+  // the already-closed write side, and should still notify the visitor.
+  EXPECT_CALL(*visitor_ptr, OnSessionClosed(42, "test error"));
+  web_transport->OnCloseReceived(42, "test error");
+  EXPECT_TRUE(web_transport->close_received());
+  EXPECT_FALSE(connect_stream->fin_sent());
+  EXPECT_FALSE(connect_stream->fin_buffered());
+}
+
+TEST_P(QuicSpdySessionTestServer, WebTransportFinAfterStopSending) {
+  Initialize();
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  session_->set_local_http_datagram_support(
+      HttpDatagramSupport::kRfcAndDraft04);
+  session_->set_supports_webtransport(true);
+
+  CompleteHandshake();
+  ReceiveWebTransportSettings();
+
+  QuicStreamId session_id =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 1);
+  ReceiveWebTransportSession(session_id);
+  WebTransportHttp3* web_transport =
+      session_->GetWebTransportSession(session_id);
+  ASSERT_TRUE(web_transport != nullptr);
+  QuicSpdyStream* connect_stream =
+      static_cast<QuicSpdyStream*>(session_->GetActiveStream(session_id));
+  ASSERT_TRUE(connect_stream != nullptr);
+
+  auto visitor = std::make_unique<StrictMock<MockWebTransportSessionVisitor>>();
+  MockWebTransportSessionVisitor* visitor_ptr = visitor.get();
+  web_transport->SetVisitor(std::move(visitor));
+
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(&ClearControlFrame);
+  EXPECT_CALL(*connection_, OnStreamReset(session_id, QUIC_STREAM_NO_ERROR));
+  session_->OnStopSendingFrame(QuicStopSendingFrame(
+      kInvalidControlFrameId, session_id,
+      QuicResetStreamError::FromIetf(QuicHttp3ErrorCode::HTTP3_NO_ERROR)));
+  EXPECT_TRUE(connect_stream->write_side_closed());
+  EXPECT_FALSE(connect_stream->fin_sent());
+
+  EXPECT_CALL(*visitor_ptr, OnSessionClosed(0, ""));
+  web_transport->OnConnectStreamFinReceived();
+  EXPECT_TRUE(web_transport->close_received());
+  EXPECT_FALSE(connect_stream->fin_sent());
+  EXPECT_FALSE(connect_stream->fin_buffered());
 }
 
 TEST_P(QuicSpdySessionTestClient, WebTransportWithoutExtendedConnect) {

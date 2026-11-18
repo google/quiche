@@ -137,7 +137,9 @@ void WebTransportHttp3::OnCloseReceived(WebTransportSessionError error_code,
 
   error_code_ = error_code;
   error_message_ = std::string(error_message);
-  connect_stream_->WriteOrBufferBody("", /*fin=*/true);
+  if (!connect_stream_->write_side_closed()) {
+    connect_stream_->WriteOrBufferBody("", /*fin=*/true);
+  }
   MaybeNotifyClose();
 }
 
@@ -154,7 +156,9 @@ void WebTransportHttp3::OnConnectStreamFinReceived() {
     return;
   }
 
-  connect_stream_->WriteOrBufferBody("", /*fin=*/true);
+  if (!connect_stream_->write_side_closed()) {
+    connect_stream_->WriteOrBufferBody("", /*fin=*/true);
+  }
   MaybeNotifyClose();
 }
 
