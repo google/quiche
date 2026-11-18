@@ -128,7 +128,7 @@ void QuicReceivedPacketManager::RecordPacketReceived(
                ack_frame_.received_packet_times.back().second > *receive_time) {
       // The QUIC framer can only serialize timestamps if they are provided in
       // the receive time order.
-      QUIC_LOG(WARNING)
+      QUIC_DLOG(WARNING)
           << "Receive time went backwards from: "
           << ack_frame_.received_packet_times.back().second.ToDebuggingValue()
           << " to " << receive_time->ToDebuggingValue();
