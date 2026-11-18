@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "quiche/quic/core/congestion_control/loss_detection_interface.h"
 #include "quiche/quic/core/congestion_control/pacing_sender.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
@@ -1384,14 +1385,33 @@ void QuicSentPacketManager::OnAckRange(QuicPacketNumber start,
   } while (start < end);
 }
 
+namespace {
+bool AckedPacketInverseComparator(const AckedPacket& a, const AckedPacket& b) {
+  return a.packet_number > b.packet_number;
+}
+}  // namespace
+
 void QuicSentPacketManager::OnAckTimestamp(QuicPacketNumber packet_number,
                                            QuicReceiveTime timestamp) {
   last_ack_frame_.received_packet_times.push_back({packet_number, timestamp});
-  for (AckedPacket& packet : packets_acked_) {
-    if (packet.packet_number == packet_number) {
-      packet.receive_timestamp = timestamp;
-      return;
-    }
+
+  // Find the appropriate acked packet entry for this.  Those cannot be matched
+  // via a simple linear merge, as acked packets and receive timestamps are
+  // ordered differently: packets are in the packet number order, timestamps are
+  // in the timestamp order.
+  if (last_ack_frame_.received_packet_times.size() == 1) {
+    // Only check on the first timestamp.
+    QUICHE_DCHECK(
+        absl::c_is_sorted(packets_acked_, AckedPacketInverseComparator));
+  }
+  auto packet_it =
+      absl::c_lower_bound(packets_acked_, packet_number,
+                          [](const AckedPacket& a, QuicPacketNumber b) {
+                            return a.packet_number > b;
+                          });
+  if (packet_it != packets_acked_.end() &&
+      packet_it->packet_number == packet_number) {
+    packet_it->receive_timestamp = timestamp;
   }
 }
 
@@ -1453,6 +1473,8 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
       unacked_packets_.GetLargestAckedOfPacketNumberSpace(
           acked_packet_number_space);
   // Reverse packets_acked_ so that it is in ascending order.
+  QUICHE_DCHECK(
+      absl::c_is_sorted(packets_acked_, AckedPacketInverseComparator));
   std::reverse(packets_acked_.begin(), packets_acked_.end());
   for (AckedPacket& acked_packet : packets_acked_) {
     QuicTransmissionInfo* info =

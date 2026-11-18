@@ -49,7 +49,10 @@
 #include "quiche/common/simple_buffer_allocator.h"
 
 using testing::_;
+using testing::AllOf;
 using testing::AnyNumber;
+using testing::ElementsAre;
+using testing::Field;
 using testing::InvokeWithoutArgs;
 using testing::IsEmpty;
 using testing::Pointwise;
@@ -3869,6 +3872,79 @@ TEST_F(QuicSentPacketManagerTest, ReceiveTimestampsStats) {
                                    ENCRYPTION_FORWARD_SECURE, kEmptyCounts));
   EXPECT_EQ(2u, stats_.application_data_packets_acked);
   EXPECT_EQ(1u, stats_.application_data_packets_with_receive_timestamps_acked);
+}
+
+TEST_F(QuicSentPacketManagerTest, ReceiveTimestampsMultiplePackets) {
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  for (uint64_t i = 1; i <= 6; ++i) {
+    SendDataPacket(i, ENCRYPTION_FORWARD_SECURE);
+  }
+
+  // First ACK acknowledges packets 1 and 4.
+  uint64_t initial_acked[] = {1, 4};
+  ExpectAcksAndLosses(true, initial_acked, std::size(initial_acked), nullptr,
+                      0);
+  manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(5));
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE, kEmptyCounts));
+
+  // Second ACK covers packets 1..6, leaving {2, 3, 5, 6} newly acked.
+  // Receive timestamps arrive out of packet-number order and include packets
+  // not in packets_acked_ (already-acked 1 and 4, and out-of-range 7).
+  const QuicReceiveTime ts2 =
+      *QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromMilliseconds(20));
+  const QuicReceiveTime ts3 =
+      *QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromMilliseconds(30));
+  const QuicReceiveTime ts6 =
+      *QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromMilliseconds(60));
+  const QuicReceiveTime ts_ignored =
+      *QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromMilliseconds(999));
+
+  auto acked_packet_with_ts = [](uint64_t packet_number,
+                                 std::optional<QuicReceiveTime> timestamp) {
+    return AllOf(
+        Field(&AckedPacket::packet_number, QuicPacketNumber(packet_number)),
+        Field(&AckedPacket::receive_timestamp, timestamp));
+  };
+  EXPECT_CALL(
+      *send_algorithm_,
+      OnCongestionEvent(true, _, _,
+                        ElementsAre(acked_packet_with_ts(2, ts2),
+                                    acked_packet_with_ts(3, ts3),
+                                    acked_packet_with_ts(5, std::nullopt),
+                                    acked_packet_with_ts(6, ts6)),
+                        IsEmpty(), _, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+
+  manager_.OnAckFrameStart(QuicPacketNumber(6), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(7));
+  manager_.OnAckTimestamp(QuicPacketNumber(3), ts3);
+  manager_.OnAckTimestamp(QuicPacketNumber(6), ts6);
+  manager_.OnAckTimestamp(QuicPacketNumber(4), ts_ignored);
+  manager_.OnAckTimestamp(QuicPacketNumber(2), ts2);
+  manager_.OnAckTimestamp(QuicPacketNumber(7), ts_ignored);
+  manager_.OnAckTimestamp(QuicPacketNumber(1), ts_ignored);
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_FORWARD_SECURE, kEmptyCounts));
+  EXPECT_EQ(6u, stats_.application_data_packets_acked);
+  EXPECT_EQ(3u, stats_.application_data_packets_with_receive_timestamps_acked);
+
+  // Duplicate ACK with empty packets_acked_ ignores incoming timestamps.
+  manager_.OnAckFrameStart(QuicPacketNumber(6), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(7));
+  manager_.OnAckTimestamp(QuicPacketNumber(6), ts_ignored);
+  EXPECT_EQ(NO_PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
+                                   ENCRYPTION_FORWARD_SECURE, kEmptyCounts));
+  EXPECT_EQ(6u, stats_.application_data_packets_acked);
+  EXPECT_EQ(3u, stats_.application_data_packets_with_receive_timestamps_acked);
 }
 
 TEST_F(QuicSentPacketManagerTest, HandshakePtoTwoPacketsDisabledWhenFlagFalse) {
