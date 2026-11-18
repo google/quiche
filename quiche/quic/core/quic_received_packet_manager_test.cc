@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
@@ -266,6 +267,37 @@ TEST_F(QuicReceivedPacketManagerTest, IgnoreTimestampsEarlierThanBasis) {
   ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
   EXPECT_EQ(QuicPacketNumber(2),
             received_manager_.ack_frame().received_packet_times[0].first);
+}
+
+TEST_F(QuicReceivedPacketManagerTest, IgnoreTimestampsWhenBasisUninitialized) {
+  received_manager_.set_receive_timestamp_basis(QuicTime::Zero());
+
+  EXPECT_QUIC_BUG(
+      RecordPacketReceipt(1, clock_.ApproximateNow()),
+      "`SaveReceiveTimestamps` was called, but `receive_timestamp_basis_` is "
+      "not set");
+  EXPECT_TRUE(received_manager_.ack_frame().received_packet_times.empty());
+}
+
+TEST_F(QuicReceivedPacketManagerTest, IgnoreTimestampsExceedingMaxDelta) {
+  const QuicTime basis =
+      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(10);
+  received_manager_.set_receive_timestamp_basis(basis);
+
+  constexpr QuicTime::Delta kMaxDelta = QuicTime::Delta::FromMicroseconds(
+      kMaxIetfVarInt - ((uint64_t{1} << kMaxReceiveTimestampsExponent) - 1));
+
+  // Timestamps at the maximum safe delta are accepted.
+  RecordPacketReceipt(1, basis + kMaxDelta);
+  ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(QuicPacketNumber(1),
+            received_manager_.ack_frame().received_packet_times[0].first);
+
+  // Timestamps exceeding the maximum safe delta are ignored.
+  RecordPacketReceipt(2,
+                      basis + kMaxDelta + QuicTime::Delta::FromMicroseconds(1));
+  RecordPacketReceipt(3, QuicTime::Infinite());
+  EXPECT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
 }
 
 TEST_F(QuicReceivedPacketManagerTest, SaveOutOfOrderPackets) {

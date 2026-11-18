@@ -5,6 +5,7 @@
 #include "quiche/quic/core/quic_received_packet_manager.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <optional>
 #include <utility>
@@ -36,6 +37,14 @@ const size_t kMaxPacketsAfterNewMissing = 4;
 
 // One eighth RTT delay when doing ack decimation.
 const float kShortAckDecimationDelay = 0.125;
+
+// Maximum receive timestamp relative to the basis that is guaranteed to stay
+// within the draft-ietf-quic-receive-ts-04 Section 6.1 limit (2^62 - 1 us)
+// even after rounding up to the coarsest allowed exponent (2^20 us).
+// Equal to 2^62 - 2^20 us (~146,000 years).
+constexpr QuicTime::Delta kMaxOutgoingReceiveTimestamp =
+    QuicTime::Delta::FromMicroseconds(
+        kMaxIetfVarInt - ((uint64_t{1} << kMaxReceiveTimestampsExponent) - 1));
 }  // namespace
 
 QuicReceivedPacketManager::QuicReceivedPacketManager()
@@ -110,41 +119,7 @@ void QuicReceivedPacketManager::RecordPacketReceived(
   }
   ack_frame_.packets.Add(packet_number);
   MaybeTrimAckRanges();
-
-  if (save_timestamps()) {
-    if (!receive_timestamp_basis_.IsInitialized()) {
-      QUIC_BUG(missing_receive_timestamp_basis)
-          << "`SaveReceiveTimestamps` was called, but "
-             "`receive_timestamp_basis_` is not set";
-    }
-
-    std::optional<QuicReceiveTime> receive_time =
-        QuicReceiveTime::FromLocalTime(receipt_time, receive_timestamp_basis_);
-    if (!receive_time.has_value()) {
-      QUIC_DLOG(WARNING) << "Receive time earlier than timestamp basis: "
-                         << receipt_time.ToDebuggingValue() << " < "
-                         << receive_timestamp_basis_.ToDebuggingValue();
-    } else if (!ack_frame_.received_packet_times.empty() &&
-               ack_frame_.received_packet_times.back().second > *receive_time) {
-      // The QUIC framer can only serialize timestamps if they are provided in
-      // the receive time order.
-      QUIC_DLOG(WARNING)
-          << "Receive time went backwards from: "
-          << ack_frame_.received_packet_times.back().second.ToDebuggingValue()
-          << " to " << receive_time->ToDebuggingValue();
-    } else {
-      if (ack_frame_.received_packet_times.size() >= max_timestamps_) {
-        // Drop the oldest timestamp to keep at most `max_timestamps_` most
-        // recent entries, as recommended in the draft.
-        // Because the limit for `max_timestamps_` is fairly small, erasing from
-        // the front is fast despite `received_packet_times` being a vector.
-        ack_frame_.received_packet_times.erase(
-            ack_frame_.received_packet_times.begin());
-      }
-      ack_frame_.received_packet_times.push_back(
-          std::make_pair(packet_number, *receive_time));
-    }
-  }
+  MaybeRecordReceiveTimestamp(packet_number, receipt_time);
 
   if (ecn == ECN_CE && !last_packet_was_ce_marked_) {
     changed_to_ce_marked_ = true;
@@ -183,6 +158,55 @@ void QuicReceivedPacketManager::MaybeTrimAckRanges() {
          ack_frame_.packets.NumIntervals() > max_ack_ranges_) {
     ack_frame_.packets.RemoveSmallestInterval();
   }
+}
+
+void QuicReceivedPacketManager::MaybeRecordReceiveTimestamp(
+    QuicPacketNumber packet_number, QuicTime receipt_time) {
+  if (!save_timestamps()) {
+    return;
+  }
+  if (!receive_timestamp_basis_.IsInitialized()) {
+    QUIC_BUG(missing_receive_timestamp_basis)
+        << "`SaveReceiveTimestamps` was called, but "
+           "`receive_timestamp_basis_` is not set";
+    return;
+  }
+
+  std::optional<QuicReceiveTime> receive_time =
+      QuicReceiveTime::FromLocalTime(receipt_time, receive_timestamp_basis_);
+  if (!receive_time.has_value()) {
+    QUIC_DLOG(WARNING) << "Receive time earlier than timestamp basis: "
+                       << receipt_time.ToDebuggingValue() << " < "
+                       << receive_timestamp_basis_.ToDebuggingValue();
+    return;
+  }
+  if (receive_time->raw_value() > kMaxOutgoingReceiveTimestamp) {
+    QUIC_DLOG(WARNING) << "Receive time exceeds maximum representable delta: "
+                       << receive_time->ToDebuggingValue() << " > "
+                       << kMaxOutgoingReceiveTimestamp.ToMicroseconds();
+    return;
+  }
+  if (!ack_frame_.received_packet_times.empty() &&
+      ack_frame_.received_packet_times.back().second > *receive_time) {
+    // The QUIC framer can only serialize timestamps if they are provided in
+    // the receive time order.
+    QUIC_DLOG(WARNING)
+        << "Receive time went backwards from: "
+        << ack_frame_.received_packet_times.back().second.ToDebuggingValue()
+        << " to " << receive_time->ToDebuggingValue();
+    return;
+  }
+
+  if (ack_frame_.received_packet_times.size() >= max_timestamps_) {
+    // Drop the oldest timestamp to keep at most `max_timestamps_` most
+    // recent entries, as recommended in the draft.
+    // Because the limit for `max_timestamps_` is fairly small, erasing from
+    // the front is fast despite `received_packet_times` being a vector.
+    ack_frame_.received_packet_times.erase(
+        ack_frame_.received_packet_times.begin());
+  }
+  ack_frame_.received_packet_times.push_back(
+      std::make_pair(packet_number, *receive_time));
 }
 
 bool QuicReceivedPacketManager::IsMissing(QuicPacketNumber packet_number) {

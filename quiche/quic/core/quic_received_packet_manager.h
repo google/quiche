@@ -159,6 +159,8 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
   }
 
   void MaybeTrimAckRanges();
+  void MaybeRecordReceiveTimestamp(QuicPacketNumber packet_number,
+                                   QuicTime receipt_time);
 
   // Least packet number of the the packet sent by the peer for which it
   // hasn't received an ack.
