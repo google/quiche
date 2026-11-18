@@ -224,6 +224,9 @@ struct QUICHE_EXPORT Bbr2Params {
   // Can be disabled by connection option 'B2RC'.
   bool enable_reno_coexistence = true;
 
+  // Can be disabled by connection option 'B3NP' in BBRv3.
+  bool enable_precautionary_probing = true;
+
   // For experimentation to improve fast convergence upon loss.
   enum QuicBandwidthLoMode : uint8_t {
     DEFAULT = 0,

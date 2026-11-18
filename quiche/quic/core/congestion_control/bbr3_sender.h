@@ -150,13 +150,12 @@ class QUICHE_EXPORT Bbr3Sender final : public SendAlgorithmInterface {
 
   AdaptUpperBoundsResult MaybeAdaptUpperBounds(
       const Bbr2CongestionEvent& congestion_event);
+  bool MaybeFinishBwProbeStopping(const Bbr2CongestionEvent& congestion_event);
 
-  void EnterProbeDown(bool probed_too_high, bool stopped_risky_probe,
-                      QuicTime now);
+  void EnterProbeDown(bool probed_too_high, bool precautionary, QuicTime now);
   void EnterProbeCruise(QuicTime now);
   void EnterProbeRefill(uint64_t probe_up_rounds, QuicTime now);
   void EnterProbeUp(QuicTime now);
-  void ExitProbeDown();
 
   bool IsTimeToProbeBandwidth(
       const Bbr2CongestionEvent& congestion_event) const;
@@ -232,9 +231,10 @@ class QUICHE_EXPORT Bbr3Sender final : public SendAlgorithmInterface {
     // advanced once per cycle.
     bool has_advanced_max_bw = false;
     bool is_sample_from_probing = false;
+    bool is_bw_probe_stopping = false;
 
-    bool last_cycle_probed_too_high = false;
-    bool last_cycle_stopped_risky_probe = false;
+    bool prev_probe_too_high = false;
+    bool prev_probe_precautionary = false;
   } probe_bw_;
 
   // Probe RTT state.

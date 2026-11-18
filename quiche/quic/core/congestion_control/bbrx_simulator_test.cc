@@ -1649,6 +1649,451 @@ TEST_P(Bbr3DefaultTopologyTest, DrainExitDueTo3RoundLimit) {
             round_count_at_drain_entry + 3);
 }
 
+TEST_P(Bbr3DefaultTopologyTest, SimpleTransferSmallBufferB3NP) {
+  SetConnectionOption(kB3NP);
+  EXPECT_FALSE(sender_params().enable_precautionary_probing);
+  DefaultTopologyParams params;
+  params.switch_queue_capacity_in_bdp = 0.5;
+  CreateNetwork(params);
+
+  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(30));
+  EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
+                   sender_debug_state().bandwidth_hi, 0.02f);
+  EXPECT_FALSE(sender_debug_state().last_sample_is_app_limited);
+}
+
+// Verify Precautionary Bandwidth Probing decelerates early at inflight_hi after
+// a lossy probe, and immediately accelerates back to PROBE_REFILL -> PROBE_UP
+// one round trip later (even if PROBE_DOWN transitioned to PROBE_CRUISE early)
+// when no excessive loss occurs.
+TEST_P(Bbr3DefaultTopologyTest, PrecautionaryProbingAcceleratesWhenSafe) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+  DriveOutOfStartup(params);
+
+  const QuicTime::Delta probe_wait =
+      sender_params().probe_bw_probe_base_duration +
+      sender_params().probe_bw_probe_max_rand_duration +
+      QuicTime::Delta::FromMilliseconds(100);
+
+  AckedPacketVector acked_packets;
+  QuicPacketNumber acked_packet_number =
+      sender_unacked_map()->GetLeastUnacked();
+  for (const auto& info : *sender_unacked_map()) {
+    acked_packets.emplace_back(acked_packet_number++, info.bytes_sent,
+                               std::nullopt);
+  }
+
+  // Advance time past probe_wait_time to enter PROBE_REFILL.
+  QuicTime now = SimulatedNow() + probe_wait;
+  QuicPacketNumber next_packet_number =
+      sender_unacked_map()->largest_sent_packet() + 1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, sender_unacked_map()->bytes_in_flight(), now,
+      acked_packets, {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_REFILL, sender_debug_state().probe_bw.phase);
+
+  // Send and ACK one packet to exit app-limited and enter PROBE_UP.
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_UP, sender_debug_state().probe_bw.phase);
+
+  // Send 5 non-app-limited packets: ACK the first to advance the round boundary
+  // to the 5th packet, then incur 2 loss events in that round to exit PROBE_UP
+  // due to excessive loss, setting inflight_hi and prev_probe_too_high.
+  for (uint64_t i = 0; i < 5; ++i) {
+    sender_->OnPacketSent(now, /*bytes_in_flight=*/i * kDefaultMaxPacketSize,
+                          next_packet_number++, kDefaultMaxPacketSize,
+                          HAS_RETRANSMITTABLE_DATA);
+  }
+  now = now + params.RTT() * 0.4;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, 5 * kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 5, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_UP, sender_debug_state().probe_bw.phase);
+
+  now = now + params.RTT() * 0.1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, 4 * kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 3, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {LostPacket(next_packet_number - 4, kDefaultMaxPacketSize)}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_UP, sender_debug_state().probe_bw.phase);
+
+  now = now + params.RTT() * 0.1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, 2 * kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {LostPacket(next_packet_number - 2, kDefaultMaxPacketSize)}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_DOWN, sender_debug_state().probe_bw.phase);
+
+  const QuicByteCount inflight_hi = sender_debug_state().inflight_hi;
+  ASSERT_LT(inflight_hi, Bbr2NetworkModel::inflight_hi_default());
+  ASSERT_LT(inflight_hi, params.BDP());
+
+  // Advance past probe_wait_time to enter the next PROBE_REFILL -> PROBE_UP.
+  now = now + probe_wait;
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_REFILL, sender_debug_state().probe_bw.phase);
+
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_UP, sender_debug_state().probe_bw.phase);
+
+  // Send enough packets to reach inflight_hi.
+  const uint64_t packets_for_inflight_hi =
+      (inflight_hi + kDefaultMaxPacketSize - 1) / kDefaultMaxPacketSize;
+  const QuicPacketNumber first_probe_packet = next_packet_number;
+  for (uint64_t i = 0; i < packets_for_inflight_hi; ++i) {
+    sender_->OnPacketSent(now, /*bytes_in_flight=*/i * kDefaultMaxPacketSize,
+                          next_packet_number++, kDefaultMaxPacketSize,
+                          HAS_RETRANSMITTABLE_DATA);
+  }
+  QuicByteCount bytes_in_flight =
+      packets_for_inflight_hi * kDefaultMaxPacketSize;
+
+  // Precautionary Bandwidth Probing: Deceleration stops PROBE_UP immediately
+  // once prior_bytes_in_flight >= inflight_hi.
+  now = now + params.RTT() * 0.5;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, bytes_in_flight, now,
+      {AckedPacket(first_probe_packet, kDefaultMaxPacketSize, std::nullopt)},
+      {}, 0, 0);
+  bytes_in_flight -= kDefaultMaxPacketSize;
+  ASSERT_EQ(ProbePhase::PROBE_DOWN, sender_debug_state().probe_bw.phase);
+
+  // Send one sentinel packet in PROBE_DOWN, then ACK the rest of the probe
+  // flight so bytes_in_flight drains and transitions early to PROBE_CRUISE.
+  const QuicPacketNumber post_stop_packet = next_packet_number++;
+  sender_->OnPacketSent(now, bytes_in_flight, post_stop_packet,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  bytes_in_flight += kDefaultMaxPacketSize;
+
+  AckedPacketVector remaining_probe_acks;
+  for (uint64_t i = 1; i < packets_for_inflight_hi; ++i) {
+    remaining_probe_acks.emplace_back(first_probe_packet + i,
+                                      kDefaultMaxPacketSize, std::nullopt);
+  }
+  now = now + params.RTT() * 0.2;
+  sender_->OnCongestionEvent(/*rtt_updated=*/true, bytes_in_flight, now,
+                             remaining_probe_acks, {}, 0, 0);
+  bytes_in_flight = kDefaultMaxPacketSize;
+  ASSERT_EQ(ProbePhase::PROBE_CRUISE, sender_debug_state().probe_bw.phase);
+
+  // Completing the round trip without excessive loss triggers Precautionary
+  // Bandwidth Probing: Acceleration directly into PROBE_REFILL.
+  now = now + params.RTT() * 0.8;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, bytes_in_flight, now,
+      {AckedPacket(post_stop_packet, kDefaultMaxPacketSize, std::nullopt)}, {},
+      0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_REFILL, sender_debug_state().probe_bw.phase);
+
+  // Advance one round into the follow-up PROBE_UP and verify it now persists
+  // at inflight_hi instead of stopping early.
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_UP, sender_debug_state().probe_bw.phase);
+
+  const QuicPacketNumber second_probe_first_packet = next_packet_number;
+  for (uint64_t i = 0; i < packets_for_inflight_hi; ++i) {
+    sender_->OnPacketSent(now, /*bytes_in_flight=*/i * kDefaultMaxPacketSize,
+                          next_packet_number++, kDefaultMaxPacketSize,
+                          HAS_RETRANSMITTABLE_DATA);
+  }
+  now = now + params.RTT() * 0.5;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, packets_for_inflight_hi * kDefaultMaxPacketSize,
+      now,
+      {AckedPacket(second_probe_first_packet, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  EXPECT_EQ(ProbePhase::PROBE_UP, sender_debug_state().probe_bw.phase);
+}
+
+// Verify Precautionary Bandwidth Probing does NOT re-accelerate into
+// PROBE_REFILL if the precautionary probe itself suffers excessive loss
+// detected after transitioning out of PROBE_UP.
+TEST_P(Bbr3DefaultTopologyTest, PrecautionaryProbingDoesNotAccelerateOnLoss) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+  DriveOutOfStartup(params);
+
+  const QuicTime::Delta probe_wait =
+      sender_params().probe_bw_probe_base_duration +
+      sender_params().probe_bw_probe_max_rand_duration +
+      QuicTime::Delta::FromMilliseconds(100);
+
+  AckedPacketVector acked_packets;
+  QuicPacketNumber acked_packet_number =
+      sender_unacked_map()->GetLeastUnacked();
+  for (const auto& info : *sender_unacked_map()) {
+    acked_packets.emplace_back(acked_packet_number++, info.bytes_sent,
+                               std::nullopt);
+  }
+
+  QuicTime now = SimulatedNow() + probe_wait;
+  QuicPacketNumber next_packet_number =
+      sender_unacked_map()->largest_sent_packet() + 1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, sender_unacked_map()->bytes_in_flight(), now,
+      acked_packets, {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_REFILL, sender_debug_state().probe_bw.phase);
+
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_UP, sender_debug_state().probe_bw.phase);
+
+  // Trigger excessive loss in PROBE_UP to set inflight_hi and
+  // prev_probe_too_high.
+  for (uint64_t i = 0; i < 5; ++i) {
+    sender_->OnPacketSent(now, /*bytes_in_flight=*/i * kDefaultMaxPacketSize,
+                          next_packet_number++, kDefaultMaxPacketSize,
+                          HAS_RETRANSMITTABLE_DATA);
+  }
+  now = now + params.RTT() * 0.4;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, 5 * kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 5, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  now = now + params.RTT() * 0.1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, 4 * kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 3, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {LostPacket(next_packet_number - 4, kDefaultMaxPacketSize)}, 0, 0);
+  now = now + params.RTT() * 0.1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, 2 * kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {LostPacket(next_packet_number - 2, kDefaultMaxPacketSize)}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_DOWN, sender_debug_state().probe_bw.phase);
+  const QuicByteCount inflight_hi = sender_debug_state().inflight_hi;
+
+  // Enter the next PROBE_REFILL -> PROBE_UP.
+  now = now + probe_wait;
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_REFILL, sender_debug_state().probe_bw.phase);
+
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_UP, sender_debug_state().probe_bw.phase);
+
+  // Reach inflight_hi to trigger Precautionary Deceleration into PROBE_DOWN.
+  const uint64_t packets_for_inflight_hi =
+      (inflight_hi + kDefaultMaxPacketSize - 1) / kDefaultMaxPacketSize;
+  ASSERT_GE(packets_for_inflight_hi, 5u);
+  const QuicPacketNumber first_probe_packet = next_packet_number;
+  for (uint64_t i = 0; i < packets_for_inflight_hi; ++i) {
+    sender_->OnPacketSent(now, /*bytes_in_flight=*/i * kDefaultMaxPacketSize,
+                          next_packet_number++, kDefaultMaxPacketSize,
+                          HAS_RETRANSMITTABLE_DATA);
+  }
+  QuicByteCount bytes_in_flight =
+      packets_for_inflight_hi * kDefaultMaxPacketSize;
+
+  now = now + params.RTT() * 0.5;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, bytes_in_flight, now,
+      {AckedPacket(first_probe_packet, kDefaultMaxPacketSize, std::nullopt)},
+      {}, 0, 0);
+  bytes_in_flight -= kDefaultMaxPacketSize;
+  ASSERT_EQ(ProbePhase::PROBE_DOWN, sender_debug_state().probe_bw.phase);
+
+  const QuicPacketNumber post_stop_packet = next_packet_number++;
+  sender_->OnPacketSent(now, bytes_in_flight, post_stop_packet,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  bytes_in_flight += kDefaultMaxPacketSize;
+
+  // Report 2 loss events (>2% loss) on the packets sent during the
+  // precautionary probe while in PROBE_DOWN.
+  now = now + params.RTT() * 0.1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, bytes_in_flight, now,
+      {AckedPacket(first_probe_packet + 2, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {LostPacket(first_probe_packet + 1, kDefaultMaxPacketSize)}, 0, 0);
+  bytes_in_flight -= 2 * kDefaultMaxPacketSize;
+
+  AckedPacketVector remaining_probe_acks;
+  for (uint64_t i = 4; i < packets_for_inflight_hi; ++i) {
+    remaining_probe_acks.emplace_back(first_probe_packet + i,
+                                      kDefaultMaxPacketSize, std::nullopt);
+  }
+  now = now + params.RTT() * 0.1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, bytes_in_flight, now, remaining_probe_acks,
+      {LostPacket(first_probe_packet + 3, kDefaultMaxPacketSize)}, 0, 0);
+  bytes_in_flight = kDefaultMaxPacketSize;
+
+  // Finish the stopping round: because the precautionary probe suffered excess
+  // loss, BBRv3 must stay in PROBE_CRUISE rather than re-entering PROBE_REFILL.
+  now = now + params.RTT() * 0.8;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, bytes_in_flight, now,
+      {AckedPacket(post_stop_packet, kDefaultMaxPacketSize, std::nullopt)}, {},
+      0, 0);
+  EXPECT_EQ(ProbePhase::PROBE_CRUISE, sender_debug_state().probe_bw.phase);
+}
+
+// Verify the B3NP connection option disables Precautionary Bandwidth Probing.
+TEST_P(Bbr3DefaultTopologyTest, PrecautionaryProbingDisabledByB3NP) {
+  SetConnectionOption(kB3NP);
+  ASSERT_FALSE(sender_params().enable_precautionary_probing);
+
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+  DriveOutOfStartup(params);
+
+  const QuicTime::Delta probe_wait =
+      sender_params().probe_bw_probe_base_duration +
+      sender_params().probe_bw_probe_max_rand_duration +
+      QuicTime::Delta::FromMilliseconds(100);
+
+  AckedPacketVector acked_packets;
+  QuicPacketNumber acked_packet_number =
+      sender_unacked_map()->GetLeastUnacked();
+  for (const auto& info : *sender_unacked_map()) {
+    acked_packets.emplace_back(acked_packet_number++, info.bytes_sent,
+                               std::nullopt);
+  }
+
+  QuicTime now = SimulatedNow() + probe_wait;
+  QuicPacketNumber next_packet_number =
+      sender_unacked_map()->largest_sent_packet() + 1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, sender_unacked_map()->bytes_in_flight(), now,
+      acked_packets, {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_REFILL, sender_debug_state().probe_bw.phase);
+
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_UP, sender_debug_state().probe_bw.phase);
+
+  // Trigger excessive loss in PROBE_UP to set inflight_hi and
+  // prev_probe_too_high.
+  for (uint64_t i = 0; i < 5; ++i) {
+    sender_->OnPacketSent(now, /*bytes_in_flight=*/i * kDefaultMaxPacketSize,
+                          next_packet_number++, kDefaultMaxPacketSize,
+                          HAS_RETRANSMITTABLE_DATA);
+  }
+  now = now + params.RTT() * 0.4;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, 5 * kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 5, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  now = now + params.RTT() * 0.1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, 4 * kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 3, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {LostPacket(next_packet_number - 4, kDefaultMaxPacketSize)}, 0, 0);
+  now = now + params.RTT() * 0.1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, 2 * kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {LostPacket(next_packet_number - 2, kDefaultMaxPacketSize)}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_DOWN, sender_debug_state().probe_bw.phase);
+  const QuicByteCount inflight_hi = sender_debug_state().inflight_hi;
+
+  // Enter the next PROBE_REFILL -> PROBE_UP.
+  now = now + probe_wait;
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_REFILL, sender_debug_state().probe_bw.phase);
+
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
+  ASSERT_EQ(ProbePhase::PROBE_UP, sender_debug_state().probe_bw.phase);
+
+  // Reach inflight_hi: with B3NP set, BBRv3 must NOT exit PROBE_UP early.
+  const uint64_t packets_for_inflight_hi =
+      (inflight_hi + kDefaultMaxPacketSize - 1) / kDefaultMaxPacketSize;
+  const QuicPacketNumber first_probe_packet = next_packet_number;
+  for (uint64_t i = 0; i < packets_for_inflight_hi; ++i) {
+    sender_->OnPacketSent(now, /*bytes_in_flight=*/i * kDefaultMaxPacketSize,
+                          next_packet_number++, kDefaultMaxPacketSize,
+                          HAS_RETRANSMITTABLE_DATA);
+  }
+  now = now + params.RTT() * 0.5;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, packets_for_inflight_hi * kDefaultMaxPacketSize,
+      now,
+      {AckedPacket(first_probe_packet, kDefaultMaxPacketSize, std::nullopt)},
+      {}, 0, 0);
+  EXPECT_EQ(ProbePhase::PROBE_UP, sender_debug_state().probe_bw.phase);
+}
+
 // Ensure that a connection that is app-limited and is at sufficiently low
 // bandwidth will not exit high gain phase, and similarly ensure that the
 // connection will exit low gain early if the number of bytes in flight is low.

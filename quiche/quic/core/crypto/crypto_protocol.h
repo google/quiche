@@ -198,6 +198,8 @@ DEFINE_STATIC_QUIC_TAG(BB2U);  // Exit PROBE_UP on
 DEFINE_STATIC_QUIC_TAG(BB2S);  // Exit STARTUP on
                                // min_bytes_in_flight for two
                                // rounds in a row.
+DEFINE_STATIC_QUIC_TAG(B3NP);  // For BBRv3, disable precautionary
+                               // bandwidth probing.
 DEFINE_STATIC_QUIC_TAG(NTLP);  // No tail loss probe
 DEFINE_STATIC_QUIC_TAG(1TLP);  // 1 tail loss probe
 DEFINE_STATIC_QUIC_TAG(1RTO);  // Send 1 packet upon RTO
