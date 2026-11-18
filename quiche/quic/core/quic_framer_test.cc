@@ -4151,8 +4151,8 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampDeltaShiftOverflow) {
          { kVarInt62OneByte + 0x00 }},
        { "Unable to read receive timestamp count.",
          { kVarInt62OneByte + 0x00 }},
-       // Max 62-bit varint (0x3fffffffffffffff), which overflows when shifted
-       // by exponent >= 2.
+       // Max 62-bit varint (0x3fffffffffffffff), whose decoded value exceeds
+       // 2^62 - 1 when shifted by exponent >= 1.
        { "Unable to read receive timestamp delta.",
          { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }},
   };
@@ -4164,6 +4164,60 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampDeltaShiftOverflow) {
   framer_.set_local_receive_timestamps_exponent(3);
   framer_.set_local_max_receive_timestamps_per_ack(1000);
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_ACK_DATA));
+  EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
+                               "Receive timestamp delta too high."));
+}
+
+TEST_P(QuicFramerTest, AckFrameReceiveTimestampDeltaMaxBoundary) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  framer_.set_local_receive_timestamps_exponent(1);
+  framer_.set_local_max_receive_timestamps_per_ack(1000);
+
+  auto make_packet = [this](unsigned char packet_number_last_byte,
+                            std::vector<unsigned char> delta_bytes) {
+    // clang-format off
+    PacketFragments packet_ietf = {
+        {"", { 0x43 }},
+        {"", { 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10 }},
+        {"", { 0x12, 0x34, 0x56, packet_number_last_byte }},
+        // IETF_ACK_RECEIVE_TIMESTAMPS
+        {"", { 0x83, 0x17, 0x83, 0x07 }},
+        {"", { kVarInt62TwoBytes + 0x12, 0x34 }},
+        {"", { kVarInt62OneByte + 0x00 }},
+        {"", { kVarInt62OneByte + 0x00 }},
+        {"", { kVarInt62OneByte + 0x00 }},
+        // Receive Timestamps: 1 range, delta largest acked 0, count 1.
+        {"", { kVarInt62OneByte + 0x01 }},
+        {"", { kVarInt62OneByte + 0x00 }},
+        {"", { kVarInt62OneByte + 0x00 }},
+        {"", std::move(delta_bytes)},
+    };
+    // clang-format on
+    return AssemblePacketFromFragments(packet_ietf);
+  };
+
+  // Encoded delta 2^61 - 1 (0x1fffffffffffffff) decodes to 2^62 - 2 us <=
+  // 2^62 - 1 us, which is valid.
+  std::unique_ptr<QuicEncryptedPacket> valid_packet(
+      make_packet(0x78, {0xdf, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}));
+  ASSERT_TRUE(framer_.ProcessPacket(*valid_packet));
+  ASSERT_EQ(1u, visitor_.ack_frames_.size());
+  EXPECT_THAT(
+      visitor_.ack_frames_[0]->received_packet_times,
+      ContainerEq(PacketTimeVector{
+          {QuicPacketNumber(0x1234), CreationTimePlus(0x3ffffffffffffffe)},
+      }));
+
+  // Encoded delta 2^61 (0x2000000000000000) decodes to 2^62 us > 2^62 - 1 us,
+  // which must be rejected as FRAME_ENCODING_ERROR.
+  std::unique_ptr<QuicEncryptedPacket> invalid_packet(
+      make_packet(0x79, {0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  EXPECT_FALSE(framer_.ProcessPacket(*invalid_packet));
+  EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_ACK_DATA));
   EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
                                "Receive timestamp delta too high."));
 }

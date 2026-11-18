@@ -3928,9 +3928,10 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
       // The first timestamp delta is relative to peer's reference time; whereas
       // subsequent deltas are relative to the previous delta in decreasing
       // packet order.
+      // Per draft-ietf-quic-receive-ts-04 Section 6.1, decoded Timestamp Delta
+      // values must not exceed 2^62 - 1 microseconds.
       if (timestamp_delta >
-          (static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) >>
-           local_receive_timestamps_exponent_)) {
+          (quiche::kVarInt62MaxValue >> local_receive_timestamps_exponent_)) {
         set_detailed_error("Receive timestamp delta too high.");
         return false;
       }
