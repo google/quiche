@@ -213,12 +213,14 @@ QuicConnection::QuicConnection(
                     server_connection_id,
                     /*stateless_reset_token=*/std::nullopt),
       max_tracked_packets_(GetQuicFlag(quic_max_tracked_packet_count)),
-      uber_received_packet_manager_(&stats_),
+      uber_received_packet_manager_(&stats_, perspective,
+                                    framer_.version().IsIetfQuic()),
       alarms_(this, arena_, *alarm_factory_),
       packet_creator_(server_connection_id, &framer_, random_generator_, this),
       last_received_packet_info_(clock_->ApproximateNow()),
       sent_packet_manager_(perspective, clock_, random_generator_, &stats_,
-                           GetDefaultCongestionControlType()),
+                           GetDefaultCongestionControlType(),
+                           framer_.version().IsIetfQuic()),
       release_time_into_future_(QuicTime::Delta::Zero()),
       blackhole_detector_(
           this,
@@ -259,7 +261,9 @@ QuicConnection::QuicConnection(
                          ? kDefaultServerMaxPacketSize
                          : kDefaultMaxPacketSize);
   uber_received_packet_manager_.set_max_ack_ranges(255);
-  MaybeEnableMultiplePacketNumberSpacesSupport();
+  if (version().IsIetfQuic()) {
+    framer_.EnableMultiplePacketNumberSpacesSupport();
+  }
   uber_received_packet_manager_.set_receive_timestamp_basis(
       framer_.creation_time());
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
@@ -4498,7 +4502,7 @@ void QuicConnection::OnRetransmissionAlarm() {
   ScopedRetransmissionTimeoutIndicator indicator(this);
 #ifndef NDEBUG
   if (sent_packet_manager_.unacked_packets().empty()) {
-    QUICHE_DCHECK(sent_packet_manager_.handshake_mode_disabled());
+    QUICHE_DCHECK(sent_packet_manager_.is_ietf_quic());
     QUICHE_DCHECK(!IsHandshakeConfirmed());
   }
 #endif
@@ -6485,20 +6489,8 @@ bool QuicConnection::FlushCoalescedPacket() {
   return true;
 }
 
-void QuicConnection::MaybeEnableMultiplePacketNumberSpacesSupport() {
-  if (!version().IsIetfQuic()) {
-    return;
-  }
-  QUIC_DVLOG(1) << ENDPOINT << "connection " << connection_id()
-                << " supports multiple packet number spaces";
-  framer_.EnableMultiplePacketNumberSpacesSupport();
-  sent_packet_manager_.EnableMultiplePacketNumberSpacesSupport();
-  uber_received_packet_manager_.EnableMultiplePacketNumberSpacesSupport(
-      perspective_);
-}
-
 bool QuicConnection::SupportsMultiplePacketNumberSpaces() const {
-  return sent_packet_manager_.supports_multiple_packet_number_spaces();
+  return sent_packet_manager_.is_ietf_quic();
 }
 
 void QuicConnection::EnableIncomingReceiveTimestamps(uint32_t max_timestamps,

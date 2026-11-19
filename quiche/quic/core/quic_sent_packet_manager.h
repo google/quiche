@@ -138,9 +138,12 @@ class QUICHE_EXPORT QuicSentPacketManager {
     PTO_MODE,
   };
 
+  // If |is_ietf_quic| is true, packets are tracked per packet number space and
+  // IETF PTO/loss detection is used.
   QuicSentPacketManager(Perspective perspective, const QuicClock* clock,
                         QuicRandom* random, QuicConnectionStats* stats,
-                        CongestionControlType congestion_control_type);
+                        CongestionControlType congestion_control_type,
+                        bool is_ietf_quic);
   QuicSentPacketManager(const QuicSentPacketManager&) = delete;
   QuicSentPacketManager& operator=(const QuicSentPacketManager&) = delete;
   virtual ~QuicSentPacketManager();
@@ -382,8 +385,6 @@ class QUICHE_EXPORT QuicSentPacketManager {
                           EncryptionLevel ack_decrypted_level,
                           const std::optional<QuicEcnCounts>& ecn_counts);
 
-  void EnableMultiplePacketNumberSpacesSupport();
-
   void SetDebugDelegate(DebugDelegate* debug_delegate);
 
   QuicPacketNumber GetLargestObserved() const {
@@ -477,10 +478,6 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // Sends one or more probe packets.
   void MaybeSendProbePacket();
 
-  // Called to disable HANDSHAKE_MODE, and only PTO and LOSS modes are used.
-  // Also enable IETF loss detection.
-  void EnableIetfPtoAndLossDetection();
-
   // Called to retransmit in flight packet of |space| if any.
   void RetransmitDataOfSpaceIfAny(PacketNumberSpace space);
 
@@ -490,11 +487,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // Returns current PTO delay.
   QuicTime::Delta GetPtoDelay() const;
 
-  bool supports_multiple_packet_number_spaces() const {
-    return unacked_packets_.supports_multiple_packet_number_spaces();
-  }
-
-  bool handshake_mode_disabled() const { return handshake_mode_disabled_; }
+  bool is_ietf_quic() const { return unacked_packets_.is_ietf_quic(); }
 
   bool zero_rtt_packet_acked() const { return zero_rtt_packet_acked_; }
 
@@ -734,9 +727,6 @@ class QUICHE_EXPORT QuicSentPacketManager {
 
   // Number of times the PTO timer has fired in a row without receiving an ack.
   size_t consecutive_pto_count_;
-
-  // True if HANDSHAKE mode has been disabled.
-  bool handshake_mode_disabled_;
 
   // True if any ENCRYPTION_HANDSHAKE packet gets acknowledged.
   bool handshake_packet_acked_;

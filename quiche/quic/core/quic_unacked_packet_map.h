@@ -31,7 +31,9 @@ class QuicUnackedPacketMapPeer;
 // 3) Track sent time of packets to provide RTT measurements from acks.
 class QUICHE_EXPORT QuicUnackedPacketMap {
  public:
-  QuicUnackedPacketMap(Perspective perspective);
+  // If |is_ietf_quic| is true, packets are tracked per packet number space.
+  explicit QuicUnackedPacketMap(Perspective perspective,
+                                bool is_ietf_quic = false);
   QuicUnackedPacketMap(const QuicUnackedPacketMap&) = delete;
   QuicUnackedPacketMap& operator=(const QuicUnackedPacketMap&) = delete;
   ~QuicUnackedPacketMap();
@@ -244,8 +246,6 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
 
   void SetSessionNotifier(SessionNotifierInterface* session_notifier);
 
-  void EnableMultiplePacketNumberSpacesSupport();
-
   // Returns a bitfield of retransmittable frames of last packet in
   // unacked_packets_. For example, if the packet contains STREAM_FRAME, content
   // & (1 << STREAM_FRAME) would be set. Returns max uint32_t if
@@ -254,9 +254,7 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
 
   Perspective perspective() const { return perspective_; }
 
-  bool supports_multiple_packet_number_spaces() const {
-    return supports_multiple_packet_number_spaces_;
-  }
+  bool is_ietf_quic() const { return is_ietf_quic_; }
 
   void ReserveInitialCapacity(size_t initial_capacity);
 
@@ -340,8 +338,8 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
   // Receives notifications of frames being retransmitted or acknowledged.
   SessionNotifierInterface* session_notifier_;
 
-  // If true, supports multiple packet number spaces.
-  bool supports_multiple_packet_number_spaces_;
+  // If true, packets are tracked per packet number space, as in IETF QUIC.
+  const bool is_ietf_quic_;
 
   // Latched value of the quic_simple_inflight_time flag.
   bool simple_inflight_time_;

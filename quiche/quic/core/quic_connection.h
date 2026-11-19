@@ -2017,10 +2017,6 @@ class QUICHE_EXPORT QuicConnection
   // Returns true if the ACK frame should be bundled with ACK-eliciting frame.
   bool ShouldBundleRetransmittableFrameWithAck() const;
 
-  // Enables multiple packet number spaces support based on handshake protocol
-  // and flags.
-  void MaybeEnableMultiplePacketNumberSpacesSupport();
-
   // Called to update ACK timeout when an retransmittable frame has been parsed.
   void MaybeUpdateAckTimeout();
 

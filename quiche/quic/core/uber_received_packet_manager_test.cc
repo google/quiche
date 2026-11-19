@@ -58,9 +58,16 @@ EncryptionLevel GetEncryptionLevel(PacketNumberSpace packet_number_space) {
 class UberReceivedPacketManagerTest : public QuicTest {
  protected:
   UberReceivedPacketManagerTest() {
-    manager_ = std::make_unique<UberReceivedPacketManager>(&stats_);
+    manager_ = std::make_unique<UberReceivedPacketManager>(
+        &stats_, Perspective::IS_CLIENT, /*is_ietf_quic=*/false);
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     rtt_stats_.UpdateRtt(kMinRttMs, QuicTime::Delta::Zero(), QuicTime::Zero());
+    manager_->set_receive_timestamp_basis(clock_.ApproximateNow());
+  }
+
+  void CreateManagerWithMultiplePacketNumberSpaces(Perspective perspective) {
+    manager_ = std::make_unique<UberReceivedPacketManager>(
+        &stats_, perspective, /*is_ietf_quic=*/true);
     manager_->set_receive_timestamp_basis(clock_.ApproximateNow());
   }
 
@@ -87,7 +94,7 @@ class UberReceivedPacketManagerTest : public QuicTest {
   }
 
   bool HasPendingAck() {
-    if (!manager_->supports_multiple_packet_number_spaces()) {
+    if (!manager_->is_ietf_quic()) {
       return manager_->GetAckTimeout(APPLICATION_DATA).IsInitialized();
     }
     return manager_->GetEarliestAckTimeout().IsInitialized();
@@ -111,7 +118,7 @@ class UberReceivedPacketManagerTest : public QuicTest {
 
   void CheckAckTimeout(QuicTime time) {
     QUICHE_DCHECK(HasPendingAck());
-    if (!manager_->supports_multiple_packet_number_spaces()) {
+    if (!manager_->is_ietf_quic()) {
       QUICHE_DCHECK(manager_->GetAckTimeout(APPLICATION_DATA) == time);
       if (time <= clock_.ApproximateNow()) {
         // ACK timeout expires, send an ACK.
@@ -158,7 +165,7 @@ TEST_F(UberReceivedPacketManagerTest, DontWaitForPacketsBefore) {
 }
 
 TEST_F(UberReceivedPacketManagerTest, GetUpdatedAckFrame) {
-  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_CLIENT);
+  CreateManagerWithMultiplePacketNumberSpaces(Perspective::IS_CLIENT);
   manager_->SaveReceiveTimestamps(1000);
 
   QuicTime two_ms =
@@ -236,7 +243,7 @@ TEST_F(UberReceivedPacketManagerTest, LimitAckRanges) {
 }
 
 TEST_F(UberReceivedPacketManagerTest, IgnoreOutOfOrderTimestamps) {
-  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_CLIENT);
+  CreateManagerWithMultiplePacketNumberSpaces(Perspective::IS_CLIENT);
   manager_->SaveReceiveTimestamps(1000);
 
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
@@ -475,7 +482,7 @@ TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimationEighthRtt) {
 
 TEST_F(UberReceivedPacketManagerTest,
        DontWaitForPacketsBeforeMultiplePacketNumberSpaces) {
-  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_CLIENT);
+  CreateManagerWithMultiplePacketNumberSpaces(Perspective::IS_CLIENT);
   EXPECT_FALSE(
       manager_->GetLargestObserved(ENCRYPTION_HANDSHAKE).IsInitialized());
   EXPECT_FALSE(
@@ -505,7 +512,7 @@ TEST_F(UberReceivedPacketManagerTest,
 }
 
 TEST_F(UberReceivedPacketManagerTest, AckSendingDifferentPacketNumberSpaces) {
-  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_SERVER);
+  CreateManagerWithMultiplePacketNumberSpaces(Perspective::IS_SERVER);
   EXPECT_FALSE(HasPendingAck());
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
 
@@ -561,7 +568,7 @@ TEST_F(UberReceivedPacketManagerTest, AckSendingDifferentPacketNumberSpaces) {
 
 TEST_F(UberReceivedPacketManagerTest,
        AckTimeoutForPreviouslyUndecryptablePackets) {
-  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_SERVER);
+  CreateManagerWithMultiplePacketNumberSpaces(Perspective::IS_SERVER);
   EXPECT_FALSE(HasPendingAck());
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
 
@@ -588,7 +595,7 @@ TEST_F(UberReceivedPacketManagerTest,
 }
 
 TEST_F(UberReceivedPacketManagerTest, ImmediateAckFrameTriggersAck) {
-  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_CLIENT);
+  CreateManagerWithMultiplePacketNumberSpaces(Perspective::IS_CLIENT);
   EXPECT_FALSE(HasPendingAck());
   RecordPacketReceipt(1, clock_.ApproximateNow());
   manager_->OnImmediateAckFrame();
@@ -605,7 +612,7 @@ TEST_F(UberReceivedPacketManagerTest, ImmediateAckFrameTriggersAck) {
 
 TEST_F(UberReceivedPacketManagerTest,
        SaveTimestampsOnlyForApplicationDataPacketNumberSpace) {
-  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_SERVER);
+  CreateManagerWithMultiplePacketNumberSpaces(Perspective::IS_SERVER);
   manager_->SaveReceiveTimestamps(1000);
 
   const QuicTime basis = clock_.ApproximateNow();

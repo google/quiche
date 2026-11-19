@@ -16,7 +16,10 @@ namespace quic {
 // one received packet manager will be used.
 class QUICHE_EXPORT UberReceivedPacketManager {
  public:
-  explicit UberReceivedPacketManager(QuicConnectionStats* stats);
+  // If |is_ietf_quic| is true, one received packet manager is used per packet
+  // number space.
+  UberReceivedPacketManager(QuicConnectionStats* stats, Perspective perspective,
+                            bool is_ietf_quic);
   UberReceivedPacketManager(const UberReceivedPacketManager&) = delete;
   UberReceivedPacketManager& operator=(const UberReceivedPacketManager&) =
       delete;
@@ -58,9 +61,6 @@ class QUICHE_EXPORT UberReceivedPacketManager {
   // Resets ACK related states, called after an ACK is successfully sent.
   void ResetAckStates(EncryptionLevel encryption_level);
 
-  // Called to enable multiple packet number support.
-  void EnableMultiplePacketNumberSpacesSupport(Perspective perspective);
-
   // Returns true if ACK frame has been updated since GetUpdatedAckFrame was
   // last called.
   bool IsAckFrameUpdated() const;
@@ -83,9 +83,7 @@ class QUICHE_EXPORT UberReceivedPacketManager {
 
   void set_ack_frequency(size_t new_value);
 
-  bool supports_multiple_packet_number_spaces() const {
-    return supports_multiple_packet_number_spaces_;
-  }
+  bool is_ietf_quic() const { return is_ietf_quic_; }
 
   // For logging purposes.
   const QuicAckFrame& ack_frame() const;
@@ -102,12 +100,11 @@ class QUICHE_EXPORT UberReceivedPacketManager {
   friend class test::QuicConnectionPeer;
   friend class test::UberReceivedPacketManagerPeer;
 
-  // One received packet manager per packet number space. If
-  // supports_multiple_packet_number_spaces_ is false, only the first (0 index)
-  // received_packet_manager is used.
+  // One received packet manager per packet number space. If is_ietf_quic_ is
+  // false, only the first (0 index) received_packet_manager is used.
   QuicReceivedPacketManager received_packet_managers_[NUM_PACKET_NUMBER_SPACES];
 
-  bool supports_multiple_packet_number_spaces_;
+  const bool is_ietf_quic_;
 };
 
 }  // namespace quic

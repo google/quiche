@@ -34,8 +34,8 @@ const uint32_t kDefaultLength = 1000;
 
 class QuicUnackedPacketMapTest : public QuicTestWithParam<Perspective> {
  protected:
-  QuicUnackedPacketMapTest()
-      : unacked_packets_(GetParam()),
+  explicit QuicUnackedPacketMapTest(bool is_ietf_quic = false)
+      : unacked_packets_(GetParam(), is_ietf_quic),
         now_(QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1000)) {
     unacked_packets_.SetSessionNotifier(&notifier_);
     EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(true));
@@ -185,6 +185,19 @@ class QuicUnackedPacketMapTest : public QuicTestWithParam<Perspective> {
 };
 
 INSTANTIATE_TEST_SUITE_P(Tests, QuicUnackedPacketMapTest,
+                         ::testing::ValuesIn({Perspective::IS_CLIENT,
+                                              Perspective::IS_SERVER}),
+                         ::testing::PrintToStringParamName());
+
+class QuicUnackedPacketMapMultiplePacketNumberSpacesTest
+    : public QuicUnackedPacketMapTest {
+ protected:
+  QuicUnackedPacketMapMultiplePacketNumberSpacesTest()
+      : QuicUnackedPacketMapTest(/*is_ietf_quic=*/true) {}
+};
+
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicUnackedPacketMapMultiplePacketNumberSpacesTest,
                          ::testing::ValuesIn({Perspective::IS_CLIENT,
                                               Perspective::IS_SERVER}),
                          ::testing::PrintToStringParamName());
@@ -671,8 +684,8 @@ TEST_P(QuicUnackedPacketMapTest, UpdateTransmissionInfoOnFrameAcked) {
             last_padding_bytes);
 }
 
-TEST_P(QuicUnackedPacketMapTest, LargestSentPacketMultiplePacketNumberSpaces) {
-  unacked_packets_.EnableMultiplePacketNumberSpacesSupport();
+TEST_P(QuicUnackedPacketMapMultiplePacketNumberSpacesTest,
+       LargestSentPacketMultiplePacketNumberSpaces) {
   EXPECT_FALSE(
       unacked_packets_
           .GetLargestSentRetransmittableOfPacketNumberSpace(INITIAL_DATA)

@@ -131,9 +131,9 @@ class QuicSentPacketManagerTest : public QuicTest {
 
  protected:
   const CongestionControlType kInitialCongestionControlType = kCubicBytes;
-  QuicSentPacketManagerTest()
+  explicit QuicSentPacketManagerTest(bool is_ietf_quic = false)
       : manager_(Perspective::IS_SERVER, &clock_, QuicRandom::GetInstance(),
-                 &stats_, kInitialCongestionControlType),
+                 &stats_, kInitialCongestionControlType, is_ietf_quic),
         send_algorithm_(new StrictMock<MockSendAlgorithm>),
         network_change_visitor_(new StrictMock<MockNetworkChangeVisitor>) {
     QuicSentPacketManagerPeer::SetSendAlgorithm(&manager_, send_algorithm_);
@@ -365,6 +365,13 @@ class QuicSentPacketManagerTest : public QuicTest {
   MockSendAlgorithm* send_algorithm_;
   std::unique_ptr<MockNetworkChangeVisitor> network_change_visitor_;
   StrictMock<MockSessionNotifier> notifier_;
+};
+
+class QuicSentPacketManagerMultiplePacketNumberSpacesTest
+    : public QuicSentPacketManagerTest {
+ protected:
+  QuicSentPacketManagerMultiplePacketNumberSpacesTest()
+      : QuicSentPacketManagerTest(/*is_ietf_quic=*/true) {}
 };
 
 TEST_F(QuicSentPacketManagerTest, IsUnacked) {
@@ -1521,7 +1528,8 @@ TEST_F(QuicSentPacketManagerTest,
 
       QuicConnectionStats stats;
       QuicSentPacketManager manager(Perspective::IS_SERVER, &clock_,
-                                    QuicRandom::GetInstance(), &stats, cc_type);
+                                    QuicRandom::GetInstance(), &stats, cc_type,
+                                    /*is_ietf_quic=*/false);
       StrictMock<MockSessionNotifier> notifier;
       EXPECT_CALL(notifier, IsFrameOutstanding(_)).WillRepeatedly(Return(true));
       EXPECT_CALL(notifier, HasUnackedCryptoData())
@@ -1886,8 +1894,8 @@ TEST_F(QuicSentPacketManagerTest, TolerateReneging) {
   EXPECT_EQ(QuicPacketNumber(16), manager_.GetLargestObserved());
 }
 
-TEST_F(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       MultiplePacketNumberSpaces) {
   const QuicUnackedPacketMap* unacked_packets =
       QuicSentPacketManagerPeer::GetUnackedPacketMap(&manager_);
   EXPECT_FALSE(
@@ -2011,8 +2019,8 @@ TEST_F(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
             manager_.GetLargestAckedPacket(ENCRYPTION_FORWARD_SECURE));
 }
 
-TEST_F(QuicSentPacketManagerTest, PacketsGetAckedInWrongPacketNumberSpace) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       PacketsGetAckedInWrongPacketNumberSpace) {
   // Send packet 1.
   SendDataPacket(1, ENCRYPTION_INITIAL);
   // Send packets 2 and 3.
@@ -2028,8 +2036,8 @@ TEST_F(QuicSentPacketManagerTest, PacketsGetAckedInWrongPacketNumberSpace) {
                                    ENCRYPTION_INITIAL, kEmptyCounts));
 }
 
-TEST_F(QuicSentPacketManagerTest, PacketsGetAckedInWrongPacketNumberSpace2) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       PacketsGetAckedInWrongPacketNumberSpace2) {
   // Send packet 1.
   SendDataPacket(1, ENCRYPTION_INITIAL);
   // Send packets 2 and 3.
@@ -2045,9 +2053,8 @@ TEST_F(QuicSentPacketManagerTest, PacketsGetAckedInWrongPacketNumberSpace2) {
                                    ENCRYPTION_HANDSHAKE, kEmptyCounts));
 }
 
-TEST_F(QuicSentPacketManagerTest,
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
        ToleratePacketsGetAckedInWrongPacketNumberSpace) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
   // Send packet 1.
   SendDataPacket(1, ENCRYPTION_INITIAL);
   // Ack packet 1.
@@ -2174,9 +2181,9 @@ TEST_F(QuicSentPacketManagerTest, SendOneProbePacket) {
   manager_.MaybeSendProbePacket();
 }
 
-TEST_F(QuicSentPacketManagerTest, DisableHandshakeModeClient) {
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       DisableHandshakeModeClient) {
   QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
-  manager_.EnableMultiplePacketNumberSpacesSupport();
   // Send CHLO.
   SendCryptoPacket(1);
   EXPECT_NE(QuicTime::Zero(), manager_.GetRetransmissionTime());
@@ -2210,8 +2217,8 @@ TEST_F(QuicSentPacketManagerTest, DisableHandshakeModeClient) {
   EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
 }
 
-TEST_F(QuicSentPacketManagerTest, DisableHandshakeModeServer) {
-  manager_.EnableIetfPtoAndLossDetection();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       DisableHandshakeModeServer) {
   // Send SHLO.
   SendCryptoPacket(1);
   EXPECT_NE(QuicTime::Zero(), manager_.GetRetransmissionTime());
@@ -2273,9 +2280,8 @@ TEST_F(QuicSentPacketManagerTest, ServerCongestionWindowDoubledWithIW2X) {
   EXPECT_EQ(manager_.initial_congestion_window(), kInitialCongestionWindow * 2);
 }
 
-
-TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       ClientMultiplePacketNumberSpacePtoTimeout) {
   EXPECT_CALL(*send_algorithm_, PacingRate(_))
       .WillRepeatedly(Return(QuicBandwidth::Zero()));
   EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
@@ -2369,8 +2375,8 @@ TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
             manager_.GetRetransmissionTime());
 }
 
-TEST_F(QuicSentPacketManagerTest, ServerMultiplePacketNumberSpacePtoTimeout) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       ServerMultiplePacketNumberSpacePtoTimeout) {
   EXPECT_CALL(*send_algorithm_, PacingRate(_))
       .WillRepeatedly(Return(QuicBandwidth::Zero()));
   EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
@@ -2562,9 +2568,8 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutByLeftEdge2) {
             manager_.GetRetransmissionTime());
 }
 
-TEST_F(QuicSentPacketManagerTest,
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
        ComputingProbeTimeoutByLeftEdgeMultiplePacketNumberSpaces) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
   EXPECT_CALL(*send_algorithm_, PacingRate(_))
       .WillRepeatedly(Return(QuicBandwidth::Zero()));
@@ -2629,9 +2634,8 @@ TEST_F(QuicSentPacketManagerTest,
             manager_.GetRetransmissionTime());
 }
 
-TEST_F(QuicSentPacketManagerTest,
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
        ComputingProbeTimeoutByLeftEdge2MultiplePacketNumberSpaces) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
   EXPECT_CALL(*send_algorithm_, PacingRate(_))
       .WillRepeatedly(Return(QuicBandwidth::Zero()));
@@ -2698,9 +2702,9 @@ TEST_F(QuicSentPacketManagerTest,
             manager_.GetRetransmissionTime());
 }
 
-TEST_F(QuicSentPacketManagerTest, SetHandshakeConfirmed) {
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       SetHandshakeConfirmed) {
   QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
-  manager_.EnableMultiplePacketNumberSpacesSupport();
 
   SendDataPacket(1, ENCRYPTION_INITIAL);
 
@@ -2812,9 +2816,9 @@ TEST_F(QuicSentPacketManagerTest, ClientsIgnorePings) {
 }
 
 // Regression test for b/154050235.
-TEST_F(QuicSentPacketManagerTest, ExponentialBackoffWithNoRttMeasurement) {
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       ExponentialBackoffWithNoRttMeasurement) {
   QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
-  manager_.EnableMultiplePacketNumberSpacesSupport();
   RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(kInitialRttMs),
             rtt_stats->initial_rtt());
@@ -2839,8 +2843,8 @@ TEST_F(QuicSentPacketManagerTest, ExponentialBackoffWithNoRttMeasurement) {
             manager_.GetRetransmissionTime());
 }
 
-TEST_F(QuicSentPacketManagerTest, PtoDelayWithTinyInitialRtt) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       PtoDelayWithTinyInitialRtt) {
   RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
   // Assume client provided a tiny initial RTT.
   rtt_stats->set_initial_rtt(QuicTime::Delta::FromMicroseconds(1));
@@ -2866,8 +2870,8 @@ TEST_F(QuicSentPacketManagerTest, PtoDelayWithTinyInitialRtt) {
             manager_.GetRetransmissionTime());
 }
 
-TEST_F(QuicSentPacketManagerTest, HandshakeAckCausesInitialKeyDropping) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       HandshakeAckCausesInitialKeyDropping) {
   QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
   // Send INITIAL packet 1.
   SendDataPacket(1, ENCRYPTION_INITIAL);
@@ -2898,8 +2902,8 @@ TEST_F(QuicSentPacketManagerTest, HandshakeAckCausesInitialKeyDropping) {
 }
 
 // Regression test for b/156487311
-TEST_F(QuicSentPacketManagerTest, ClearLastInflightPacketsSentTime) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       ClearLastInflightPacketsSentTime) {
   EXPECT_CALL(*send_algorithm_, PacingRate(_))
       .WillRepeatedly(Return(QuicBandwidth::Zero()));
   EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
@@ -2936,8 +2940,8 @@ TEST_F(QuicSentPacketManagerTest, ClearLastInflightPacketsSentTime) {
   EXPECT_EQ(packet2_sent_time + pto_delay, manager_.GetRetransmissionTime());
 }
 
-TEST_F(QuicSentPacketManagerTest, MaybeRetransmitInitialData) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       MaybeRetransmitInitialData) {
   EXPECT_CALL(*send_algorithm_, PacingRate(_))
       .WillRepeatedly(Return(QuicBandwidth::Zero()));
   EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
@@ -3336,8 +3340,8 @@ TEST_F(QuicSentPacketManagerTest, SmoothedRttIgnoreAckDelay) {
             manager_.GetRttStats()->smoothed_rtt());
 }
 
-TEST_F(QuicSentPacketManagerTest, IgnorePeerMaxAckDelayDuringHandshake) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       IgnorePeerMaxAckDelayDuringHandshake) {
   // 100ms RTT.
   const QuicTime::Delta kTestRTT = QuicTime::Delta::FromMilliseconds(100);
 
@@ -3817,8 +3821,8 @@ TEST_F(QuicSentPacketManagerTest, IgnoreNon1RttFrames) {
   EXPECT_NEAR(manager_.GetOverheadEstimate(), kDefaultOverhead, 1e-6);
 }
 
-TEST_F(QuicSentPacketManagerTest, ReceiveTimestampsStats) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       ReceiveTimestampsStats) {
   EXPECT_EQ(0u, stats_.application_data_packets_acked);
   EXPECT_EQ(0u, stats_.application_data_packets_with_receive_timestamps_acked);
 
@@ -3874,8 +3878,8 @@ TEST_F(QuicSentPacketManagerTest, ReceiveTimestampsStats) {
   EXPECT_EQ(1u, stats_.application_data_packets_with_receive_timestamps_acked);
 }
 
-TEST_F(QuicSentPacketManagerTest, ReceiveTimestampsMultiplePackets) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       ReceiveTimestampsMultiplePackets) {
   for (uint64_t i = 1; i <= 6; ++i) {
     SendDataPacket(i, ENCRYPTION_FORWARD_SECURE);
   }
@@ -3947,8 +3951,8 @@ TEST_F(QuicSentPacketManagerTest, ReceiveTimestampsMultiplePackets) {
   EXPECT_EQ(3u, stats_.application_data_packets_with_receive_timestamps_acked);
 }
 
-TEST_F(QuicSentPacketManagerTest, HandshakePtoTwoPacketsDisabledWhenFlagFalse) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       HandshakePtoTwoPacketsDisabledWhenFlagFalse) {
   SetQuicReloadableFlag(quic_handshake_pto_two_packets, false);
   QuicConfig config;
   QuicConfigPeer::SetReceivedConnectionOptions(&config, {kPTO2});
@@ -3978,8 +3982,8 @@ TEST_F(QuicSentPacketManagerTest, HandshakePtoTwoPacketsDisabledWhenFlagFalse) {
   EXPECT_TRUE(manager_.GetRetransmissionTime().IsInitialized());
 }
 
-TEST_F(QuicSentPacketManagerTest, HandshakePtoTwoPackets) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       HandshakePtoTwoPackets) {
   SetQuicReloadableFlag(quic_handshake_pto_two_packets, true);
   QuicConfig config;
   QuicConfigPeer::SetReceivedConnectionOptions(&config, {kPTO2});
@@ -4033,8 +4037,8 @@ TEST_F(QuicSentPacketManagerTest, HandshakePtoTwoPackets) {
   EXPECT_TRUE(manager_.GetRetransmissionTime().IsInitialized());
 }
 
-TEST_F(QuicSentPacketManagerTest, HandshakePtoTwoPacketsOnlyOneInFlight) {
-  manager_.EnableMultiplePacketNumberSpacesSupport();
+TEST_F(QuicSentPacketManagerMultiplePacketNumberSpacesTest,
+       HandshakePtoTwoPacketsOnlyOneInFlight) {
   SetQuicReloadableFlag(quic_handshake_pto_two_packets, true);
   QuicConfig config;
   QuicConfigPeer::SetReceivedConnectionOptions(&config, {kPTO2});

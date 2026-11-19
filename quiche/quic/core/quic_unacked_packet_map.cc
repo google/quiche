@@ -124,7 +124,8 @@ QuicFrameTypeBitfield GetFrameTypeBitfield(QuicFrameType type) {
 
 }  // namespace
 
-QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
+QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective,
+                                           bool is_ietf_quic)
     : perspective_(perspective),
       least_unacked_(FirstSendingPacketNumber()),
       bytes_in_flight_(0),
@@ -135,7 +136,7 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
           {QuicTime::Zero()}, {QuicTime::Zero()}, {QuicTime::Zero()}},
       last_crypto_packet_sent_time_(QuicTime::Zero()),
       session_notifier_(nullptr),
-      supports_multiple_packet_number_spaces_(false) {}
+      is_ietf_quic_(is_ietf_quic) {}
 
 QuicUnackedPacketMap::~QuicUnackedPacketMap() {
   for (QuicTransmissionInfo& transmission_info : unacked_packets_) {
@@ -390,7 +391,7 @@ QuicUnackedPacketMap::NeuterUnencryptedPackets() {
       QUICHE_DCHECK(!HasRetransmittableFrames(*info));
     }
   }
-  QUICHE_DCHECK(!supports_multiple_packet_number_spaces_ ||
+  QUICHE_DCHECK(!is_ietf_quic_ ||
                 last_inflight_packets_sent_time_[INITIAL_DATA] ==
                     QuicTime::Zero());
   return neutered_packets;
@@ -415,7 +416,7 @@ QuicUnackedPacketMap::NeuterHandshakePackets() {
       NotifyFramesAcked(packet_number, QuicTime::Delta::Zero(), info);
     }
   }
-  QUICHE_DCHECK(!supports_multiple_packet_number_spaces() ||
+  QUICHE_DCHECK(!is_ietf_quic_ ||
                 last_inflight_packets_sent_time_[HANDSHAKE_DATA] ==
                     QuicTime::Zero());
   return neutered_packets;
@@ -646,7 +647,7 @@ PacketNumberSpace QuicUnackedPacketMap::GetPacketNumberSpace(
 
 PacketNumberSpace QuicUnackedPacketMap::GetPacketNumberSpace(
     EncryptionLevel encryption_level) const {
-  if (supports_multiple_packet_number_spaces_) {
+  if (is_ietf_quic_) {
     return QuicUtils::GetPacketNumberSpace(encryption_level);
   }
   if (perspective_ == Perspective::IS_CLIENT) {
@@ -712,22 +713,6 @@ QuicUnackedPacketMap::GetFirstInFlightTransmissionInfoOfSpace(
     }
   }
   return nullptr;
-}
-
-void QuicUnackedPacketMap::EnableMultiplePacketNumberSpacesSupport() {
-  if (supports_multiple_packet_number_spaces_) {
-    QUIC_BUG(quic_bug_10518_7)
-        << "Multiple packet number spaces has already been enabled";
-    return;
-  }
-  if (largest_sent_packet_.IsInitialized()) {
-    QUIC_BUG(quic_bug_10518_8)
-        << "Try to enable multiple packet number spaces support after any "
-           "packet has been sent.";
-    return;
-  }
-
-  supports_multiple_packet_number_spaces_ = true;
 }
 
 int32_t QuicUnackedPacketMap::GetLastPacketContent() const {

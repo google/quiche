@@ -14,11 +14,26 @@
 
 namespace quic {
 
-UberReceivedPacketManager::UberReceivedPacketManager(QuicConnectionStats* stats)
-    : supports_multiple_packet_number_spaces_(false) {
+UberReceivedPacketManager::UberReceivedPacketManager(QuicConnectionStats* stats,
+                                                     Perspective perspective,
+                                                     bool is_ietf_quic)
+    : is_ietf_quic_(is_ietf_quic) {
   for (auto& received_packet_manager : received_packet_managers_) {
     received_packet_manager.set_connection_stats(stats);
   }
+  if (!is_ietf_quic_) {
+    return;
+  }
+  // In IETF QUIC, the peer is expected to acknowledge packets in Initial and
+  // Handshake packets with minimal delay.
+  if (perspective == Perspective::IS_CLIENT) {
+    // Delay the first server ACK, because server ACKs are padded to
+    // full size and count towards the amplification limit.
+    received_packet_managers_[INITIAL_DATA].set_local_max_ack_delay(
+        kAlarmGranularity);
+  }
+  received_packet_managers_[HANDSHAKE_DATA].set_local_max_ack_delay(
+      kAlarmGranularity);
 }
 
 UberReceivedPacketManager::~UberReceivedPacketManager() {}
@@ -33,7 +48,7 @@ void UberReceivedPacketManager::SetFromConfig(const QuicConfig& config,
 bool UberReceivedPacketManager::IsAwaitingPacket(
     EncryptionLevel decrypted_packet_level,
     QuicPacketNumber packet_number) const {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     return received_packet_managers_[0].IsAwaitingPacket(packet_number);
   }
   return received_packet_managers_[QuicUtils::GetPacketNumberSpace(
@@ -43,7 +58,7 @@ bool UberReceivedPacketManager::IsAwaitingPacket(
 
 const QuicFrame UberReceivedPacketManager::GetUpdatedAckFrame(
     PacketNumberSpace packet_number_space, QuicTime approximate_now) {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     return received_packet_managers_[0].GetUpdatedAckFrame(approximate_now);
   }
   return received_packet_managers_[packet_number_space].GetUpdatedAckFrame(
@@ -53,7 +68,7 @@ const QuicFrame UberReceivedPacketManager::GetUpdatedAckFrame(
 void UberReceivedPacketManager::RecordPacketReceived(
     EncryptionLevel decrypted_packet_level, const QuicPacketHeader& header,
     QuicTime receipt_time, QuicEcnCodepoint ecn_codepoint) {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     received_packet_managers_[0].RecordPacketReceived(header, receipt_time,
                                                       ecn_codepoint);
     return;
@@ -65,7 +80,7 @@ void UberReceivedPacketManager::RecordPacketReceived(
 
 void UberReceivedPacketManager::DontWaitForPacketsBefore(
     EncryptionLevel decrypted_packet_level, QuicPacketNumber least_unacked) {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     received_packet_managers_[0].DontWaitForPacketsBefore(least_unacked);
     return;
   }
@@ -75,7 +90,7 @@ void UberReceivedPacketManager::DontWaitForPacketsBefore(
 }
 
 void UberReceivedPacketManager::OnImmediateAckFrame() {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     QUIC_BUG(quic_bug_10495_4)
         << "Received ImmediateAckFrame when multiple packet number spaces "
            "is not supported";
@@ -90,7 +105,7 @@ void UberReceivedPacketManager::MaybeUpdateAckTimeout(
     QuicPacketNumber last_received_packet_number,
     QuicTime last_packet_receipt_time, QuicTime now,
     const RttStats* rtt_stats) {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     received_packet_managers_[0].MaybeUpdateAckTimeout(
         should_last_packet_instigate_acks, last_received_packet_number,
         last_packet_receipt_time, now, rtt_stats);
@@ -105,7 +120,7 @@ void UberReceivedPacketManager::MaybeUpdateAckTimeout(
 
 void UberReceivedPacketManager::ResetAckStates(
     EncryptionLevel encryption_level) {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     received_packet_managers_[0].ResetAckStates();
     return;
   }
@@ -118,35 +133,8 @@ void UberReceivedPacketManager::ResetAckStates(
   }
 }
 
-void UberReceivedPacketManager::EnableMultiplePacketNumberSpacesSupport(
-    Perspective perspective) {
-  if (supports_multiple_packet_number_spaces_) {
-    QUIC_BUG(quic_bug_10495_1)
-        << "Multiple packet number spaces has already been enabled";
-    return;
-  }
-  if (received_packet_managers_[0].GetLargestObserved().IsInitialized()) {
-    QUIC_BUG(quic_bug_10495_2)
-        << "Try to enable multiple packet number spaces support after any "
-           "packet has been received.";
-    return;
-  }
-  // In IETF QUIC, the peer is expected to acknowledge packets in Initial and
-  // Handshake packets with minimal delay.
-  if (perspective == Perspective::IS_CLIENT) {
-    // Delay the first server ACK, because server ACKs are padded to
-    // full size and count towards the amplification limit.
-    received_packet_managers_[INITIAL_DATA].set_local_max_ack_delay(
-        kAlarmGranularity);
-  }
-  received_packet_managers_[HANDSHAKE_DATA].set_local_max_ack_delay(
-      kAlarmGranularity);
-
-  supports_multiple_packet_number_spaces_ = true;
-}
-
 bool UberReceivedPacketManager::IsAckFrameUpdated() const {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     return received_packet_managers_[0].ack_frame_updated();
   }
   for (const auto& received_packet_manager : received_packet_managers_) {
@@ -159,7 +147,7 @@ bool UberReceivedPacketManager::IsAckFrameUpdated() const {
 
 QuicPacketNumber UberReceivedPacketManager::GetLargestObserved(
     EncryptionLevel decrypted_packet_level) const {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     return received_packet_managers_[0].GetLargestObserved();
   }
   return received_packet_managers_[QuicUtils::GetPacketNumberSpace(
@@ -169,7 +157,7 @@ QuicPacketNumber UberReceivedPacketManager::GetLargestObserved(
 
 QuicTime UberReceivedPacketManager::GetAckTimeout(
     PacketNumberSpace packet_number_space) const {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     return received_packet_managers_[0].ack_timeout();
   }
   return received_packet_managers_[packet_number_space].ack_timeout();
@@ -193,7 +181,7 @@ QuicTime UberReceivedPacketManager::GetEarliestAckTimeout() const {
 
 bool UberReceivedPacketManager::IsAckFrameEmpty(
     PacketNumberSpace packet_number_space) const {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     return received_packet_managers_[0].IsAckFrameEmpty();
   }
   return received_packet_managers_[packet_number_space].IsAckFrameEmpty();
@@ -217,13 +205,13 @@ void UberReceivedPacketManager::set_ack_frequency(size_t new_value) {
 }
 
 const QuicAckFrame& UberReceivedPacketManager::ack_frame() const {
-  QUICHE_DCHECK(!supports_multiple_packet_number_spaces_);
+  QUICHE_DCHECK(!is_ietf_quic_);
   return received_packet_managers_[0].ack_frame();
 }
 
 const QuicAckFrame& UberReceivedPacketManager::GetAckFrame(
     PacketNumberSpace packet_number_space) const {
-  QUICHE_DCHECK(supports_multiple_packet_number_spaces_);
+  QUICHE_DCHECK(is_ietf_quic_);
   return received_packet_managers_[packet_number_space].ack_frame();
 }
 
@@ -234,7 +222,7 @@ void UberReceivedPacketManager::set_max_ack_ranges(size_t max_ack_ranges) {
 }
 
 void UberReceivedPacketManager::SaveReceiveTimestamps(size_t max_timestamps) {
-  if (!supports_multiple_packet_number_spaces_ && max_timestamps > 0) {
+  if (!is_ietf_quic_ && max_timestamps > 0) {
     QUIC_BUG(recv_timestamps_with_gquic)
         << "Trying to enable QUIC receive timestamps for non-IETF QUIC";
     return;
@@ -254,7 +242,7 @@ void UberReceivedPacketManager::set_receive_timestamp_basis(
 
 void UberReceivedPacketManager::OnAckFrequencyFrame(
     const QuicAckFrequencyFrame& frame) {
-  if (!supports_multiple_packet_number_spaces_) {
+  if (!is_ietf_quic_) {
     QUIC_BUG(quic_bug_10495_3)
         << "Received AckFrequencyFrame when multiple packet number spaces "
            "is not supported";
