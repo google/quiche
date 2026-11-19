@@ -911,9 +911,13 @@ class QUICHE_EXPORT QuicConnection
     return default_path_.self_address;
   }
   const QuicSocketAddress& peer_address() const { return direct_peer_address_; }
+  // Returns the peer address of the current default path (may be unvalidated).
   const QuicSocketAddress& effective_peer_address() const {
     return default_path_.peer_address;
   }
+
+  // Returns a validated peer address (if available).
+  virtual const QuicSocketAddress& GetValidatedPeerAddress() const;
 
   // Returns the server connection ID used on the default path.
   const QuicConnectionId& connection_id() const {

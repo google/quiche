@@ -4365,6 +4365,20 @@ void QuicConnection::OnHandshakeComplete() {
   }
 }
 
+const QuicSocketAddress& QuicConnection::GetValidatedPeerAddress() const {
+  if (default_path_.validated) {
+    QUICHE_CODE_COUNT(validated_peer_address_from_default_path);
+    return default_path_.peer_address;
+  }
+  if (alternative_path_.validated) {
+    QUICHE_CODE_COUNT(validated_peer_address_from_alternative_path);
+    return alternative_path_.peer_address;
+  }
+  QUIC_CODE_COUNT(validated_peer_address_not_initialized);
+  static const QuicSocketAddress kEmptySocketAddress;
+  return kEmptySocketAddress;
+}
+
 void QuicConnection::MaybeCreateMultiPortPath() {
   QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
   QUIC_CLIENT_HISTOGRAM_BOOL(
