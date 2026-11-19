@@ -733,8 +733,6 @@ class QUICHE_EXPORT QuicFramer {
         expected_client_connection_id_length;
   }
 
-  void EnableMultiplePacketNumberSpacesSupport();
-
   // Writes an array of bytes that, if sent as a UDP datagram, will trigger
   // IETF QUIC Version Negotiation on servers. The bytes will be written to
   // |packet_bytes|, which must point to |packet_length| bytes of memory.
@@ -1115,9 +1113,10 @@ class QUICHE_EXPORT QuicFramer {
   QuicFramerVisitorInterface* visitor_;
   QuicErrorCode error_;
   // Updated by ProcessPacketHeader when it succeeds decrypting a larger packet.
+  // Only used when !version_.IsIetfQuic().
   QuicPacketNumber largest_packet_number_;
   // Largest successfully decrypted packet number per packet number space. Only
-  // used when supports_multiple_packet_number_spaces_ is true.
+  // used when version_.IsIetfQuic().
   QuicPacketNumber largest_decrypted_packet_numbers_[NUM_PACKET_NUMBER_SPACES];
   // Version of the protocol being used.
   ParsedQuicVersion version_;
@@ -1203,9 +1202,6 @@ class QUICHE_EXPORT QuicFramer {
   // lengths in older versions of QUIC.
   uint8_t expected_server_connection_id_length_;
   uint8_t expected_client_connection_id_length_;
-
-  // Indicates whether this framer supports multiple packet number spaces.
-  bool supports_multiple_packet_number_spaces_;
 
   // Indicates whether received RETRY packets should be dropped.
   bool drop_incoming_retry_packets_ = false;

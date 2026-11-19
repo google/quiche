@@ -450,7 +450,6 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       expected_server_connection_id_length_(
           expected_server_connection_id_length),
       expected_client_connection_id_length_(0),
-      supports_multiple_packet_number_spaces_(false),
       last_written_packet_number_length_(0),
       peer_ack_delay_exponent_(kDefaultAckDelayExponent),
       local_ack_delay_exponent_(kDefaultAckDelayExponent),
@@ -1798,7 +1797,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
                   header->long_packet_type == HANDSHAKE ||
                   header->long_packet_type == ZERO_RTT_PROTECTED);
     // Process packet number.
-    if (supports_multiple_packet_number_spaces_) {
+    if (version_.IsIetfQuic()) {
       PacketNumberSpace pn_space = GetPacketNumberSpace(*header);
       if (pn_space == NUM_PACKET_NUMBER_SPACES) {
         return RaiseError(QUIC_INVALID_PACKET_HEADER);
@@ -1930,7 +1929,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
 
   // Update the largest packet number after we have decrypted the packet
   // so we are confident is not attacker controlled.
-  if (supports_multiple_packet_number_spaces_) {
+  if (version_.IsIetfQuic()) {
     largest_decrypted_packet_numbers_[QuicUtils::GetPacketNumberSpace(
                                           decrypted_level)]
         .UpdateMax(header->packet_number);
@@ -6248,22 +6247,6 @@ uint8_t QuicFramer::GetIetfStreamFrameTypeByte(
     type_byte |= IETF_STREAM_FRAME_FIN_BIT;
   }
   return type_byte;
-}
-
-void QuicFramer::EnableMultiplePacketNumberSpacesSupport() {
-  if (supports_multiple_packet_number_spaces_) {
-    QUIC_BUG(quic_bug_10850_91)
-        << "Multiple packet number spaces has already been enabled";
-    return;
-  }
-  if (largest_packet_number_.IsInitialized()) {
-    QUIC_BUG(quic_bug_10850_92)
-        << "Try to enable multiple packet number spaces support after any "
-           "packet has been received.";
-    return;
-  }
-
-  supports_multiple_packet_number_spaces_ = true;
 }
 
 // static

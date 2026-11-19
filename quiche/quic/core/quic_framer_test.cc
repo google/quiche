@@ -14450,24 +14450,11 @@ TEST_P(QuicFramerTest, PacketHeaderWithVariableLengthConnectionId) {
 }
 
 TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
-  framer_.EnableMultiplePacketNumberSpacesSupport();
+  if (!framer_.version().IsIetfQuic()) {
+    return;
+  }
 
   // clang-format off
-  unsigned char long_header_packet[] = {
-       // public flags (long header with packet type ZERO_RTT_PROTECTED and
-       // 4-byte packet number)
-       0xD3,
-       // version
-       QUIC_VERSION_BYTES,
-       // destination connection ID length
-       0x50,
-       // destination connection ID
-       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
-       // packet number
-       0x12, 0x34, 0x56, 0x78,
-       // padding frame
-       0x00,
-   };
   unsigned char long_header_packet_ietf[] = {
        // public flags (long header with packet type ZERO_RTT_PROTECTED and
        // 4-byte packet number)
@@ -14489,23 +14476,13 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
   };
   // clang-format on
 
-  if (framer_.version().IsIetfQuic()) {
-    framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
-                             std::make_unique<TestDecrypter>());
-    framer_.RemoveDecrypter(ENCRYPTION_INITIAL);
-  } else {
-    framer_.SetDecrypter(ENCRYPTION_ZERO_RTT,
-                         std::make_unique<TestDecrypter>());
-  }
-  if (!VersionIsIetfQuic(framer_.transport_version())) {
-    EXPECT_TRUE(framer_.ProcessPacket(QuicEncryptedPacket(
-        AsChars(long_header_packet), std::size(long_header_packet), false)));
-  } else {
-    ReviseFirstByteByVersion(long_header_packet_ietf);
-    EXPECT_TRUE(framer_.ProcessPacket(
-        QuicEncryptedPacket(AsChars(long_header_packet_ietf),
-                            std::size(long_header_packet_ietf), false)));
-  }
+  framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
+                           std::make_unique<TestDecrypter>());
+  framer_.RemoveDecrypter(ENCRYPTION_INITIAL);
+  ReviseFirstByteByVersion(long_header_packet_ietf);
+  EXPECT_TRUE(framer_.ProcessPacket(
+      QuicEncryptedPacket(AsChars(long_header_packet_ietf),
+                          std::size(long_header_packet_ietf), false)));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   EXPECT_FALSE(
@@ -14532,14 +14509,9 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
 
   QuicEncryptedPacket short_header_encrypted(
       AsChars(short_header_packet), std::size(short_header_packet), false);
-  if (framer_.version().IsIetfQuic()) {
-    framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
-                             std::make_unique<TestDecrypter>());
-    framer_.RemoveDecrypter(ENCRYPTION_ZERO_RTT);
-  } else {
-    framer_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
-                         std::make_unique<TestDecrypter>());
-  }
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TestDecrypter>());
+  framer_.RemoveDecrypter(ENCRYPTION_ZERO_RTT);
   EXPECT_TRUE(framer_.ProcessPacket(short_header_encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -14553,11 +14525,10 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
                                    &framer_, APPLICATION_DATA));
 }
 
-TEST_P(QuicFramerTest, RetryPacketRejectedWithMultiplePacketNumberSpaces) {
+TEST_P(QuicFramerTest, RetryPacketRejectedInGoogleQuic) {
   if (framer_.version().IsIetfQuic()) {
     return;
   }
-  framer_.EnableMultiplePacketNumberSpacesSupport();
 
   // clang-format off
   PacketFragments packet = {

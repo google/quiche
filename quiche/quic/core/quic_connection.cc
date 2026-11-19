@@ -261,9 +261,6 @@ QuicConnection::QuicConnection(
                          ? kDefaultServerMaxPacketSize
                          : kDefaultMaxPacketSize);
   uber_received_packet_manager_.set_max_ack_ranges(255);
-  if (version().IsIetfQuic()) {
-    framer_.EnableMultiplePacketNumberSpacesSupport();
-  }
   uber_received_packet_manager_.set_receive_timestamp_basis(
       framer_.creation_time());
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||

@@ -30,6 +30,10 @@ void QuicFramerPeer::SetLastWrittenPacketNumberLength(
 void QuicFramerPeer::SetLargestPacketNumber(QuicFramer* framer,
                                             QuicPacketNumber packet_number) {
   framer->largest_packet_number_ = packet_number;
+  for (QuicPacketNumber& largest_decrypted :
+       framer->largest_decrypted_packet_numbers_) {
+    largest_decrypted = packet_number;
+  }
 }
 
 // static
