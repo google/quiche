@@ -216,7 +216,8 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   void ProcessHeaderLines(const Lines& lines, bool is_trailer,
                           BalsaHeaders* headers);
 
-  // Returns true if there are invalid characters, false otherwise.
+  // Records protocol defects for invalid header characters and lone CRs.
+  // Returns true if the lines must be rejected because of either.
   bool CheckHeaderLinesForInvalidChars(const Lines& lines,
                                        const BalsaHeaders* headers);
 

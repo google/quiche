@@ -800,14 +800,21 @@ bool BalsaFrame::CheckHeaderLinesForInvalidChars(const Lines& lines,
   const char* stream_end =
       headers->OriginalHeaderStreamBegin() + lines.back().second;
 
+  const bool check_invalid_chars = invalid_chars_error_enabled();
   for (const char* c = stream_begin; c < stream_end; c++) {
     if (header_properties::IsInvalidHeaderChar(*c)) {
-      return true;
+      if (check_invalid_chars) {
+        return true;
+      }
+      continue;
     }
     if (*c == '\r' && c + 1 < stream_end && *(c + 1) != '\n') {
-      QUICHE_CODE_COUNT(lone_cr_in_request_headers_detected);
-      protocol_defects_.lone_cr_in_request_headers = true;
-      if (http_validation_policy().disallow_lone_cr_in_request_headers) {
+      if (!protocol_defects_.lone_cr_in_request_headers) {
+        QUICHE_CODE_COUNT(lone_cr_in_request_headers_detected);
+        protocol_defects_.lone_cr_in_request_headers = true;
+      }
+      if (check_invalid_chars &&
+          http_validation_policy().disallow_lone_cr_in_request_headers) {
         QUICHE_CODE_COUNT(disallow_lone_cr_in_request_headers_enforced);
         return true;
       }
@@ -822,8 +829,7 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
   QUICHE_DCHECK(!lines.empty());
   QUICHE_DVLOG(1) << "******@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@**********\n";
 
-  if (invalid_chars_error_enabled() &&
-      CheckHeaderLinesForInvalidChars(lines, headers)) {
+  if (CheckHeaderLinesForInvalidChars(lines, headers)) {
     HandleError(BalsaFrameEnums::INVALID_HEADER_CHARACTER);
     return;
   }
