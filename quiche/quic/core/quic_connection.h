@@ -148,6 +148,15 @@ class QUICHE_EXPORT QuicConnectionVisitorInterface {
   virtual void OnRstStream(const QuicRstStreamFrame& frame) = 0;
   virtual void OnResetStreamAt(const QuicResetStreamAtFrame& frame) = 0;
 
+  // Called for a draft-jholland-quic-multicast frame received on this
+  // connection (see QuicFramerVisitorInterface::OnMulticastFrame for the
+  // |reader| contract). Non-pure: the default declines, which keeps
+  // "Illegal frame type.".
+  virtual QuicMulticastFrameStatus OnMulticastFrame(
+      uint64_t /*frame_type*/, QuicDataReader* /*reader*/) {
+    return QuicMulticastFrameStatus::kNotHandled;
+  }
+
   // Called when the connection is going away according to the peer.
   virtual void OnGoAway(const QuicGoAwayFrame& frame) = 0;
 
@@ -661,6 +670,14 @@ class QUICHE_EXPORT QuicConnection
   // otherwise.
   virtual bool SendControlFrame(const QuicFrame& frame);
 
+  // Sends |frame|, an MC frame that QuicMulticastControlFrame::
+  // IsRetransmittable refuses (MC_ACK), in the current or a new 1-RTT packet,
+  // as ACK is sent: outside congestion control, not in flight, never
+  // retransmitted. Takes ownership. Returns false, and deletes the frame, if
+  // it cannot be sent now; the next MC_ACK covers it.
+  virtual bool SendNonRetransmittableMulticastFrame(
+      QuicMulticastControlFrame* frame);
+
   // Called when stream |id| is reset because of |error|.
   virtual void OnStreamReset(QuicStreamId id, QuicRstStreamErrorCode error);
 
@@ -801,6 +818,8 @@ class QUICHE_EXPORT QuicConnection
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override;
   bool OnImmediateAckFrame(const QuicImmediateAckFrame& frame) override;
   bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override;
+  QuicMulticastFrameStatus OnMulticastFrame(uint64_t frame_type,
+                                            QuicDataReader* reader) override;
   void OnPacketComplete() override;
   bool IsValidStatelessResetToken(
       const StatelessResetToken& token) const override;

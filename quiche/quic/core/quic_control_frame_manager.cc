@@ -9,6 +9,7 @@
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/frames/quic_multicast_control_frame.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"
@@ -181,6 +182,13 @@ void QuicControlFrameManager::WriteOrBufferNewToken(absl::string_view token) {
   last_new_token_ = ++last_control_frame_id_;
   WriteOrBufferQuicFrame(
       QuicFrame(new QuicNewTokenFrame(last_new_token_, token)));
+}
+
+void QuicControlFrameManager::WriteOrBufferMulticastControlFrame(
+    uint64_t frame_type, absl::string_view payload) {
+  QUIC_DVLOG(1) << "Writing multicast control frame, type: " << frame_type;
+  WriteOrBufferQuicFrame(QuicFrame(new QuicMulticastControlFrame(
+      ++last_control_frame_id_, frame_type, payload)));
 }
 
 void QuicControlFrameManager::OnControlFrameSent(const QuicFrame& frame) {

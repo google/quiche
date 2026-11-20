@@ -2057,7 +2057,14 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
 
   packet_size_ += ExpansionOnNewFrame() + frame_len;
 
-  if (QuicUtils::IsRetransmittableFrame(frame.type)) {
+  // An MC_ACK is filed with ACK, among the non-retransmittable frames, so its
+  // packet is not in flight and the packet owns (and deletes) it.
+  const bool retransmittable =
+      QuicUtils::IsRetransmittableFrame(frame.type) &&
+      (frame.type != MULTICAST_CONTROL_FRAME ||
+       QuicMulticastControlFrame::IsRetransmittable(
+           frame.multicast_control_frame->frame_type));
+  if (retransmittable) {
     packet_.retransmittable_frames.push_back(frame);
     queued_frames_.push_back(frame);
     if (QuicUtils::IsHandshakeFrame(frame, framer_->transport_version())) {
@@ -2096,7 +2103,7 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   if (transmission_type == NOT_RETRANSMISSION) {
     packet_.bytes_not_retransmitted.emplace(
         packet_.bytes_not_retransmitted.value_or(0) + frame_len);
-  } else if (QuicUtils::IsRetransmittableFrame(frame.type)) {
+  } else if (retransmittable) {
     // Packet transmission type is determined by the last added retransmittable
     // frame of a retransmission type. If a packet has no retransmittable
     // retransmission frames, it has type NOT_RETRANSMISSION.

@@ -475,6 +475,8 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, OnRstStream, (const QuicRstStreamFrame& frame), (override));
   MOCK_METHOD(void, OnResetStreamAt, (const QuicResetStreamAtFrame& frame),
               (override));
+  MOCK_METHOD(QuicMulticastFrameStatus, OnMulticastFrame,
+              (uint64_t frame_type, QuicDataReader* reader), (override));
   MOCK_METHOD(void, OnGoAway, (const QuicGoAwayFrame& frame), (override));
   MOCK_METHOD(void, OnDatagramReceived, (absl::string_view datagram),
               (override));
@@ -675,6 +677,8 @@ class MockQuicConnection : public QuicConnection {
   MOCK_METHOD(void, OnStreamReset, (QuicStreamId, QuicRstStreamErrorCode),
               (override));
   MOCK_METHOD(bool, SendControlFrame, (const QuicFrame& frame), (override));
+  MOCK_METHOD(bool, SendNonRetransmittableMulticastFrame,
+              (QuicMulticastControlFrame * frame), (override));
   MOCK_METHOD(DatagramStatus, SendDatagram,
               (QuicDatagramId, absl::Span<quiche::QuicheMemSlice>, bool),
               (override));

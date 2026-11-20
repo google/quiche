@@ -733,6 +733,10 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
       return QuicDataWriter::GetVarInt62Len(IETF_IMMEDIATE_ACK);
     case RESET_STREAM_AT_FRAME:
       return GetResetStreamAtFrameSize(*frame.reset_stream_at_frame);
+    case MULTICAST_CONTROL_FRAME:
+      return QuicDataWriter::GetVarInt62Len(
+                 frame.multicast_control_frame->frame_type) +
+             frame.multicast_control_frame->payload.size();
     case STREAM_FRAME:
     case ACK_FRAME:
     case STOP_WAITING_FRAME:
@@ -1258,6 +1262,14 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         if (!AppendResetFrameAtFrame(*frame.reset_stream_at_frame, *writer)) {
           QUIC_BUG(cannot_append_reset_stream_at)
               << "AppendResetStreamAtFram failed: " << detailed_error();
+          return 0;
+        }
+        break;
+      case MULTICAST_CONTROL_FRAME:
+        if (!writer->WriteStringPiece(
+                frame.multicast_control_frame->payload)) {
+          QUIC_BUG(cannot_append_multicast_control_frame)
+              << "Append multicast control frame failed";
           return 0;
         }
         break;
@@ -3257,12 +3269,28 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           }
           break;
         }
-        default:
-          set_detailed_error("Illegal frame type.");
-          QUIC_DLOG(WARNING)
-              << ENDPOINT
-              << "Illegal frame type: " << static_cast<int>(frame_type);
-          return RaiseError(QUIC_INVALID_FRAME_DATA);
+        default: {
+          // draft-jholland-quic-multicast frames have no QuicFrameType; the
+          // visitor parses them. kNotHandled keeps the stock error.
+          switch (visitor_->OnMulticastFrame(frame_type, reader)) {
+            case QuicMulticastFrameStatus::kContinue:
+              break;
+            case QuicMulticastFrameStatus::kStop:
+              QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
+              // Returning true since there was no parsing error.
+              return true;
+            case QuicMulticastFrameStatus::kError:
+              set_detailed_error("Invalid multicast frame.");
+              return RaiseError(QUIC_INVALID_FRAME_DATA);
+            case QuicMulticastFrameStatus::kNotHandled:
+              set_detailed_error("Illegal frame type.");
+              QUIC_DLOG(WARNING)
+                  << ENDPOINT
+                  << "Illegal frame type: " << static_cast<int>(frame_type);
+              return RaiseError(QUIC_INVALID_FRAME_DATA);
+          }
+          break;
+        }
       }
     }
   }
@@ -5078,6 +5106,8 @@ bool QuicFramer::AppendIetfFrameType(const QuicFrame& frame,
     case RESET_STREAM_AT_FRAME:
       type_byte = IETF_RESET_STREAM_AT;
       break;
+    case MULTICAST_CONTROL_FRAME:
+      return writer->WriteVarInt62(frame.multicast_control_frame->frame_type);
     default:
       QUIC_BUG(quic_bug_10850_75)
           << "Attempt to generate a frame type for an unsupported value: "

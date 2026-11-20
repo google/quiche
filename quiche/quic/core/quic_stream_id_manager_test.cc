@@ -3,7 +3,10 @@
 // found in the LICENSE file.
 #include "quiche/quic/core/quic_stream_id_manager.h"
 
+#include <chrono>
 #include <cstdint>
+#include <fstream>
+#include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -15,6 +18,10 @@
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_stream_id_manager_peer.h"
+
+#if defined(__linux__)
+#include <unistd.h>
+#endif
 
 using testing::_;
 using testing::StrictMock;
@@ -624,6 +631,89 @@ TEST_P(QuicStreamIdManagerTest, ExtremeMaybeIncreaseLargestPeerStreamId) {
   EXPECT_EQ(error_details,
             absl::StrCat("Stream id ", too_big_stream_id,
                          " would exceed stream count limit 100"));
+}
+
+
+// VmRSS of this process in KiB, or -1 where /proc is unavailable.
+int64_t ResidentKb() {
+#if defined(__linux__)
+  std::ifstream statm("/proc/self/statm");
+  int64_t size = 0;
+  int64_t resident = 0;
+  if (statm >> size >> resident) {
+    return resident * sysconf(_SC_PAGESIZE) / 1024;
+  }
+#endif
+  return -1;
+}
+
+// C7 (lane Q): the cost of the skipped-ID fill when a client's first shared
+// multicast stream arrives. Every server uni stream ID below it that this
+// session never saw goes into available_streams_ one by one
+// (quic_stream_id_manager.cc:203-205). Prints one C7-FILL line per point and
+// asserts only correctness, since the time depends on the host.
+TEST(QuicStreamIdManagerMulticastTest, SkippedIdFill) {
+  struct Point {
+    const char* name;
+    QuicStreamId first_shared_id;
+  };
+  const Point kPoints[] = {
+      // Our server's allocator base.
+      {"base-4003", 4003},
+      // The fork's test server (QUICast firefox http3server main.rs:89).
+      {"base-4000003", 4000003},
+      // Base 4,003 after two days at one stream per 100 ms: 1,728,000 streams.
+      {"base-4003-after-2d", 4003 + 4 * 1728000},
+  };
+  for (const Point& point : kPoints) {
+    StrictMock<MockDelegate> delegate;
+    // An armed client: uni, the limit C7 advertises (2^30 including the 3
+    // static streams, quic_session.cc:207-210).
+    QuicStreamIdManager manager(&delegate, /*unidirectional=*/true,
+                                Perspective::IS_CLIENT,
+                                ParsedQuicVersion::RFCv1(), 0,
+                                QuicUtils::GetMaxStreamCount());
+    std::string error;
+    // The server's HTTP/3 control and QPACK streams.
+    for (QuicStreamId id : {3u, 7u, 11u}) {
+      ASSERT_TRUE(manager.MaybeIncreaseLargestPeerStreamId(id, &error))
+          << error;
+    }
+    const QuicStreamCount skipped = (point.first_shared_id - 15) / 4;
+    const int64_t rss_before = ResidentKb();
+    const auto start = std::chrono::steady_clock::now();
+    ASSERT_TRUE(
+        manager.MaybeIncreaseLargestPeerStreamId(point.first_shared_id, &error))
+        << error;
+    const auto fill = std::chrono::steady_clock::now() - start;
+    const int64_t rss_after = ResidentKb();
+    // The next channel stream skips nothing.
+    const auto next_start = std::chrono::steady_clock::now();
+    ASSERT_TRUE(manager.MaybeIncreaseLargestPeerStreamId(
+        point.first_shared_id + 4, &error))
+        << error;
+    const auto next = std::chrono::steady_clock::now() - next_start;
+
+    EXPECT_THAT(manager.DebugString(),
+                testing::HasSubstr(
+                    absl::StrCat("available_streams_.size(): ", skipped, ",")));
+    EXPECT_TRUE(manager.IsAvailableStream(15));
+    EXPECT_TRUE(manager.IsAvailableStream(point.first_shared_id - 4));
+    EXPECT_FALSE(manager.IsAvailableStream(point.first_shared_id));
+    // A skipped stream that turns up late still opens, once.
+    EXPECT_TRUE(manager.MaybeIncreaseLargestPeerStreamId(15, &error)) << error;
+    EXPECT_FALSE(manager.IsAvailableStream(15));
+
+    std::cout << "C7-FILL " << point.name
+              << " first_id=" << point.first_shared_id
+              << " skipped=" << skipped << " fill_us="
+              << std::chrono::duration_cast<std::chrono::microseconds>(fill)
+                     .count()
+              << " next_us="
+              << std::chrono::duration_cast<std::chrono::microseconds>(next)
+                     .count()
+              << " rss_delta_kb=" << rss_after - rss_before << std::endl;
+  }
 }
 
 }  // namespace

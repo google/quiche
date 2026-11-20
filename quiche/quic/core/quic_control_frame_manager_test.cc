@@ -10,6 +10,7 @@
 
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_multicast_control_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -103,6 +104,38 @@ TEST_F(QuicControlFrameManagerTest, WriteOrBufferResetStreamAt) {
   EXPECT_EQ(1, QuicControlFrameManagerPeer::QueueSize(manager_.get()));
   EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(&reset_stream_at)));
   EXPECT_FALSE(manager_->WillingToWrite());
+}
+
+// A multicast control frame is sent, retransmitted on loss with its type and
+// payload intact, and retired on ack.
+TEST_F(QuicControlFrameManagerTest, WriteOrBufferMulticastControl) {
+  // -08 MC_LIMITS-shaped body; the manager does not parse it.
+  QuicMulticastControlFrame limits(1, 0xff3e809, "\x01\x02\x03");
+  EXPECT_CALL(*session_, WriteControlFrame(_, NOT_RETRANSMISSION))
+      .WillOnce([&limits](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(MULTICAST_CONTROL_FRAME, frame.type);
+        EXPECT_EQ(limits, *frame.multicast_control_frame);
+        ClearControlFrame(frame);
+        return true;
+      });
+  manager_->WriteOrBufferMulticastControlFrame(limits.frame_type, limits.payload);
+  EXPECT_EQ(1, QuicControlFrameManagerPeer::QueueSize(manager_.get()));
+  EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(&limits)));
+
+  manager_->OnControlFrameLost(QuicFrame(&limits));
+  EXPECT_TRUE(manager_->HasPendingRetransmission());
+  EXPECT_CALL(*session_, WriteControlFrame(_, LOSS_RETRANSMISSION))
+      .WillOnce([&limits](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(limits, *frame.multicast_control_frame);
+        ClearControlFrame(frame);
+        return true;
+      });
+  manager_->OnCanWrite();
+  EXPECT_FALSE(manager_->HasPendingRetransmission());
+
+  EXPECT_TRUE(manager_->OnControlFrameAcked(QuicFrame(&limits)));
+  EXPECT_FALSE(manager_->IsControlFrameOutstanding(QuicFrame(&limits)));
+  EXPECT_EQ(0, QuicControlFrameManagerPeer::QueueSize(manager_.get()));
 }
 
 TEST_F(QuicControlFrameManagerTest, WriteOrBufferGoAway) {

@@ -2386,6 +2386,30 @@ bool QuicConnection::OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) {
   return true;
 }
 
+QuicMulticastFrameStatus QuicConnection::OnMulticastFrame(
+    uint64_t frame_type, QuicDataReader* reader) {
+  QUIC_BUG_IF(OnMulticastFrame_connection_closed, !connected_)
+      << "Processing a multicast frame while the connection is closed. "
+         "Received packet info: "
+      << last_received_packet_info_;
+  if (!UpdatePacketContent(MULTICAST_CONTROL_FRAME)) {
+    return QuicMulticastFrameStatus::kStop;
+  }
+  // The session parses the body. kNotHandled and kError go back to the
+  // framer, which closes the connection as for any bad frame.
+  const QuicMulticastFrameStatus status =
+      visitor_->OnMulticastFrame(frame_type, reader);
+  if (status != QuicMulticastFrameStatus::kContinue) {
+    return status;
+  }
+  if (!connected_) {
+    // The session closed the connection while handling the frame.
+    return QuicMulticastFrameStatus::kStop;
+  }
+  MaybeUpdateAckTimeout();
+  return QuicMulticastFrameStatus::kContinue;
+}
+
 bool QuicConnection::OnBlockedFrame(const QuicBlockedFrame& frame) {
   QUIC_BUG_IF(quic_bug_12714_17, !connected_)
       << "Processing BLOCKED frame when connection is closed. Received packet "
@@ -2747,6 +2771,29 @@ bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
     stats_.blocked_frames_sent++;
   }
   return true;
+}
+
+bool QuicConnection::SendNonRetransmittableMulticastFrame(
+    QuicMulticastControlFrame* frame) {
+  QuicFrame quic_frame(frame);
+  QUICHE_DCHECK(
+      !QuicMulticastControlFrame::IsRetransmittable(frame->frame_type))
+      << ENDPOINT << *frame;
+  ScopedPacketFlusher flusher(this);
+  if (connected_ && encryption_level_ == ENCRYPTION_FORWARD_SECURE) {
+    // Into the open packet, else (once it is flushed) into a new one.
+    if (packet_creator_.HasPendingFrames() &&
+        packet_creator_.AddFrame(quic_frame, NOT_RETRANSMISSION)) {
+      return true;
+    }
+    if (ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA, NOT_HANDSHAKE) &&
+        packet_creator_.AddFrame(quic_frame, NOT_RETRANSMISSION)) {
+      return true;
+    }
+  }
+  QUIC_DVLOG(1) << ENDPOINT << "Dropped non-retransmittable frame: " << *frame;
+  DeleteFrame(&quic_frame);
+  return false;
 }
 
 void QuicConnection::OnStreamReset(QuicStreamId id,

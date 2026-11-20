@@ -12,6 +12,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
@@ -31,6 +32,7 @@
 #include "quiche/quic/core/quic_crypto_stream.h"
 #include "quiche/quic/core/quic_datagram_queue.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_multicast_client.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_stream.h"
@@ -282,6 +284,19 @@ class QUICHE_EXPORT QuicSession
 
   virtual void Initialize();
 
+  // draft-jholland-quic-multicast client. Set by the embedder only when it
+  // has armed multicast for this session; the session owns it.
+  void set_multicast_client(std::unique_ptr<QuicMulticastClient> client) {
+    multicast_client_ = std::move(client);
+    // The client reads the server's transport parameters after the handshake
+    // (OnMulticastAccepted), so keep the config that the handshake would
+    // otherwise delete (NeuterHandshakeData).
+    if (multicast_client_ != nullptr) {
+      set_delete_config(false);
+    }
+  }
+  QuicMulticastClient* multicast_client() { return multicast_client_.get(); }
+
   // Return the reserved crypto stream as a constant pointer.
   virtual const QuicCryptoStream* GetCryptoStream() const = 0;
 
@@ -290,6 +305,9 @@ class QUICHE_EXPORT QuicSession
   void OnCryptoFrame(const QuicCryptoFrame& frame) override;
   void OnRstStream(const QuicRstStreamFrame& frame) override;
   void OnResetStreamAt(const QuicResetStreamAtFrame& frame) override;
+  // Hands the frame to multicast_client(), or declines when there is none.
+  QuicMulticastFrameStatus OnMulticastFrame(uint64_t frame_type,
+                                            QuicDataReader* reader) override;
   void OnGoAway(const QuicGoAwayFrame& frame) override;
   void OnDatagramReceived(absl::string_view datagram) override;
   void OnHandshakeDoneReceived() override;
@@ -456,6 +474,15 @@ class QUICHE_EXPORT QuicSession
 
   // Sends a WINDOW_UPDATE frame.
   virtual void SendWindowUpdate(QuicStreamId id, QuicStreamOffset byte_offset);
+
+  // Sends one draft-jholland-quic-multicast control frame: |frame_type|
+  // followed by the already-encoded |payload|. It goes through the control
+  // frame manager, so a lost frame is retransmitted; MC_ACK, which -08
+  // section 8 makes neither ack-eliciting nor retransmitted, goes out as ACK
+  // does (QuicConnection::SendNonRetransmittableMulticastFrame). Returns false
+  // if the connection is closed or 1-RTT keys are not available yet.
+  bool WriteMulticastControlFrame(uint64_t frame_type,
+                                  absl::string_view payload);
 
   // Called by stream |stream_id| when it gets closed.
   virtual void OnStreamClosed(QuicStreamId stream_id);
@@ -1310,6 +1337,9 @@ class QUICHE_EXPORT QuicSession
 
   bool bundle_retransmitted_crypto_frames_ =
       GetQuicReloadableFlag(quic_bundle_crypto_retransmits);
+
+  // Last member, so it is destroyed first; it holds a pointer to this session.
+  std::unique_ptr<QuicMulticastClient> multicast_client_;
 };
 
 }  // namespace quic

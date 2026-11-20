@@ -680,6 +680,10 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
       case RESET_STREAM_AT_FRAME:
         frames.push_back(QuicFrame(new QuicResetStreamAtFrame()));
         break;
+      case MULTICAST_CONTROL_FRAME:
+        frames.push_back(
+            QuicFrame(new QuicMulticastControlFrame(1, 0xff3e809, "abc")));
+        break;
       default:
         ASSERT_TRUE(false)
             << "Please fix CopyQuicFrames if a new frame type is added.";
@@ -708,6 +712,9 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
                        &frames[i].path_challenge_frame.data_buffer,
                        copy[i].path_challenge_frame.data_buffer.size()),
                 0);
+    } else if (i == MULTICAST_CONTROL_FRAME) {
+      EXPECT_EQ(*copy[i].multicast_control_frame,
+                *frames[i].multicast_control_frame);
     } else if (i == PATH_RESPONSE_FRAME) {
       EXPECT_EQ(copy[i].path_response_frame.control_frame_id,
                 frames[i].path_response_frame.control_frame_id);

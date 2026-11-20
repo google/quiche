@@ -987,6 +987,38 @@ TEST_P(QuicSessionTestServer, ManyAvailableUnidirectionalStreams) {
   }
 }
 
+// Refused before 1-RTT keys; afterwards it goes out through the control
+// frame manager with its type and payload intact.
+TEST_P(QuicSessionTestServer, WriteMulticastControlFrame) {
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+  EXPECT_FALSE(session_.WriteMulticastControlFrame(0xff3e809, "abc"));
+  CompleteHandshake();
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillOnce([](const QuicFrame& frame) {
+        EXPECT_EQ(MULTICAST_CONTROL_FRAME, frame.type);
+        EXPECT_EQ(0xff3e809u, frame.multicast_control_frame->frame_type);
+        EXPECT_EQ("abc", frame.multicast_control_frame->payload);
+        return ClearControlFrame(frame);
+      });
+  EXPECT_TRUE(session_.WriteMulticastControlFrame(0xff3e809, "abc"));
+}
+
+// A multicast client reads the server's transport parameters after the
+// handshake, so setting one keeps the config that the handshake would delete.
+TEST_P(QuicSessionTestServer, MulticastClientKeepsConfig) {
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+  session_.set_multicast_client(std::make_unique<QuicMulticastClient>(
+      &session_, nullptr, std::vector<QuicIpAddress>()));
+  CompleteHandshake();
+  session_.NeuterHandshakeData();
+  ASSERT_NE(session_.config(), nullptr);
+  EXPECT_TRUE(session_.config()->negotiated());
+}
+
 TEST_P(QuicSessionTestServer, DebugDFatalIfMarkingClosedStreamWriteBlocked) {
   CompleteHandshake();
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();

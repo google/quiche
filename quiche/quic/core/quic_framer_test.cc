@@ -24,9 +24,11 @@
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/frames/quic_ack_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/frames/quic_multicast_control_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/core/quic_packet_number.h"
@@ -482,6 +484,37 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
+  // Consumes two -08 bodies, enough to test framing (QUICast quiche
+  // multicast.rs:883-888 MC_KEY, :951-961 MC_STATE). The real codec is C2's.
+  QuicMulticastFrameStatus OnMulticastFrame(uint64_t frame_type,
+                                            QuicDataReader* reader) override {
+    if (frame_type != 0xff3e801 && frame_type != 0xff3e80b) {
+      return QuicMulticastFrameStatus::kNotHandled;
+    }
+    const absl::string_view body = reader->PeekRemainingPayload();
+    absl::string_view bytes;
+    uint64_t value;
+    uint8_t state;
+    bool ok = reader->ReadStringPiece8(&bytes) && reader->ReadVarInt62(&value);
+    if (frame_type == 0xff3e801) {  // MC_KEY
+      ok = ok && reader->ReadVarInt62(&value) &&
+           reader->ReadStringPieceVarInt62(&bytes);
+    } else {  // MC_STATE
+      ok = ok && reader->ReadUInt8(&state) && reader->ReadVarInt62(&value) &&
+           reader->ReadStringPieceVarInt62(&bytes);
+    }
+    if (!ok) {
+      return QuicMulticastFrameStatus::kError;
+    }
+    EXPECT_EQ(frame_type, framer_->current_received_frame_type());
+    ++frame_count_;
+    multicast_frames_.emplace_back(
+        frame_type,
+        std::string(body.substr(0, body.size() - reader->BytesRemaining())));
+    return multicast_stop_ ? QuicMulticastFrameStatus::kStop
+                           : QuicMulticastFrameStatus::kContinue;
+  }
+
   void OnPacketComplete() override { ++complete_packets_; }
 
   bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override {
@@ -673,6 +706,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   std::vector<std::unique_ptr<QuicAckFrequencyFrame>> ack_frequency_frames_;
   std::vector<std::unique_ptr<QuicImmediateAckFrame>> immediate_ack_frames_;
   std::vector<std::unique_ptr<QuicResetStreamAtFrame>> reset_stream_at_frames_;
+  std::vector<std::pair<uint64_t, std::string>> multicast_frames_;
+  bool multicast_stop_ = false;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> coalesced_packets_;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> undecryptable_packets_;
   std::vector<EncryptionLevel> undecryptable_decryption_levels_;
@@ -5636,6 +5671,126 @@ TEST_P(QuicFramerTest, ParseInvalidResetStreamAtFrame) {
   EXPECT_EQ(visitor_.reset_stream_at_frames_.size(), 0);
 }
 
+// -08 MC_KEY (plan-neqo/vectors/quiche.hex, mc_key) followed by a PING: the
+// hook consumes exactly the MC_KEY body, so the PING is still parsed.
+TEST_P(QuicFramerTest, ParseMulticastKeyFrameThenPing) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[] = {
+      // type (short header, 4 byte packet number)
+      0x43,
+      // connection_id
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+
+      // type = MC_KEY (0xff3e801, 4-byte varint)
+      0x8f, 0xf3, 0xe8, 0x01,
+      // channel ID "demo-channel"
+      0x0c, 0x64, 0x65, 0x6d, 0x6f, 0x2d, 0x63, 0x68, 0x61, 0x6e, 0x6e, 0x65,
+      0x6c,
+      // key sequence, from packet number
+      0x01, 0x00,
+      // secret
+      0x20,
+      0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
+      0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
+      0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
+      0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
+
+      // type = PING
+      0x01,
+  };
+  // clang-format on
+
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_EQ(1u, visitor_.multicast_frames_.size());
+  EXPECT_EQ(0xff3e801u, visitor_.multicast_frames_[0].first);
+  // Everything between the 4-byte type and the PING.
+  EXPECT_EQ(std::string(AsChars(packet) + 17, std::size(packet) - 18),
+            visitor_.multicast_frames_[0].second);
+  EXPECT_EQ(1u, visitor_.ping_frames_.size());
+}
+
+// kStop: the frame is consumed and the rest of the packet is skipped
+// without an error.
+TEST_P(QuicFramerTest, MulticastFrameStopEndsPacket) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[] = {
+      0x43,
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      0x12, 0x34, 0x56, 0x78,
+      // MC_KEY with a 1-byte channel ID and a 1-byte secret
+      0x8f, 0xf3, 0xe8, 0x01, 0x01, 0x41, 0x01, 0x00, 0x01, 0x22,
+      // PING
+      0x01,
+  };
+  // clang-format on
+  visitor_.multicast_stop_ = true;
+
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  EXPECT_EQ(1u, visitor_.multicast_frames_.size());
+  EXPECT_TRUE(visitor_.ping_frames_.empty());
+}
+
+// An unknown non-multicast type still fails: the visitor declines it.
+TEST_P(QuicFramerTest, UnknownFrameTypeIllegalWithMulticastVisitor) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[] = {
+      0x43,
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      0x12, 0x34, 0x56, 0x78,
+      // frame type (unknown value, single-byte encoding)
+      0x38,
+  };
+  // clang-format on
+
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+  EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_FRAME_DATA));
+  EXPECT_EQ("Illegal frame type.", framer_.detailed_error());
+  EXPECT_TRUE(visitor_.multicast_frames_.empty());
+}
+
+// kError: a truncated multicast body fails the packet.
+TEST_P(QuicFramerTest, TruncatedMulticastFrameInvalid) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[] = {
+      0x43,
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      0x12, 0x34, 0x56, 0x78,
+      // MC_KEY whose secret claims 2 bytes but carries 1
+      0x8f, 0xf3, 0xe8, 0x01, 0x01, 0x41, 0x01, 0x00, 0x02, 0x22,
+  };
+  // clang-format on
+
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+  EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_FRAME_DATA));
+  EXPECT_EQ("Invalid multicast frame.", framer_.detailed_error());
+  EXPECT_TRUE(visitor_.multicast_frames_.empty());
+}
+
 TEST_P(QuicFramerTest, DatagramFrame) {
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
@@ -9438,6 +9593,63 @@ TEST_P(QuicFramerTest, BuildResetStreamAtPacket) {
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
       std::size(packet));
+}
+
+// MC_STATE built from a QuicMulticastControlFrame is byte-exact with the -08
+// vector (plan-neqo/vectors/quiche.hex, mc_state), and parses back.
+TEST_P(QuicFramerTest, BuildAndParseMulticastStatePacket) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  // clang-format off
+  unsigned char packet[] = {
+      // type (short header, 4 byte packet number)
+      0x43,
+      // connection_id
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+
+      // type = MC_STATE (0xff3e80b, 4-byte varint)
+      0x8f, 0xf3, 0xe8, 0x0b,
+      // channel ID "demo-channel"
+      0x0c, 0x64, 0x65, 0x6d, 0x6f, 0x2d, 0x63, 0x68, 0x61, 0x6e, 0x6e, 0x65,
+      0x6c,
+      // sequence 1, state JOINED, reason 1, phrase "joined"
+      0x01, 0x03, 0x01, 0x06, 0x6a, 0x6f, 0x69, 0x6e, 0x65, 0x64,
+  };
+  // clang-format on
+  const size_t kTypeEnd = 17;
+
+  QuicMulticastControlFrame frame(
+      /*control_frame_id=*/1, 0xff3e80b,
+      absl::string_view(AsChars(packet) + kTypeEnd,
+                        std::size(packet) - kTypeEnd));
+  QuicFrames frames = {QuicFrame(&frame)};
+  EXPECT_EQ(std::size(packet) - 13,
+            QuicFramer::GetRetransmittableControlFrameSize(
+                framer_.transport_version(), frames[0]));
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      std::size(packet));
+
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_EQ(1u, visitor_.multicast_frames_.size());
+  EXPECT_EQ(0xff3e80bu, visitor_.multicast_frames_[0].first);
+  EXPECT_EQ(frame.payload, visitor_.multicast_frames_[0].second);
 }
 
 TEST_P(QuicFramerTest, BuildDatagramPacket) {
