@@ -556,8 +556,9 @@ Stream::ReadResult EncapsulatedSession::InnerStream::Read(
     memcpy(output.data(), read.data.data(), size_to_read);
     output = output.subspan(size_to_read);
   }
-  bool fin_consumed = SkipBytes(total_size);
-  return ReadResult{total_size, fin_consumed};
+  const size_t bytes_read = total_size - output.size();
+  bool fin_consumed = SkipBytes(bytes_read);
+  return ReadResult{bytes_read, fin_consumed};
 }
 Stream::ReadResult EncapsulatedSession::InnerStream::Read(std::string* output) {
   const size_t total_size = ReadableBytes();
