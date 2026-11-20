@@ -22,6 +22,7 @@
 #include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_max_streams_frame.h"
 #include "quiche/quic/core/frames/quic_mtu_discovery_frame.h"
+#include "quiche/quic/core/frames/quic_multicast_control_frame.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_new_token_frame.h"
 #include "quiche/quic/core/frames/quic_padding_frame.h"
@@ -79,6 +80,7 @@ struct QUICHE_EXPORT QuicFrame {
   explicit QuicFrame(QuicCryptoFrame* crypto_frame);
   explicit QuicFrame(QuicAckFrequencyFrame* ack_frequency_frame);
   explicit QuicFrame(QuicResetStreamAtFrame* reset_stream_at_frame);
+  explicit QuicFrame(QuicMulticastControlFrame* multicast_control_frame);
 
   QUICHE_EXPORT friend std::ostream& operator<<(std::ostream& os,
                                                 const QuicFrame& frame);
@@ -123,6 +125,7 @@ struct QUICHE_EXPORT QuicFrame {
         QuicAckFrequencyFrame* ack_frequency_frame;
         QuicNewTokenFrame* new_token_frame;
         QuicResetStreamAtFrame* reset_stream_at_frame;
+        QuicMulticastControlFrame* multicast_control_frame;
       };
     };
   };

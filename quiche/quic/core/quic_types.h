@@ -287,8 +287,22 @@ enum QuicFrameType : uint8_t {
   ACK_FREQUENCY_FRAME,
   IMMEDIATE_ACK_FRAME,
   RESET_STREAM_AT_FRAME,
+  // Outgoing draft-jholland-quic-multicast control frame (generic: type +
+  // payload). Incoming ones go through QuicFramerVisitorInterface::
+  // OnMulticastFrame and never become a QuicFrame.
+  MULTICAST_CONTROL_FRAME,
 
   NUM_FRAME_TYPES
+};
+
+// Result of QuicFramerVisitorInterface::OnMulticastFrame. Multicast frame
+// bodies carry no length, so on kContinue and kStop the visitor has consumed
+// exactly one frame body; on kNotHandled it has not touched the reader.
+enum class QuicMulticastFrameStatus : uint8_t {
+  kNotHandled,  // Not a frame the visitor knows: "Illegal frame type."
+  kError,       // Malformed: QUIC_INVALID_FRAME_DATA.
+  kContinue,    // Consumed; keep processing the packet.
+  kStop,        // Consumed; stop processing the packet without an error.
 };
 
 // Human-readable string suitable for logging.

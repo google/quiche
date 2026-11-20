@@ -28,6 +28,7 @@
 #include "quiche/quic/core/quic_buffered_packet_store.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packet_creator.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -16294,6 +16295,11 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
       case RESET_STREAM_AT_FRAME:
         frame = QuicFrame(&reset_stream_at_frame);
         break;
+      case MULTICAST_CONTROL_FRAME:
+        // Outgoing only: received multicast frames reach the visitor through
+        // OnMulticastFrame and are covered by the multicast hook tests.
+        skipped = true;
+        break;
       case NUM_FRAME_TYPES:
         skipped = true;
         break;
@@ -16320,6 +16326,79 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
     EXPECT_FALSE(connection_.HasPendingAcks());
     ASSERT_TRUE(connection_.connected());
   }
+}
+
+// A multicast frame the session consumes is ack-eliciting.
+TEST_P(QuicConnectionTest, MulticastFrameReachesVisitorAndIsAcked) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  QuicMulticastControlFrame state(1, 0xff3e80b, "ab");
+  QuicFrames frames;
+  // Padding first, for the header protection sample.
+  frames.push_back(QuicFrame(QuicPaddingFrame(10)));
+  frames.push_back(QuicFrame(&state));
+  EXPECT_CALL(visitor_, OnMulticastFrame(0xff3e80bu, _))
+      .WillOnce([](uint64_t /*frame_type*/, QuicDataReader* reader) {
+        absl::string_view body;
+        return reader->ReadStringPiece(&body, 2) && body == "ab"
+                   ? QuicMulticastFrameStatus::kContinue
+                   : QuicMulticastFrameStatus::kError;
+      });
+  EXPECT_FALSE(connection_.HasPendingAcks());
+  ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_TRUE(connection_.HasPendingAcks());
+  EXPECT_TRUE(connection_.connected());
+}
+
+// A multicast type the session does not know closes the connection, as any
+// unknown frame type does. The test connection is a client, so the
+// server-only BeforeConnectionCloseSent() is not called.
+TEST_P(QuicConnectionTest, MulticastFrameNotHandledClosesConnection) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  QuicMulticastControlFrame state(1, 0xff3e80b, "ab");
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicPaddingFrame(10)));
+  frames.push_back(QuicFrame(&state));
+  EXPECT_CALL(visitor_, OnMulticastFrame(0xff3e80bu, _))
+      .WillOnce(Return(QuicMulticastFrameStatus::kNotHandled));
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+  ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(connection_.connected());
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_INVALID_FRAME_DATA));
+}
+
+// -08 section 8: MC_ACK is neither ack-eliciting nor retransmitted, so it is
+// sent as ACK is. It puts nothing in flight and arms neither the
+// retransmission alarm nor blackhole detection, so a server that never
+// acknowledges a packet holding only MC_ACK (as -08 lets it) cannot make the
+// client close with QUIC_TOO_MANY_RTOS.
+TEST_P(QuicConnectionTest, MulticastAckIsNotInFlight) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  // Handshake confirmed, so no PTO is armed for the handshake itself.
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  connection_.OnHandshakeComplete();
+  ASSERT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+  writer_->ExpectNextPacketUnprocessable();  // Its framer has no MC visitor.
+  EXPECT_CALL(*send_algorithm_,
+              OnPacketSent(_, _, _, _, NO_RETRANSMITTABLE_DATA));
+  EXPECT_TRUE(connection_.SendNonRetransmittableMulticastFrame(
+      new QuicMulticastControlFrame(kInvalidControlFrameId, 0xff3e806,
+                                    std::string(4, '\0'))));
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  EXPECT_EQ(0u, connection_.GetBytesInFlight());
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+  EXPECT_FALSE(connection_.BlackholeDetectionInProgress());
 }
 
 TEST_P(QuicConnectionTest, ImmediateAckOverridesOtherFrame) {

@@ -568,6 +568,14 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
   stream->OnStreamReset(frame);
 }
 
+QuicMulticastFrameStatus QuicSession::OnMulticastFrame(uint64_t frame_type,
+                                                      QuicDataReader* reader) {
+  if (multicast_client_ == nullptr) {
+    return QuicMulticastFrameStatus::kNotHandled;
+  }
+  return multicast_client_->OnMulticastFrame(frame_type, reader);
+}
+
 void QuicSession::OnResetStreamAt(const QuicResetStreamAtFrame& frame) {
   QUICHE_DCHECK(VersionIsIetfQuic(transport_version()));
   QuicStreamId stream_id = frame.stream_id;
@@ -2467,6 +2475,23 @@ void QuicSession::OnAckNeedsRetransmittableFrame() {
 
 void QuicSession::SendAckFrequency(const QuicAckFrequencyFrame& frame) {
   control_frame_manager_.WriteOrBufferAckFrequency(frame);
+}
+
+bool QuicSession::WriteMulticastControlFrame(uint64_t frame_type,
+                                             absl::string_view payload) {
+  if (!connection_->connected() || !OneRttKeysAvailable()) {
+    return false;
+  }
+  if (!QuicMulticastControlFrame::IsRetransmittable(frame_type)) {
+    connection_->SendNonRetransmittableMulticastFrame(
+        new QuicMulticastControlFrame(kInvalidControlFrameId, frame_type,
+                                      payload));
+    return connection_->connected();
+  }
+  control_frame_manager_.WriteOrBufferMulticastControlFrame(frame_type,
+                                                            payload);
+  // Buffering past the manager's limit closes the connection.
+  return connection_->connected();
 }
 
 void QuicSession::SendNewConnectionId(const QuicNewConnectionIdFrame& frame) {

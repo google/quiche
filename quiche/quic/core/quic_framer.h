@@ -234,6 +234,18 @@ class QUICHE_EXPORT QuicFramerVisitorInterface {
   // Called when an ResetStreamAtFrame has been parsed.
   virtual bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) = 0;
 
+  // Called with an IETF frame type the framer does not know, after the type
+  // varint has been read; |reader| sits at the frame body. Used for
+  // draft-jholland-quic-multicast frames, whose bodies carry no length: on
+  // kContinue or kStop the visitor has consumed exactly one body; on
+  // kNotHandled it has not touched |reader| and the framer raises
+  // "Illegal frame type." as for any unknown type. Non-pure, so existing
+  // visitors are unchanged.
+  virtual QuicMulticastFrameStatus OnMulticastFrame(
+      uint64_t /*frame_type*/, QuicDataReader* /*reader*/) {
+    return QuicMulticastFrameStatus::kNotHandled;
+  }
+
   // Called when a packet has been completely processed.
   virtual void OnPacketComplete() = 0;
 

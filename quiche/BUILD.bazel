@@ -732,6 +732,19 @@ cc_binary(
 )
 
 cc_binary(
+    name = "quic_multicast_live_client",
+    srcs = ["quic/tools/quic_multicast_live_client_bin.cc"],
+    deps = [
+        ":io_tool_support",
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@boringssl//:crypto",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
     name = "web_transport_test_server",
     srcs = ["quic/tools/web_transport_test_server.cc"],
     deps = [

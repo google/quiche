@@ -60,6 +60,7 @@ enum QuicFrameTypeBitfield : uint32_t {
   kAckFrequencyFrameBitfield = 1 << 22,
   kResetStreamAtFrameBitfield = 1 << 23,
   kImmediateAckFrameBitfield = 1 << 24,
+  kMulticastControlFrameBitfield = 1 << 25,
 };
 
 QuicFrameTypeBitfield GetFrameTypeBitfield(QuicFrameType type) {
@@ -114,6 +115,8 @@ QuicFrameTypeBitfield GetFrameTypeBitfield(QuicFrameType type) {
       return kImmediateAckFrameBitfield;
     case RESET_STREAM_AT_FRAME:
       return kResetStreamAtFrameBitfield;
+    case MULTICAST_CONTROL_FRAME:
+      return kMulticastControlFrameBitfield;
     case NUM_FRAME_TYPES:
       QUIC_BUG(quic_bug_10518_1) << "Unexpected frame type";
       return kInvalidFrameBitfield;

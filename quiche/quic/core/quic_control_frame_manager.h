@@ -114,6 +114,12 @@ class QUICHE_EXPORT QuicControlFrameManager {
   // immediately.
   void WriteOrBufferNewToken(absl::string_view token);
 
+  // Tries to send a multicast control frame: |frame_type| followed by the
+  // already-encoded |payload|. Buffers the frame if it cannot be sent
+  // immediately.
+  void WriteOrBufferMulticastControlFrame(uint64_t frame_type,
+                                          absl::string_view payload);
+
   // Called when |frame| gets acked. Returns true if |frame| gets acked for the
   // first time, return false otherwise.
   bool OnControlFrameAcked(const QuicFrame& frame);

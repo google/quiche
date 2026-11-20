@@ -98,6 +98,7 @@ void QuicTraceVisitor::OnPacketSent(
       case CRYPTO_FRAME:
       case NEW_TOKEN_FRAME:
       case RESET_STREAM_AT_FRAME:
+      case MULTICAST_CONTROL_FRAME:
         break;
 
       // Ignore gQUIC-specific frames.
@@ -232,6 +233,7 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
     case ACK_FREQUENCY_FRAME:
     case IMMEDIATE_ACK_FRAME:
     case RESET_STREAM_AT_FRAME:
+    case MULTICAST_CONTROL_FRAME:
       break;
 
     case NUM_FRAME_TYPES:
