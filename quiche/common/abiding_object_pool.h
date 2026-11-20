@@ -6,6 +6,8 @@
 #define QUICHE_COMMON_ABIDING_OBJECT_POOL_H_
 
 #include <algorithm>
+#include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -61,16 +63,19 @@ class QUICHE_NO_EXPORT AbidingObjectPool {
   explicit AbidingObjectPool(size_t initial_slabs) {
     for (size_t i = 0; i < initial_slabs; ++i) {
       Slab* slab = CreateSlab();
-      PushFront(non_full_slabs_, slab);
+      PushToNonFullBucket(slab);
     }
   }
 
   ~AbidingObjectPool() {
-    while (non_full_slabs_ != nullptr) {
-      Slab* slab = non_full_slabs_;
-      RemoveFromList(non_full_slabs_, slab);
-      DestroySlab(slab);
+    for (size_t i = 0; i < kNumBuckets; ++i) {
+      while (non_full_slabs_[i] != nullptr) {
+        Slab* slab = non_full_slabs_[i];
+        RemoveFromList(non_full_slabs_[i], slab);
+        DestroySlab(slab);
+      }
     }
+    non_full_buckets_mask_ = 0;
     while (full_slabs_ != nullptr) {
       Slab* slab = full_slabs_;
       RemoveFromList(full_slabs_, slab);
@@ -165,12 +170,23 @@ class QUICHE_NO_EXPORT AbidingObjectPool {
 
   static_assert(kSlotsPerSlab > 0, "Slab size must fit at least one object");
 
+  // Quantize non-full slab occupancy into <= 16 buckets so Allocate() and
+  // Deallocate() run in O(1) while preferring mostly-full slabs for reuse.
+  static constexpr size_t kMaxBuckets = 16;
+  static constexpr size_t kNumBuckets = std::min(kSlotsPerSlab, kMaxBuckets);
+
   // Helper methods.
 
   // Calculates the memory address for a given slot index in a given Slab.
   static void* SlotAddress(Slab* slab, size_t index) {
     auto* base = reinterpret_cast<std::byte*>(slab);
     return static_cast<void*>(base + kFirstSlotOffset + (index * kSlotSize));
+  }
+
+  // Maps a non-full slab's live_objects count [0, kSlotsPerSlab) to its bucket
+  // index [0, kNumBuckets).
+  static constexpr size_t BucketIndex(size_t live_objects) noexcept {
+    return (live_objects * kNumBuckets) / kSlotsPerSlab;
   }
 
   // Pushes a Slab on the front of a doubly-linked list.
@@ -197,28 +213,22 @@ class QUICHE_NO_EXPORT AbidingObjectPool {
     slab->next = nullptr;
   }
 
-  // Swaps a Slab in a doubly-linked list with the next element.
-  static void SwapWithNext(Slab*& head, Slab* a) {
-    Slab* b = a->next;
-    if (b == nullptr) {
-      return;
-    }
-    Slab* prev = a->prev;
-    Slab* next = b->next;
+  // Adds a non-full slab to its quantized bucket.
+  void PushToBucket(size_t bucket, Slab* slab) noexcept {
+    PushFront(non_full_slabs_[bucket], slab);
+    non_full_buckets_mask_ |= static_cast<uint16_t>(1u << bucket);
+  }
 
-    if (prev != nullptr) {
-      prev->next = b;
-    } else {
-      head = b;
-    }
-    b->prev = prev;
+  void PushToNonFullBucket(Slab* slab) noexcept {
+    QUICHE_DCHECK(slab->live_objects < kSlotsPerSlab);
+    PushToBucket(BucketIndex(slab->live_objects), slab);
+  }
 
-    b->next = a;
-    a->prev = b;
-
-    a->next = next;
-    if (next != nullptr) {
-      next->prev = a;
+  // Takes a slab from a quantized bucket.
+  void RemoveFromBucket(size_t bucket, Slab* slab) noexcept {
+    RemoveFromList(non_full_slabs_[bucket], slab);
+    if (non_full_slabs_[bucket] == nullptr) {
+      non_full_buckets_mask_ &= ~static_cast<uint16_t>(1u << bucket);
     }
   }
 
@@ -247,7 +257,10 @@ class QUICHE_NO_EXPORT AbidingObjectPool {
     ::operator delete(slab, std::align_val_t(SlabSizeBytes));
   }
 
-  Slab* non_full_slabs_ = nullptr;
+  // Bitmask of non-empty buckets in `non_full_slabs_`. Bit `i` is set iff
+  // `non_full_slabs_[i] != nullptr`.
+  uint16_t non_full_buckets_mask_ = 0;
+  std::array<Slab*, kNumBuckets> non_full_slabs_{};
   Slab* full_slabs_ = nullptr;
   Slab* spare_empty_slab_ = nullptr;
   size_t allocated_slabs_count_ = 0;
@@ -257,17 +270,20 @@ class QUICHE_NO_EXPORT AbidingObjectPool {
 // Returns the next available slot, allocating a new Slab if necessary.
 template <typename T, size_t SlabSizeBytes>
 void* AbidingObjectPool<T, SlabSizeBytes>::Allocate() {
-  if (non_full_slabs_ == nullptr) {
-    Slab* slab = nullptr;
-    if (spare_empty_slab_ != nullptr) {
-      slab = spare_empty_slab_;
-      spare_empty_slab_ = nullptr;
-    } else {
-      slab = CreateSlab();
-    }
-    PushFront(non_full_slabs_, slab);
+  Slab* slab = nullptr;
+  size_t old_bucket = 0;
+  // Used for bookkeeping: the slab was from a quantized bucket.
+  const bool from_non_full_bucket = (non_full_buckets_mask_ != 0);
+  if (from_non_full_bucket) {
+    old_bucket =
+        static_cast<size_t>(std::bit_width(non_full_buckets_mask_) - 1);
+    slab = non_full_slabs_[old_bucket];
+  } else if (spare_empty_slab_ != nullptr) {
+    slab = spare_empty_slab_;
+    spare_empty_slab_ = nullptr;
+  } else {
+    slab = CreateSlab();
   }
-  Slab* slab = non_full_slabs_;
   void* slot = nullptr;
 
   // 1. Reuse from intrusive freelist if available.
@@ -295,10 +311,22 @@ void* AbidingObjectPool<T, SlabSizeBytes>::Allocate() {
   ++slab->live_objects;
   --total_free_slots_;
 
-  // If slab reached capacity, move it to full_slabs_.
   if (slab->live_objects == kSlotsPerSlab) {
-    RemoveFromList(non_full_slabs_, slab);
+    // The slab is now full.
+    if (from_non_full_bucket) {
+      // The slab must be removed from a quantized bucket list.
+      RemoveFromBucket(old_bucket, slab);
+    }
     PushFront(full_slabs_, slab);
+  } else if (from_non_full_bucket) {
+    const size_t new_bucket = BucketIndex(slab->live_objects);
+    if (new_bucket != old_bucket) {
+      // The slab population update resulted in a new bucket index.
+      RemoveFromBucket(old_bucket, slab);
+      PushToBucket(new_bucket, slab);
+    }
+  } else {
+    PushToNonFullBucket(slab);
   }
 
   return slot;
@@ -323,7 +351,8 @@ void AbidingObjectPool<T, SlabSizeBytes>::Deallocate(void* ptr) noexcept {
   ASAN_POISON_MEMORY_REGION(ptr, kSlotSize);
 #endif
 
-  const bool was_full = (slab->live_objects == kSlotsPerSlab);
+  const size_t old_live_objects = slab->live_objects;
+  const bool was_full = (old_live_objects == kSlotsPerSlab);
   --slab->live_objects;
   ++total_free_slots_;
 
@@ -332,7 +361,7 @@ void AbidingObjectPool<T, SlabSizeBytes>::Deallocate(void* ptr) noexcept {
     if (was_full) {
       RemoveFromList(full_slabs_, slab);
     } else {
-      RemoveFromList(non_full_slabs_, slab);
+      RemoveFromBucket(BucketIndex(old_live_objects), slab);
     }
     if (spare_empty_slab_ == nullptr) {
       spare_empty_slab_ = slab;
@@ -343,15 +372,16 @@ void AbidingObjectPool<T, SlabSizeBytes>::Deallocate(void* ptr) noexcept {
   }
 
   if (was_full) {
-    // Move from full_slabs_ to front of non_full_slabs_ (as the fullest
-    // partial slab).
+    // Move from full_slabs_ to the appropriate non-full bucket.
     RemoveFromList(full_slabs_, slab);
-    PushFront(non_full_slabs_, slab);
+    PushToNonFullBucket(slab);
   } else {
-    // Keep non_full_slabs_ ordered by descending live_objects.
-    while (slab->next != nullptr &&
-           slab->live_objects < slab->next->live_objects) {
-      SwapWithNext(non_full_slabs_, slab);
+    const size_t old_bucket = BucketIndex(old_live_objects);
+    const size_t new_bucket = BucketIndex(slab->live_objects);
+    if (new_bucket != old_bucket) {
+      // The slab population update resulted in a new bucket index.
+      RemoveFromBucket(old_bucket, slab);
+      PushToBucket(new_bucket, slab);
     }
   }
 }
