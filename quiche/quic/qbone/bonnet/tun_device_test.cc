@@ -14,19 +14,21 @@
 
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
+#include "quiche/quic/qbone/platform/virtio_net_header.h"
 
 namespace quic::test {
 namespace {
 
 using ::testing::_;
 using ::testing::AnyNumber;
+using ::testing::Exactly;
 using ::testing::Return;
 using ::testing::StrEq;
 using ::testing::Unused;
 
 const char kDeviceName[] = "tun0";
-const int kSupportedFeatures =
-    IFF_TUN | IFF_TAP | IFF_MULTI_QUEUE | IFF_ONE_QUEUE | IFF_NO_PI;
+const int kSupportedFeatures = IFF_TUN | IFF_TAP | IFF_MULTI_QUEUE |
+                               IFF_ONE_QUEUE | IFF_NO_PI | IFF_VNET_HDR;
 
 // Quite a bit of EXPECT_CALL().Times(AnyNumber()).WillRepeatedly() are used to
 // make sure we can correctly set common expectations and override the
@@ -46,7 +48,7 @@ class TunDeviceTest : public QuicTest {
 
   // Set the expectations for calling Init().
   void SetInitExpectations(int mtu, int tx_queue_len, bool persist,
-                           bool is_tap = false) {
+                           bool is_tap = false, bool use_vnet_hdr = false) {
     EXPECT_CALL(mock_kernel_, open(StrEq("/dev/net/tun"), _))
         .Times(AnyNumber())
         .WillRepeatedly([this](Unused, Unused) {
@@ -62,12 +64,34 @@ class TunDeviceTest : public QuicTest {
         });
     EXPECT_CALL(mock_kernel_, ioctl(_, TUNSETIFF, _))
         .Times(AnyNumber())
-        .WillRepeatedly([is_tap](Unused, Unused, void* argp) {
+        .WillRepeatedly([is_tap, use_vnet_hdr](Unused, Unused, void* argp) {
           auto* ifr = reinterpret_cast<struct ifreq*>(argp);
           int expected_flags =
               (is_tap ? IFF_TAP : IFF_TUN) | IFF_MULTI_QUEUE | IFF_NO_PI;
+          if (use_vnet_hdr) {
+            expected_flags |= IFF_VNET_HDR;
+          }
           EXPECT_EQ(expected_flags, ifr->ifr_flags);
           EXPECT_THAT(ifr->ifr_name, StrEq(kDeviceName));
+          return 0;
+        });
+    // Each queue checks the device's flags, which here match what it asked
+    // for. Without the virtio-net header, the header size is left alone.
+    EXPECT_CALL(mock_kernel_, ioctl(_, TUNGETIFF, _))
+        .Times(AnyNumber())
+        .WillRepeatedly([is_tap, use_vnet_hdr](Unused, Unused, void* argp) {
+          auto* ifr = reinterpret_cast<struct ifreq*>(argp);
+          ifr->ifr_flags =
+              (is_tap ? IFF_TAP : IFF_TUN) | IFF_MULTI_QUEUE | IFF_NO_PI;
+          if (use_vnet_hdr) {
+            ifr->ifr_flags |= IFF_VNET_HDR;
+          }
+          return 0;
+        });
+    EXPECT_CALL(mock_kernel_, ioctl(_, TUNSETVNETHDRSZ, _))
+        .Times(use_vnet_hdr ? AnyNumber() : Exactly(0))
+        .WillRepeatedly([](Unused, Unused, void* argp) {
+          EXPECT_EQ(*reinterpret_cast<int*>(argp), sizeof(virtio_net_hdr));
           return 0;
         });
     EXPECT_CALL(mock_kernel_, ioctl(_, TUNSETPERSIST, _))
@@ -360,6 +384,125 @@ TEST_F(TunDeviceTest, TapDeviceSetsTapFlag) {
   int fd_1 = tap_device.OpenQueue();
   EXPECT_GT(fd_1, -1);
 
+  ExpectDown(/* fail = */ false);
+}
+
+TEST_F(TunDeviceTest, VnetHdrDeviceSetsFlagAndHeaderSize) {
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false, /* is_tap = */ false,
+                      /* use_vnet_hdr = */ true);
+  // Each queue checks the device's flags and sets the header size.
+  EXPECT_CALL(mock_kernel_, ioctl(_, TUNGETIFF, _))
+      .Times(2)
+      .WillRepeatedly([](Unused, Unused, void* argp) {
+        auto* ifr = reinterpret_cast<struct ifreq*>(argp);
+        ifr->ifr_flags = IFF_TUN | IFF_MULTI_QUEUE | IFF_NO_PI | IFF_VNET_HDR;
+        return 0;
+      });
+  EXPECT_CALL(mock_kernel_, ioctl(_, TUNSETVNETHDRSZ, _))
+      .Times(2)
+      .WillRepeatedly([](Unused, Unused, void* argp) {
+        EXPECT_EQ(*reinterpret_cast<int*>(argp), sizeof(virtio_net_hdr));
+        return 0;
+      });
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_, /* use_vnet_hdr = */ true);
+  EXPECT_TRUE(tun_device.Init());
+  EXPECT_GT(tun_device.GetReadFileDescriptor(), -1);
+
+  EXPECT_GT(tun_device.OpenQueue(), -1);
+
+  ExpectDown(/* fail = */ false);
+}
+
+TEST_F(TunDeviceTest, VnetHdrNotSupportedByKernel) {
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false, /* is_tap = */ false,
+                      /* use_vnet_hdr = */ true);
+  EXPECT_CALL(mock_kernel_, ioctl(_, TUNGETFEATURES, _))
+      .WillOnce([](Unused, Unused, void* argp) {
+        int* actual_features = reinterpret_cast<int*>(argp);
+        *actual_features = IFF_TUN | IFF_MULTI_QUEUE | IFF_NO_PI;
+        return 0;
+      });
+  EXPECT_CALL(mock_kernel_, ioctl(_, TUNSETIFF, _)).Times(0);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_, /* use_vnet_hdr = */ true);
+  EXPECT_FALSE(tun_device.Init());
+  EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
+  ExpectDown(/* fail = */ false);
+}
+
+TEST_F(TunDeviceTest, VnetHdrNotTurnedOnByDeviceAlreadyInUse) {
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false, /* is_tap = */ false,
+                      /* use_vnet_hdr = */ true);
+  // The device keeps the flags of the queues that it already had.
+  EXPECT_CALL(mock_kernel_, ioctl(_, TUNGETIFF, _))
+      .WillOnce([](Unused, Unused, void* argp) {
+        auto* ifr = reinterpret_cast<struct ifreq*>(argp);
+        ifr->ifr_flags = IFF_TUN | IFF_MULTI_QUEUE | IFF_NO_PI;
+        return 0;
+      });
+  EXPECT_CALL(mock_kernel_, ioctl(_, TUNSETVNETHDRSZ, _)).Times(0);
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_, /* use_vnet_hdr = */ true);
+  EXPECT_FALSE(tun_device.Init());
+  EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
+  ExpectDown(/* fail = */ false);
+}
+
+TEST_F(TunDeviceTest, VnetHdrNotTurnedOffByDeviceAlreadyInUse) {
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false);
+  // The device keeps the flags of the queues that it already had, which
+  // asked for the header. Packets would come with a header that nothing
+  // expects.
+  EXPECT_CALL(mock_kernel_, ioctl(_, TUNGETIFF, _))
+      .WillOnce([](Unused, Unused, void* argp) {
+        auto* ifr = reinterpret_cast<struct ifreq*>(argp);
+        ifr->ifr_flags = IFF_TUN | IFF_MULTI_QUEUE | IFF_NO_PI | IFF_VNET_HDR;
+        return 0;
+      });
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_);
+  EXPECT_FALSE(tun_device.Init());
+  EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
+  ExpectDown(/* fail = */ false);
+}
+
+TEST_F(TunDeviceTest, FailToGetDeviceFlags) {
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false);
+  EXPECT_CALL(mock_kernel_, ioctl(_, TUNGETIFF, _)).WillOnce(Return(-1));
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_);
+  EXPECT_FALSE(tun_device.Init());
+  EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
+  ExpectDown(/* fail = */ false);
+}
+
+TEST_F(TunDeviceTest, FailToGetDeviceFlagsForVnetHdr) {
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false, /* is_tap = */ false,
+                      /* use_vnet_hdr = */ true);
+  EXPECT_CALL(mock_kernel_, ioctl(_, TUNGETIFF, _)).WillOnce(Return(-1));
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_, /* use_vnet_hdr = */ true);
+  EXPECT_FALSE(tun_device.Init());
+  EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
+  ExpectDown(/* fail = */ false);
+}
+
+TEST_F(TunDeviceTest, FailToSetVnetHdrSize) {
+  SetInitExpectations(/* mtu = */ 1500, /* tx_queue_len = */ 1000,
+                      /* persist = */ false, /* is_tap = */ false,
+                      /* use_vnet_hdr = */ true);
+  EXPECT_CALL(mock_kernel_, ioctl(_, TUNSETVNETHDRSZ, _)).WillOnce(Return(-1));
+  TunTapDevice tun_device(kDeviceName, 1500, 1000, false, true, false,
+                          &mock_kernel_, /* use_vnet_hdr = */ true);
+  EXPECT_FALSE(tun_device.Init());
+  EXPECT_EQ(tun_device.GetReadFileDescriptor(), -1);
   ExpectDown(/* fail = */ false);
 }
 

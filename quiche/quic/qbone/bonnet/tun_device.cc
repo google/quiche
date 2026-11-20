@@ -23,6 +23,7 @@
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
+#include "quiche/quic/qbone/platform/virtio_net_header.h"
 #include "quiche/common/quiche_endian.h"
 
 ABSL_FLAG(std::string, qbone_client_tun_device_path, "/dev/net/tun",
@@ -43,13 +44,15 @@ const int kInvalidFd = -1;
 
 TunTapDevice::TunTapDevice(const std::string& interface_name, int mtu,
                            int tx_queue_len, bool persist, bool setup_tun,
-                           bool is_tap, KernelInterface* kernel)
+                           bool is_tap, KernelInterface* kernel,
+                           bool use_vnet_hdr)
     : interface_name_(interface_name),
       mtu_(mtu),
       tx_queue_len_(tx_queue_len),
       persist_(persist),
       setup_tun_(setup_tun),
       is_tap_(is_tap),
+      use_vnet_hdr_(use_vnet_hdr),
       kernel_(*kernel) {}
 
 TunTapDevice::~TunTapDevice() {
@@ -148,6 +151,9 @@ int TunTapDevice::OpenQueue() {
   } else {
     if_request.ifr_flags |= IFF_TUN;
   }
+  if (use_vnet_hdr_) {
+    if_request.ifr_flags |= IFF_VNET_HDR;
+  }
 
   int new_fd = kInvalidFd;
   if (!OpenFileDescriptor(kernel_,
@@ -168,13 +174,15 @@ int TunTapDevice::OpenQueue() {
   return new_fd;
 }
 
-bool TunTapDevice::CheckFeatures(KernelInterface& kernel, int tun_device_fd) {
+bool TunTapDevice::CheckFeatures(KernelInterface& kernel, int tun_device_fd,
+                                 unsigned int extra_required_features) {
   unsigned int actual_features;
   if (kernel.ioctl(tun_device_fd, TUNGETFEATURES, &actual_features) != 0) {
     QUIC_PLOG(WARNING) << "Failed to TUNGETFEATURES";
     return false;
   }
-  unsigned int required_features = IFF_TUN | IFF_NO_PI;
+  unsigned int required_features =
+      IFF_TUN | IFF_NO_PI | extra_required_features;
   if ((required_features & actual_features) != required_features) {
     QUIC_LOG(WARNING)
         << "Required feature does not exist. required_features: 0x" << std::hex
@@ -194,7 +202,8 @@ bool TunTapDevice::OpenFileDescriptor(KernelInterface& kernel,
     *return_fd = kInvalidFd;
     return false;
   }
-  if (!CheckFeatures(kernel, *return_fd)) {
+  const bool use_vnet_hdr = (if_request.ifr_flags & IFF_VNET_HDR) != 0;
+  if (!CheckFeatures(kernel, *return_fd, use_vnet_hdr ? IFF_VNET_HDR : 0)) {
     return false;
   }
 
@@ -202,6 +211,40 @@ bool TunTapDevice::OpenFileDescriptor(KernelInterface& kernel,
                    reinterpret_cast<void*>(&if_request)) != 0) {
     QUIC_PLOG(WARNING) << "Failed to TUNSETIFF on fd(" << *return_fd << ")";
     return false;
+  }
+
+  // The header is a property of the device, not of the descriptor: a
+  // descriptor attached to a device that already has other queues keeps the
+  // device's flags, whatever it asked for. Reading or writing with the wrong
+  // framing would corrupt every packet, so check that the device has the
+  // header exactly when it was asked for.
+  struct ifreq actual_request;
+  memset(&actual_request, 0, sizeof(actual_request));
+  if (kernel.ioctl(*return_fd, TUNGETIFF,
+                   reinterpret_cast<void*>(&actual_request)) != 0) {
+    QUIC_PLOG(WARNING) << "Failed to TUNGETIFF on fd(" << *return_fd << ")";
+    return false;
+  }
+  const bool device_uses_vnet_hdr =
+      (actual_request.ifr_flags & IFF_VNET_HDR) != 0;
+  if (device_uses_vnet_hdr != use_vnet_hdr) {
+    QUIC_LOG(WARNING) << "The TUN device was already in use "
+                      << (device_uses_vnet_hdr ? "with" : "without")
+                      << " IFF_VNET_HDR, which a new queue can't change. "
+                         "Device flags: 0x"
+                      << std::hex << actual_request.ifr_flags;
+    return false;
+  }
+
+  if (use_vnet_hdr) {
+    // Makes sure the right header size is still used, in case it was changed
+    // outside of Bonnet.
+    int vnet_hdr_size = sizeof(virtio_net_hdr);
+    if (kernel.ioctl(*return_fd, TUNSETVNETHDRSZ, &vnet_hdr_size) != 0) {
+      QUIC_PLOG(WARNING) << "Failed to TUNSETVNETHDRSZ on fd(" << *return_fd
+                         << ")";
+      return false;
+    }
   }
 
   if (kernel.ioctl(*return_fd, TUNSETPERSIST,

@@ -1802,6 +1802,7 @@ qbone_hdrs = [
     "quic/qbone/platform/netlink_interface.h",
     "quic/qbone/platform/rtnetlink_message.h",
     "quic/qbone/platform/tcp_packet.h",
+    "quic/qbone/platform/virtio_net_header.h",
     "quic/qbone/qbone_client.h",
     "quic/qbone/qbone_client_interface.h",
     "quic/qbone/qbone_client_session.h",

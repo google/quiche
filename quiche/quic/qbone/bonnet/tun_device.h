@@ -42,10 +42,14 @@ class TunTapDevice : public TunDeviceInterface {
   // The transmit queue length in packets is configured via tx_queue_len.
   // Non-positive values leave the kernel default queue length unchanged.
   //
+  // If use_vnet_hdr is set, the device is opened with IFF_VNET_HDR: every
+  // packet read from or written to any of its file descriptors is then
+  // preceded by a `virtio_net_hdr`.
+  //
   // The caller should own kernel and make sure it outlives this.
   TunTapDevice(const std::string& interface_name, int mtu, int tx_queue_len,
                bool persist, bool setup_tun, bool is_tap,
-               KernelInterface* kernel);
+               KernelInterface* kernel, bool use_vnet_hdr = false);
 
   ~TunTapDevice() override;
 
@@ -75,7 +79,14 @@ class TunTapDevice : public TunDeviceInterface {
 
   std::optional<ethhdr> eth_hdr() const override { return eth_hdr_; }
 
-  static bool CheckFeatures(KernelInterface& kernel, int tun_device_fd);
+  // Returns whether the kernel's TUN driver supports IFF_TUN and IFF_NO_PI,
+  // plus the IFF_* flags in `extra_required_features`.
+  static bool CheckFeatures(KernelInterface& kernel, int tun_device_fd,
+                            unsigned int extra_required_features = 0);
+
+  // Opens `path` and attaches the descriptor to the device that `if_request`
+  // names, with the flags that it holds. It fails unless the device's
+  // IFF_VNET_HDR state matches if_request.
   static bool OpenFileDescriptor(KernelInterface& kernel,
                                  const std::string& path, ifreq if_request,
                                  int flags, bool persist, int* return_fd);
@@ -97,6 +108,7 @@ class TunTapDevice : public TunDeviceInterface {
   const bool persist_;
   const bool setup_tun_;
   const bool is_tap_;
+  const bool use_vnet_hdr_;
   KernelInterface& kernel_;
 
   std::vector<int> file_descriptors_;

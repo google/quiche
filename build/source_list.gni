@@ -1811,6 +1811,7 @@ qbone_hdrs = [
     "src/quiche/quic/qbone/platform/netlink_interface.h",
     "src/quiche/quic/qbone/platform/rtnetlink_message.h",
     "src/quiche/quic/qbone/platform/tcp_packet.h",
+    "src/quiche/quic/qbone/platform/virtio_net_header.h",
     "src/quiche/quic/qbone/qbone_client.h",
     "src/quiche/quic/qbone/qbone_client_interface.h",
     "src/quiche/quic/qbone/qbone_client_session.h",

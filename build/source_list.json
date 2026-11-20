@@ -1810,6 +1810,7 @@
     "quiche/quic/qbone/platform/netlink_interface.h",
     "quiche/quic/qbone/platform/rtnetlink_message.h",
     "quiche/quic/qbone/platform/tcp_packet.h",
+    "quiche/quic/qbone/platform/virtio_net_header.h",
     "quiche/quic/qbone/qbone_client.h",
     "quiche/quic/qbone/qbone_client_interface.h",
     "quiche/quic/qbone/qbone_client_session.h",
