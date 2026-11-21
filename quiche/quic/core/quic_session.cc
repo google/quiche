@@ -1551,6 +1551,10 @@ void QuicSession::OnConfigNegotiated() {
   }
 
   if (VersionIsIetfQuic(transport_version())) {
+    if (GetQuicReloadableFlag(quic_prioritize_handshake_frames) &&
+        config()->HasClientSentConnectionOption(kPHSR, perspective_)) {
+      prioritize_handshake_frames_ = true;
+    }
     ietf_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
         config()->GetMaxBidirectionalStreamsToSend());
     ietf_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
@@ -2803,17 +2807,31 @@ bool QuicSession::RetransmitLostData() {
   QuicConnection::ScopedPacketFlusher retransmission_flusher(connection_);
   // Retransmit crypto data first.
   bool uses_crypto_frames = VersionIsIetfQuic(transport_version());
-  if (QuicCryptoStream* const crypto_stream = GetMutableCryptoStream();
-      uses_crypto_frames && crypto_stream->HasPendingCryptoRetransmission()) {
+  QuicCryptoStream* const crypto_stream = GetMutableCryptoStream();
+  if (uses_crypto_frames && crypto_stream->HasPendingCryptoRetransmission()) {
     crypto_stream->WritePendingCryptoRetransmission();
+  }
+  if (prioritize_handshake_frames_ && uses_crypto_frames) {
+    // Couldn't write crypto retransmissions, so must be write blocked.
+    if (crypto_stream->HasPendingCryptoRetransmission()) {
+      return false;
+    }
+    // When PHSR is negotiated, write buffered CRYPTO frames before
+    // retransmitting lost stream data, so that post-handshake CRYPTO data is
+    // not starved by stream retransmissions under loss.
+    if (connection_->connected() && crypto_stream->HasBufferedCryptoFrames()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_prioritize_handshake_frames, 1, 2);
+      crypto_stream->WriteBufferedCryptoFrames();
+    }
+    if (!connection_->connected() || crypto_stream->HasBufferedCryptoFrames()) {
+      return false;
+    }
   }
   // Retransmit crypto data in stream 1 frames (version < 47).
   if (!uses_crypto_frames &&
       streams_with_pending_retransmission_.contains(
           QuicUtils::GetCryptoStreamId(transport_version()))) {
     // Retransmit crypto data first.
-    QuicStream* const crypto_stream =
-        GetStream(QuicUtils::GetCryptoStreamId(transport_version()));
     crypto_stream->OnCanWrite();
     QUICHE_DCHECK(CheckStreamWriteBlocked(crypto_stream));
     if (crypto_stream->HasPendingRetransmission()) {
@@ -2828,6 +2846,23 @@ bool QuicSession::RetransmitLostData() {
     control_frame_manager_.OnCanWrite();
     if (control_frame_manager_.HasPendingRetransmission()) {
       return false;
+    }
+  }
+  if (prioritize_handshake_frames_ && uses_crypto_frames &&
+      IsEncryptionEstablished()) {
+    // When PHSR is negotiated, also write buffered control frames (e.g.
+    // HANDSHAKE_DONE, NEW_TOKEN) before retransmitting lost stream data, once
+    // encryption is established.
+    if (!connection_->connected()) {
+      return false;
+    }
+    if (control_frame_manager_.WillingToWrite()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_prioritize_handshake_frames, 2, 2);
+      control_frame_manager_.OnCanWrite();
+      if (!connection_->connected() ||
+          control_frame_manager_.WillingToWrite()) {
+        return false;
+      }
     }
   }
   while (!streams_with_pending_retransmission_.empty()) {

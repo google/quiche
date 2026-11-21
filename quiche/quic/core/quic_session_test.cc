@@ -3838,6 +3838,195 @@ TEST_P(QuicSessionTestClient,
       QuicSessionPeer::GetLocallyClosedStreamsHighestOffset(&session_).size());
 }
 
+TEST_P(QuicSessionTestServer, PrioritizeHandshakeFrames) {
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_prioritize_handshake_frames, true);
+  CompleteHandshake();
+  QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), {kPHSR});
+  session_.OnConfigNegotiated();
+  EXPECT_TRUE(session_.prioritize_handshake_frames());
+
+  // 1. Mark an application stream frame as lost so the stream has pending
+  // retransmissions.
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+  QuicStreamFrame frame(stream->id(), false, 0, 9);
+  EXPECT_CALL(*stream, HasPendingRetransmission())
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  session_.OnFrameLost(QuicFrame(frame));
+
+  // 2. Buffer CRYPTO data on the crypto stream.
+  TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
+  std::string crypto_data(1350, 'a');
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_FORWARD_SECURE, 1350, 0))
+      .WillOnce(Return(1000));
+  crypto_stream->WriteCryptoData(ENCRYPTION_FORWARD_SECURE, crypto_data);
+  EXPECT_TRUE(crypto_stream->HasBufferedCryptoFrames());
+
+  // 3. Buffer a control frame in the control frame manager.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(Return(false));
+  session_.SendWindowUpdate(stream->id(), 100);
+  EXPECT_TRUE(session_.control_frame_manager().WillingToWrite());
+
+  InSequence s;
+  EXPECT_CALL(*connection_,
+              SendCryptoData(ENCRYPTION_FORWARD_SECURE, 350, 1000))
+      .WillOnce(Return(350));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(&ClearControlFrame);
+  EXPECT_CALL(*stream, OnCanWrite());
+
+  session_.OnCanWrite();
+  EXPECT_FALSE(crypto_stream->HasBufferedCryptoFrames());
+  EXPECT_FALSE(session_.control_frame_manager().WillingToWrite());
+}
+
+TEST_P(QuicSessionTestServer, PrioritizeHandshakeFramesWriteBlocked) {
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_prioritize_handshake_frames, true);
+  CompleteHandshake();
+  QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), {kPHSR});
+  session_.OnConfigNegotiated();
+  EXPECT_TRUE(session_.prioritize_handshake_frames());
+
+  // 1. Mark an application stream frame as lost so the stream has pending
+  // retransmissions.
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+  QuicStreamFrame frame(stream->id(), false, 0, 9);
+  EXPECT_CALL(*stream, HasPendingRetransmission())
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  session_.OnFrameLost(QuicFrame(frame));
+
+  // 2. Buffer CRYPTO data on the crypto stream.
+  TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
+  std::string crypto_data(1350, 'a');
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_FORWARD_SECURE, 1350, 0))
+      .WillOnce(Return(1000));
+  crypto_stream->WriteCryptoData(ENCRYPTION_FORWARD_SECURE, crypto_data);
+  EXPECT_TRUE(crypto_stream->HasBufferedCryptoFrames());
+
+  // 3. Buffer a control frame in the control frame manager.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(Return(false));
+  session_.SendWindowUpdate(stream->id(), 100);
+  EXPECT_TRUE(session_.control_frame_manager().WillingToWrite());
+
+  // First OnCanWrite: writing buffered CRYPTO frames is write-blocked, so
+  // neither the control frame nor the stream retransmission is attempted.
+  EXPECT_CALL(*connection_,
+              SendCryptoData(ENCRYPTION_FORWARD_SECURE, 350, 1000))
+      .WillOnce(Return(0));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+  EXPECT_CALL(*stream, OnCanWrite()).Times(0);
+  session_.OnCanWrite();
+  EXPECT_TRUE(crypto_stream->HasBufferedCryptoFrames());
+  EXPECT_TRUE(session_.control_frame_manager().WillingToWrite());
+
+  // Second OnCanWrite: buffered CRYPTO frames succeed, but writing the buffered
+  // control frame is write-blocked, so the stream retransmission is still not
+  // attempted.
+  {
+    InSequence s;
+    EXPECT_CALL(*connection_,
+                SendCryptoData(ENCRYPTION_FORWARD_SECURE, 350, 1000))
+        .WillOnce(Return(350));
+    EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(Return(false));
+  }
+  EXPECT_CALL(*stream, OnCanWrite()).Times(0);
+  session_.OnCanWrite();
+  EXPECT_FALSE(crypto_stream->HasBufferedCryptoFrames());
+  EXPECT_TRUE(session_.control_frame_manager().WillingToWrite());
+
+  // Third OnCanWrite: the buffered control frame and stream retransmission both
+  // succeed.
+  {
+    InSequence s;
+    EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(&ClearControlFrame);
+    EXPECT_CALL(*stream, OnCanWrite());
+  }
+  session_.OnCanWrite();
+  EXPECT_FALSE(session_.control_frame_manager().WillingToWrite());
+}
+
+TEST_P(QuicSessionTestServer,
+       StreamRetransmissionsBeforeBufferedHandshakeWhenFlagFalse) {
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_prioritize_handshake_frames, false);
+  CompleteHandshake();
+  QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), {kPHSR});
+  session_.OnConfigNegotiated();
+  EXPECT_FALSE(session_.prioritize_handshake_frames());
+
+  // 1. Mark an application stream frame as lost so the stream has pending
+  // retransmissions.
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+  QuicStreamFrame frame(stream->id(), false, 0, 9);
+  EXPECT_CALL(*stream, HasPendingRetransmission())
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  session_.OnFrameLost(QuicFrame(frame));
+
+  // 2. Buffer CRYPTO data on the crypto stream.
+  TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
+  std::string crypto_data(1350, 'a');
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_FORWARD_SECURE, 1350, 0))
+      .WillOnce(Return(1000));
+  crypto_stream->WriteCryptoData(ENCRYPTION_FORWARD_SECURE, crypto_data);
+  EXPECT_TRUE(crypto_stream->HasBufferedCryptoFrames());
+
+  // 3. Buffer a control frame in the control frame manager.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(Return(false));
+  session_.SendWindowUpdate(stream->id(), 100);
+  EXPECT_TRUE(session_.control_frame_manager().WillingToWrite());
+
+  InSequence s;
+  EXPECT_CALL(*stream, OnCanWrite());
+  EXPECT_CALL(*connection_,
+              SendCryptoData(ENCRYPTION_FORWARD_SECURE, 350, 1000))
+      .WillOnce(Return(350));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(&ClearControlFrame);
+
+  session_.OnCanWrite();
+  EXPECT_FALSE(crypto_stream->HasBufferedCryptoFrames());
+  EXPECT_FALSE(session_.control_frame_manager().WillingToWrite());
+}
+
+TEST_P(QuicSessionTestClient, PrioritizeHandshakeFrames) {
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_prioritize_handshake_frames, true);
+  EXPECT_FALSE(session_.prioritize_handshake_frames());
+  session_.config()->SetConnectionOptionsToSend({kPHSR});
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  session_.OnConfigNegotiated();
+  EXPECT_TRUE(session_.prioritize_handshake_frames());
+}
+
+TEST_P(QuicSessionTestClient, NoPrioritizeHandshakeFramesWithoutPhsr) {
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_prioritize_handshake_frames, true);
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  session_.OnConfigNegotiated();
+  EXPECT_FALSE(session_.prioritize_handshake_frames());
+}
+
+TEST_P(QuicSessionTestServer, NoPrioritizeHandshakeFramesWithoutPhsr) {
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_prioritize_handshake_frames, true);
+  CompleteHandshake();
+  EXPECT_FALSE(session_.prioritize_handshake_frames());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

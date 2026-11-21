@@ -61,6 +61,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_on_packet_header_return_connected,
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_optimize_qpack_blocking_manager, false, false, "If true, optimize qpack_blocking_manager for CPU efficiency.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_pacing_remove_non_initial_burst, false, false, "If true, remove the non-initial burst in QUIC PacingSender.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_parse_cert_compression_algos_from_chlo, true, true, "If true, parse offered cert compression algorithms from received CHLOs.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_prioritize_handshake_frames, false, false, "When true and the client sends the PHSR connection option, QuicSession::RetransmitLostData writes buffered CRYPTO frames and control frames before retransmitting lost application stream data.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_priority_respect_incremental, false, false, "If true, respect the incremental parameter of each stream in QuicWriteBlockedList.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_receive_ack_frequency2, false, false, "When true, advertises support for ACK_FREQUENCY and IMMEDIATE_ACK from draft-ietf-quic-ack-frequency-14 and processes them correctly.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_reject_empty_cid_in_ncid, false, true, "If true, QUIC framer will reject NEW_CONNECTION_ID frames with empty connection IDs.")

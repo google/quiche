@@ -525,6 +525,8 @@ DEFINE_STATIC_QUIC_TAG(CHP2);  // 2-packet padding to CHLO.
 DEFINE_STATIC_QUIC_TAG(BCFR);  // Bundle CRYPTO frames when retransmitting.
 DEFINE_STATIC_QUIC_TAG(SAOW);  // Send ACKs after OnCanWrite.
 DEFINE_STATIC_QUIC_TAG(CPLP);  // Coalesce PING with last packet.
+DEFINE_STATIC_QUIC_TAG(PHSR);  // Prioritize handshake over stream
+                               // retransmissions.
 
 // Stats collection tags
 DEFINE_STATIC_QUIC_TAG(EPID);  // Endpoint identifier.

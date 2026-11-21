@@ -872,6 +872,9 @@ class QUICHE_EXPORT QuicSession
   bool bundle_retransmitted_crypto_frames() const {
     return bundle_retransmitted_crypto_frames_;
   }
+  bool prioritize_handshake_frames() const {
+    return prioritize_handshake_frames_;
+  }
 
  protected:
   using StreamMap =
@@ -1310,6 +1313,10 @@ class QUICHE_EXPORT QuicSession
 
   bool bundle_retransmitted_crypto_frames_ =
       GetQuicReloadableFlag(quic_bundle_crypto_retransmits);
+
+  // If true, RetransmitLostData() writes buffered CRYPTO frames and pending
+  // control frames before retransmitting lost stream data.
+  bool prioritize_handshake_frames_ = false;
 };
 
 }  // namespace quic
