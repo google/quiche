@@ -1,9 +1,11 @@
 #include "quiche/http2/adapter/nghttp2_adapter.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"
 #include "quiche/http2/adapter/mock_http2_visitor.h"
@@ -2253,6 +2255,67 @@ TEST(NgHttp2AdapterTest, ClientRejects101Response) {
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
                                             SpdyFrameType::RST_STREAM}));
+}
+
+TEST(NgHttp2AdapterTest, ClientSubmitRequestWithNeverIndexingPolicy) {
+  const std::vector<Header> headers =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"},
+                 {"x-request-id", "12345678-abcd"}});
+
+  TestVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+  adapter->SetNeverIndexingPolicy(
+      [](absl::string_view name, absl::string_view /*value*/) {
+        return name == "x-request-id";
+      });
+
+  // A control adapter without the policy, submitting the same request.
+  TestVisitor control_visitor;
+  auto control_adapter = NgHttp2Adapter::CreateClientAdapter(control_visitor);
+
+  const int32_t stream_id = adapter->SubmitRequest(headers, true, nullptr);
+  ASSERT_GT(stream_id, 0);
+  const int32_t control_stream_id =
+      control_adapter->SubmitRequest(headers, true, nullptr);
+  ASSERT_EQ(stream_id, control_stream_id);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
+  EXPECT_EQ(0, adapter->Send());
+
+  EXPECT_CALL(control_visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(control_visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(control_visitor,
+              OnBeforeFrameSent(HEADERS, control_stream_id, _, 0x5));
+  EXPECT_CALL(control_visitor,
+              OnFrameSent(HEADERS, control_stream_id, _, 0x5, 0));
+  EXPECT_EQ(0, control_adapter->Send());
+
+  // The two encodings must be identical except for the representation prefix
+  // of the "x-request-id" field: never indexed (0b0001xxxx, RFC 7541 Section
+  // 6.2.3) with the policy, versus incremental indexing (0b01xxxxxx, Section
+  // 6.2.1) without it.
+  const absl::string_view data = visitor.data();
+  const absl::string_view control_data = control_visitor.data();
+  ASSERT_EQ(data.size(), control_data.size());
+  int diff_count = 0;
+  for (size_t i = 0; i < data.size(); ++i) {
+    if (data[i] != control_data[i]) {
+      ++diff_count;
+      EXPECT_EQ(0x10, static_cast<uint8_t>(data[i]) & 0xF0);
+      EXPECT_EQ(0x40, static_cast<uint8_t>(control_data[i]) & 0xC0);
+    }
+  }
+  EXPECT_EQ(1, diff_count);
+
+  // The never-indexed header was not inserted into the HPACK dynamic table.
+  EXPECT_LT(adapter->GetHpackEncoderDynamicTableSize(),
+            control_adapter->GetHpackEncoderDynamicTableSize());
 }
 
 TEST(NgHttp2AdapterTest, ClientSubmitRequest) {

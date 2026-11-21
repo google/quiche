@@ -30,6 +30,7 @@ class QUICHE_EXPORT OgHttp2Adapter : public Http2Adapter {
                                Http2StreamId parent_stream_id, int weight,
                                bool exclusive) override;
   void SubmitPing(Http2PingId ping_id) override;
+  void SetNeverIndexingPolicy(NeverIndexingPolicy policy) override;
   void SubmitShutdownNotice() override;
   void SubmitGoAway(Http2StreamId last_accepted_stream_id,
                     Http2ErrorCode error_code,
