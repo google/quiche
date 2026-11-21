@@ -239,6 +239,11 @@ QuicConnection::QuicConnection(
       owns_writer_(owns_writer),
       can_truncate_connection_ids_(perspective == Perspective::IS_SERVER),
       spin_bit_enabled_(false) {
+  if (unify_peer_address_and_path_validation_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_unify_peer_address_and_path_validation, 1,
+                                 6);
+    default_path_.peer_address = initial_peer_address;
+  }
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
@@ -3202,6 +3207,14 @@ bool QuicConnection::FindOnPathConnectionIds(
 void QuicConnection::SetDefaultPathState(PathState new_path_state) {
   QUICHE_DCHECK(version().IsIetfQuic());
   default_path_ = std::move(new_path_state);
+  if (unify_peer_address_and_path_validation_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_unify_peer_address_and_path_validation, 2,
+                                 6);
+    QUIC_BUG_IF(quic_default_path_peer_address_uninitialized,
+                !default_path_.peer_address.IsInitialized())
+        << "Default path peer address is uninitialized.";
+    packet_creator_.SetDefaultPeerAddress(default_path_.peer_address);
+  }
   packet_creator_.SetClientConnectionId(default_path_.client_connection_id);
   packet_creator_.SetServerConnectionId(default_path_.server_connection_id);
 }
@@ -5694,7 +5707,13 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
 
     highest_packet_sent_before_effective_peer_migration_ =
         sent_packet_manager_.GetLargestSentPacket();
-    default_path_.peer_address = last_received_packet_info_.source_address;
+    if (unify_peer_address_and_path_validation_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_unify_peer_address_and_path_validation,
+                                   3, 6);
+      UpdatePeerAddress(last_received_packet_info_.source_address);
+    } else {
+      default_path_.peer_address = last_received_packet_info_.source_address;
+    }
     active_effective_peer_migration_type_ = type;
 
     OnConnectionMigration();
@@ -5733,10 +5752,20 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
                   << ", migrating connection.";
 
   const QuicSocketAddress previous_direct_peer_address = peer_address();
-  PathState previous_default_path = std::move(default_path_);
   active_effective_peer_migration_type_ = type;
+  PathState previous_default_path;
+  if (!unify_peer_address_and_path_validation_) {
+    previous_default_path = std::move(default_path_);
+  }
   MaybeClearQueuedPacketsOnPathChange();
   OnConnectionMigration();
+  if (unify_peer_address_and_path_validation_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_unify_peer_address_and_path_validation, 4,
+                                 6);
+    // Move the default path after OnConnectionMigration(), because
+    // peer_address() and self_address() read from |default_path_|.
+    previous_default_path = std::move(default_path_);
+  }
 
   // Update congestion controller if the address change type is not PORT_CHANGE.
   if (type == PORT_CHANGE) {
@@ -5773,8 +5802,11 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
       alternative_path_.rtt_stats = std::nullopt;
     }
   }
-  // Update to the new peer address.
-  UpdatePeerAddress(last_received_packet_info_.source_address);
+  if (!unify_peer_address_and_path_validation_) {
+    // Update to the new peer address. When the flag is true,
+    // SetDefaultPathState() below updates it.
+    UpdatePeerAddress(last_received_packet_info_.source_address);
+  }
   // Update the default path.
   if (IsAlternativePath(last_received_packet_info_.destination_address,
                         current_effective_peer_address)) {
@@ -5971,11 +6003,17 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
   if (GetLargestReceivedPacket().IsInitialized() &&
       last_received_packet_info_.header.packet_number ==
           GetLargestReceivedPacket()) {
-    UpdatePeerAddress(last_received_packet_info_.source_address);
+    if (!unify_peer_address_and_path_validation_) {
+      UpdatePeerAddress(last_received_packet_info_.source_address);
+    }
     if (current_effective_peer_migration_type_ != NO_CHANGE) {
       // Start effective peer migration immediately when the current packet is
       // confirmed not a connectivity probing packet.
       StartEffectivePeerMigration(current_effective_peer_migration_type_);
+    } else if (unify_peer_address_and_path_validation_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_unify_peer_address_and_path_validation,
+                                   5, 6);
+      UpdatePeerAddress(last_received_packet_info_.source_address);
     }
   }
   current_effective_peer_migration_type_ = NO_CHANGE;
@@ -7276,7 +7314,18 @@ bool QuicConnection::SendPathResponse(
 }
 
 void QuicConnection::UpdatePeerAddress(QuicSocketAddress peer_address) {
-  direct_peer_address_ = peer_address;
+  if (unify_peer_address_and_path_validation_) {
+    if (!peer_address.IsInitialized()) {
+      QUIC_BUG(quic_update_peer_address_uninitialized)
+          << "Updating peer address to an uninitialized address.";
+      return;
+    }
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_unify_peer_address_and_path_validation, 6,
+                                 6);
+    default_path_.peer_address = peer_address;
+  } else {
+    direct_peer_address_ = peer_address;
+  }
   packet_creator_.SetDefaultPeerAddress(peer_address);
 }
 
@@ -7828,7 +7877,10 @@ void QuicConnection::RestoreToLastValidatedPath(
     sent_packet_manager_.SetRttStats(*alternative_path_.rtt_stats);
   }
 
-  UpdatePeerAddress(original_direct_peer_address);
+  if (!unify_peer_address_and_path_validation_) {
+    // When the flag is true, SetDefaultPathState() updates the peer address.
+    UpdatePeerAddress(original_direct_peer_address);
+  }
   SetDefaultPathState(std::move(alternative_path_));
 
   active_effective_peer_migration_type_ = NO_CHANGE;

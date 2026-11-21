@@ -85,6 +85,11 @@ class QuicConnectionPeer {
       QuicConnection* connection,
       const QuicSocketAddress& effective_peer_address);
 
+  // Overrides the latched value of
+  // --quic_unify_peer_address_and_path_validation for |connection|.
+  static void SetUnifyPeerAddressAndPathValidation(QuicConnection* connection,
+                                                   bool value);
+
   static void SwapCrypters(QuicConnection* connection, QuicFramer* framer);
 
   static void SetCurrentPacket(QuicConnection* connection,
@@ -181,6 +186,9 @@ class QuicConnectionPeer {
 
   static void SetLastPacketDestinationAddress(QuicConnection* connection,
                                               const QuicSocketAddress& address);
+
+  static void SetLastPacketSourceAddress(QuicConnection* connection,
+                                         const QuicSocketAddress& address);
 
   static QuicPathValidator* path_validator(QuicConnection* connection);
 
