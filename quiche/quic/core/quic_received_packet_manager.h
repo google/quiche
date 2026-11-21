@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/quic_config.h"
@@ -115,10 +116,6 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
 
   void SaveReceiveTimestamps(size_t max_timestamps);
   bool save_timestamps() const { return max_timestamps_ > 0; }
-
-  void set_receive_timestamp_basis(QuicTime receive_timestamp_basis) {
-    receive_timestamp_basis_ = receive_timestamp_basis;
-  }
 
   size_t min_received_before_ack_decimation() const {
     return min_received_before_ack_decimation_;
@@ -240,8 +237,11 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
   // The expected sequence number of the next received AckFrequencyFrame.
   uint64_t next_ack_frequency_frame_sequence_number_ = 0;
 
-  // The minimum time that can be recorded in a receive timestamp.
-  QuicTime receive_timestamp_basis_ = QuicTime::Zero();
+  // The minimum time that can be recorded in a receive timestamp. Lazily
+  // initialized from the first recorded packet's receipt time minus one second
+  // (clamped at QuicTime::Zero()) to allow for reordering at the start of the
+  // connection.
+  std::optional<QuicTime> receive_timestamp_basis_;
 };
 
 }  // namespace quic

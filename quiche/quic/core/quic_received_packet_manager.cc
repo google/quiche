@@ -45,6 +45,13 @@ const float kShortAckDecimationDelay = 0.125;
 constexpr QuicTime::Delta kMaxOutgoingReceiveTimestamp =
     QuicTime::Delta::FromMicroseconds(
         kMaxIetfVarInt - ((uint64_t{1} << kMaxReceiveTimestampsExponent) - 1));
+
+// QuicReceivedPacketManager uses the first receive timestamp it records as a
+// basis for all future timestamps, discarding all timestamps below the basis.
+// To accommodate for potential reordering of initial packets, shift the
+// timestamp basis by a small fixed duration listed below.
+constexpr QuicTime::Delta kInitialReceiveTimestampOffset =
+    QuicTime::Delta::FromSeconds(1);
 }  // namespace
 
 QuicReceivedPacketManager::QuicReceivedPacketManager()
@@ -165,19 +172,23 @@ void QuicReceivedPacketManager::MaybeRecordReceiveTimestamp(
   if (!save_timestamps()) {
     return;
   }
-  if (!receive_timestamp_basis_.IsInitialized()) {
-    QUIC_BUG(missing_receive_timestamp_basis)
-        << "`SaveReceiveTimestamps` was called, but "
-           "`receive_timestamp_basis_` is not set";
+  if (receipt_time <= QuicTime::Zero() ||
+      receipt_time == QuicTime::Infinite()) {
+    QUIC_DLOG(WARNING) << "Invalid receive timestamp: "
+                       << receipt_time.ToDebuggingValue();
     return;
+  }
+  if (!receive_timestamp_basis_.has_value()) {
+    receive_timestamp_basis_ = std::max(
+        QuicTime::Zero(), receipt_time - kInitialReceiveTimestampOffset);
   }
 
   std::optional<QuicReceiveTime> receive_time =
-      QuicReceiveTime::FromLocalTime(receipt_time, receive_timestamp_basis_);
+      QuicReceiveTime::FromLocalTime(receipt_time, *receive_timestamp_basis_);
   if (!receive_time.has_value()) {
     QUIC_DLOG(WARNING) << "Receive time earlier than timestamp basis: "
                        << receipt_time.ToDebuggingValue() << " < "
-                       << receive_timestamp_basis_.ToDebuggingValue();
+                       << receive_timestamp_basis_->ToDebuggingValue();
     return;
   }
   if (receive_time->raw_value() > kMaxOutgoingReceiveTimestamp) {

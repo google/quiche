@@ -231,15 +231,6 @@ void UberReceivedPacketManager::SaveReceiveTimestamps(size_t max_timestamps) {
       max_timestamps);
 }
 
-void UberReceivedPacketManager::set_receive_timestamp_basis(
-    QuicTime receive_timestamp_basis) {
-  for (QuicReceivedPacketManager& received_packet_manager :
-       received_packet_managers_) {
-    received_packet_manager.set_receive_timestamp_basis(
-        receive_timestamp_basis);
-  }
-}
-
 void UberReceivedPacketManager::OnAckFrequencyFrame(
     const QuicAckFrequencyFrame& frame) {
   if (!is_ietf_quic_) {

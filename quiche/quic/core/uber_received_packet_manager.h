@@ -94,7 +94,6 @@ class QUICHE_EXPORT UberReceivedPacketManager {
   void OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame);
 
   void SaveReceiveTimestamps(size_t max_timestamps);
-  void set_receive_timestamp_basis(QuicTime receive_timestamp_basis);
 
  private:
   friend class test::QuicConnectionPeer;

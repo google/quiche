@@ -20579,17 +20579,20 @@ TEST_P(QuicConnectionTest,
 
   ASSERT_EQ(1u, writer_->ack_frames().size());
   const QuicAckFrame& ack = writer_->ack_frames()[0];
-  // 250us rounds up to 4 * 64us = 256us.
-  // Delta 256us - 100us = 156us truncates to 2 * 64us = 128us; 256us - 128us =
-  // 128us.
+  // Basis is packet 1's receipt time minus 1s, so packet 1 is at 1,000,000us
+  // and packet 2 is at 1,000,150us.
+  // 1,000,150us rounds up to 15628 * 64us = 1,000,192us.
+  // Delta 1,000,192us - 1,000,000us = 192us = 3 * 64us;
+  // 1,000,192us - 192us = 1,000,000us.
   EXPECT_THAT(
       ack.received_packet_times,
-      ElementsAre(testing::Pair(QuicPacketNumber(2),
-                                *QuicReceiveTime::FromPeerTime(
-                                    QuicTime::Delta::FromMicroseconds(256))),
-                  testing::Pair(QuicPacketNumber(1),
-                                *QuicReceiveTime::FromPeerTime(
-                                    QuicTime::Delta::FromMicroseconds(128)))));
+      ElementsAre(
+          testing::Pair(QuicPacketNumber(2),
+                        *QuicReceiveTime::FromPeerTime(
+                            QuicTime::Delta::FromMicroseconds(1000192))),
+          testing::Pair(QuicPacketNumber(1),
+                        *QuicReceiveTime::FromPeerTime(
+                            QuicTime::Delta::FromMicroseconds(1000000)))));
 }
 
 TEST_P(QuicConnectionTest,

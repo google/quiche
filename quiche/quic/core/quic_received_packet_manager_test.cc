@@ -13,6 +13,7 @@
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_receive_time.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
@@ -48,7 +49,6 @@ class QuicReceivedPacketManagerTest : public QuicTest {
   QuicReceivedPacketManagerTest() : received_manager_(&stats_) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     rtt_stats_.UpdateRtt(kMinRttMs, QuicTime::Delta::Zero(), QuicTime::Zero());
-    received_manager_.set_receive_timestamp_basis(clock_.ApproximateNow());
     received_manager_.SaveReceiveTimestamps(kMaxReceiveTimestampsToSend);
   }
 
@@ -253,51 +253,153 @@ TEST_F(QuicReceivedPacketManagerTest, IgnoreOutOfOrderTimestamps) {
   EXPECT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
 }
 
-TEST_F(QuicReceivedPacketManagerTest, IgnoreTimestampsEarlierThanBasis) {
-  const QuicTime basis =
-      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(10);
-  received_manager_.set_receive_timestamp_basis(basis);
+TEST_F(QuicReceivedPacketManagerTest,
+       ReceiveTimestampBasisAllowsInitialReordering) {
+  const QuicTime first_time =
+      QuicTime::Zero() + QuicTime::Delta::FromSeconds(10);
+  // First recorded packet initializes basis to first_time - 1s (9s).
+  RecordPacketReceipt(1, first_time);
+  ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(QuicPacketNumber(1),
+            received_manager_.ack_frame().received_packet_times[0].first);
+  EXPECT_EQ(*QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromSeconds(1)),
+            received_manager_.ack_frame().received_packet_times[0].second);
 
-  // Timestamps before the basis are ignored.
-  RecordPacketReceipt(1, basis - QuicTime::Delta::FromMilliseconds(1));
-  EXPECT_TRUE(received_manager_.ack_frame().received_packet_times.empty());
+  // Flush the ACK so subsequent packets are not rejected by the per-ACK
+  // monotonicity guard.
+  received_manager_.ResetAckStates();
 
-  // Timestamps after the basis are accepted.
-  RecordPacketReceipt(2, basis + QuicTime::Delta::FromMilliseconds(1));
+  // A packet arriving up to 1s earlier than the first packet is accepted.
+  RecordPacketReceipt(2, first_time - QuicTime::Delta::FromMilliseconds(500));
   ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
   EXPECT_EQ(QuicPacketNumber(2),
             received_manager_.ack_frame().received_packet_times[0].first);
-}
+  EXPECT_EQ(
+      *QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromMilliseconds(500)),
+      received_manager_.ack_frame().received_packet_times[0].second);
 
-TEST_F(QuicReceivedPacketManagerTest, IgnoreTimestampsWhenBasisUninitialized) {
-  received_manager_.set_receive_timestamp_basis(QuicTime::Zero());
+  received_manager_.ResetAckStates();
 
-  EXPECT_QUIC_BUG(
-      RecordPacketReceipt(1, clock_.ApproximateNow()),
-      "`SaveReceiveTimestamps` was called, but `receive_timestamp_basis_` is "
-      "not set");
+  // Exactly 1s earlier than the first packet equals the basis (delta 0).
+  RecordPacketReceipt(3, first_time - QuicTime::Delta::FromSeconds(1));
+  ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(QuicPacketNumber(3),
+            received_manager_.ack_frame().received_packet_times[0].first);
+  EXPECT_EQ(*QuicReceiveTime::FromPeerTime(QuicTime::Delta::Zero()),
+            received_manager_.ack_frame().received_packet_times[0].second);
+
+  received_manager_.ResetAckStates();
+
+  // Timestamps more than 1s earlier than the first packet are before the basis
+  // and ignored.
+  RecordPacketReceipt(4, first_time - QuicTime::Delta::FromSeconds(1) -
+                             QuicTime::Delta::FromMicroseconds(1));
   EXPECT_TRUE(received_manager_.ack_frame().received_packet_times.empty());
 }
 
-TEST_F(QuicReceivedPacketManagerTest, IgnoreTimestampsExceedingMaxDelta) {
-  const QuicTime basis =
+TEST_F(QuicReceivedPacketManagerTest,
+       IgnoreInvalidTimestampsWithoutSettingBasis) {
+  // Sentinel/invalid timestamps are ignored and do not latch the basis.
+  RecordPacketReceipt(1, QuicTime::Zero());
+  RecordPacketReceipt(2,
+                      QuicTime::Zero() - QuicTime::Delta::FromMilliseconds(1));
+  RecordPacketReceipt(3, QuicTime::Infinite());
+  EXPECT_TRUE(received_manager_.ack_frame().received_packet_times.empty());
+
+  // The first valid packet latches the basis to first_time - 1s.
+  const QuicTime first_time =
+      QuicTime::Zero() + QuicTime::Delta::FromSeconds(10);
+  RecordPacketReceipt(4, first_time);
+  ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(QuicPacketNumber(4),
+            received_manager_.ack_frame().received_packet_times[0].first);
+  EXPECT_EQ(*QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromSeconds(1)),
+            received_manager_.ack_frame().received_packet_times[0].second);
+}
+
+TEST_F(QuicReceivedPacketManagerTest, ReceiveTimestampBasisClampedToZero) {
+  const QuicTime first_time =
       QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(10);
-  received_manager_.set_receive_timestamp_basis(basis);
+  // first_time - 1s would be negative, so basis clamps to QuicTime::Zero().
+  RecordPacketReceipt(1, first_time);
+  ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(
+      *QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromMilliseconds(10)),
+      received_manager_.ack_frame().received_packet_times[0].second);
+
+  received_manager_.ResetAckStates();
+
+  // Earlier positive timestamps are still accepted relative to
+  // QuicTime::Zero().
+  RecordPacketReceipt(2,
+                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(5));
+  ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(
+      *QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromMilliseconds(5)),
+      received_manager_.ack_frame().received_packet_times[0].second);
+
+  received_manager_.ResetAckStates();
+
+  // Uninitialized timestamps are still ignored when basis is QuicTime::Zero().
+  RecordPacketReceipt(3, QuicTime::Zero());
+  EXPECT_TRUE(received_manager_.ack_frame().received_packet_times.empty());
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       ReceiveTimestampBasisExactZeroDoesNotRelatch) {
+  // First packet at exactly 1s produces basis == QuicTime::Zero().
+  const QuicTime first_time =
+      QuicTime::Zero() + QuicTime::Delta::FromSeconds(1);
+  RecordPacketReceipt(1, first_time);
+  ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(*QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromSeconds(1)),
+            received_manager_.ack_frame().received_packet_times[0].second);
+
+  // Subsequent packet must reuse the QuicTime::Zero() basis instead of
+  // re-latching to second_time - 1s.
+  const QuicTime second_time = first_time + QuicTime::Delta::FromSeconds(5);
+  RecordPacketReceipt(2, second_time);
+  ASSERT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(*QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromSeconds(6)),
+            received_manager_.ack_frame().received_packet_times[1].second);
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       ReceiveTimestampBasisLatchedOnlyWhenSavingTimestamps) {
+  received_manager_.SaveReceiveTimestamps(0);
+  RecordPacketReceipt(1, QuicTime::Zero() + QuicTime::Delta::FromSeconds(5));
+  EXPECT_TRUE(received_manager_.ack_frame().received_packet_times.empty());
+
+  received_manager_.SaveReceiveTimestamps(kMaxReceiveTimestampsToSend);
+  RecordPacketReceipt(2, QuicTime::Zero() + QuicTime::Delta::FromSeconds(20));
+  ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(QuicPacketNumber(2),
+            received_manager_.ack_frame().received_packet_times[0].first);
+  EXPECT_EQ(*QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromSeconds(1)),
+            received_manager_.ack_frame().received_packet_times[0].second);
+}
+
+TEST_F(QuicReceivedPacketManagerTest, IgnoreTimestampsExceedingMaxDelta) {
+  const QuicTime first_time =
+      QuicTime::Zero() + QuicTime::Delta::FromSeconds(10);
+  const QuicTime basis = first_time - QuicTime::Delta::FromSeconds(1);
 
   constexpr QuicTime::Delta kMaxDelta = QuicTime::Delta::FromMicroseconds(
       kMaxIetfVarInt - ((uint64_t{1} << kMaxReceiveTimestampsExponent) - 1));
 
+  // First packet latches basis = 9s.
+  RecordPacketReceipt(1, first_time);
   // Timestamps at the maximum safe delta are accepted.
-  RecordPacketReceipt(1, basis + kMaxDelta);
-  ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
-  EXPECT_EQ(QuicPacketNumber(1),
-            received_manager_.ack_frame().received_packet_times[0].first);
+  RecordPacketReceipt(2, basis + kMaxDelta);
+  ASSERT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(QuicPacketNumber(2),
+            received_manager_.ack_frame().received_packet_times[1].first);
 
   // Timestamps exceeding the maximum safe delta are ignored.
-  RecordPacketReceipt(2,
+  RecordPacketReceipt(3,
                       basis + kMaxDelta + QuicTime::Delta::FromMicroseconds(1));
-  RecordPacketReceipt(3, QuicTime::Infinite());
-  EXPECT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
+  RecordPacketReceipt(4, QuicTime::Infinite());
+  EXPECT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
 }
 
 TEST_F(QuicReceivedPacketManagerTest, SaveOutOfOrderPackets) {

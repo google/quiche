@@ -62,13 +62,11 @@ class UberReceivedPacketManagerTest : public QuicTest {
         &stats_, Perspective::IS_CLIENT, /*is_ietf_quic=*/false);
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     rtt_stats_.UpdateRtt(kMinRttMs, QuicTime::Delta::Zero(), QuicTime::Zero());
-    manager_->set_receive_timestamp_basis(clock_.ApproximateNow());
   }
 
   void CreateManagerWithMultiplePacketNumberSpaces(Perspective perspective) {
     manager_ = std::make_unique<UberReceivedPacketManager>(
         &stats_, perspective, /*is_ietf_quic=*/true);
-    manager_->set_receive_timestamp_basis(clock_.ApproximateNow());
   }
 
   void RecordPacketReceipt(uint64_t packet_number) {
@@ -615,11 +613,15 @@ TEST_F(UberReceivedPacketManagerTest,
   CreateManagerWithMultiplePacketNumberSpaces(Perspective::IS_SERVER);
   manager_->SaveReceiveTimestamps(1000);
 
-  const QuicTime basis = clock_.ApproximateNow();
-  const QuicTime initial_time = basis + QuicTime::Delta::FromMilliseconds(1);
-  const QuicTime handshake_time = basis + QuicTime::Delta::FromMilliseconds(2);
-  const QuicTime zero_rtt_time = basis + QuicTime::Delta::FromMilliseconds(3);
-  const QuicTime one_rtt_time = basis + QuicTime::Delta::FromMilliseconds(4);
+  const QuicTime start_time = clock_.ApproximateNow();
+  const QuicTime initial_time =
+      start_time + QuicTime::Delta::FromMilliseconds(1);
+  const QuicTime handshake_time =
+      start_time + QuicTime::Delta::FromMilliseconds(2);
+  const QuicTime zero_rtt_time =
+      start_time + QuicTime::Delta::FromMilliseconds(3);
+  const QuicTime one_rtt_time =
+      start_time + QuicTime::Delta::FromMilliseconds(4);
   RecordPacketReceipt(ENCRYPTION_INITIAL, 1, initial_time);
   RecordPacketReceipt(ENCRYPTION_HANDSHAKE, 1, handshake_time);
   // 0-RTT packets are still recorded, since the ACKs for 0-RTT packets are sent
@@ -627,16 +629,21 @@ TEST_F(UberReceivedPacketManagerTest,
   RecordPacketReceipt(ENCRYPTION_ZERO_RTT, 1, zero_rtt_time);
   RecordPacketReceipt(ENCRYPTION_FORWARD_SECURE, 2, one_rtt_time);
 
+  // Basis is initialized from the first recorded packet in APPLICATION_DATA
+  // (zero_rtt_time) minus 1 second.
+  const QuicTime expected_basis =
+      zero_rtt_time - QuicTime::Delta::FromSeconds(1);
   EXPECT_THAT(manager_->GetAckFrame(INITIAL_DATA).received_packet_times,
               IsEmpty());
   EXPECT_THAT(manager_->GetAckFrame(HANDSHAKE_DATA).received_packet_times,
               IsEmpty());
   EXPECT_THAT(
       manager_->GetAckFrame(APPLICATION_DATA).received_packet_times,
-      ElementsAre(Pair(QuicPacketNumber(1),
-                       *QuicReceiveTime::FromLocalTime(zero_rtt_time, basis)),
-                  Pair(QuicPacketNumber(2),
-                       *QuicReceiveTime::FromLocalTime(one_rtt_time, basis))));
+      ElementsAre(
+          Pair(QuicPacketNumber(1),
+               *QuicReceiveTime::FromLocalTime(zero_rtt_time, expected_basis)),
+          Pair(QuicPacketNumber(2),
+               *QuicReceiveTime::FromLocalTime(one_rtt_time, expected_basis))));
 }
 
 }  // namespace

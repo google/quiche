@@ -18,9 +18,9 @@ namespace quic {
 // QuicReceiveTime represents a QUIC receive timestamp, in microseconds. Both
 // timestamps generated locally and timestamps received from the peer are
 // represented using this class. If a timestamp was generated locally, it is
-// computed relative to the connection creation time using QuicClock associated
-// with the connection. If a timestamp is remote, it is assumed to be relative
-// to some fixed clock by the peer.
+// computed relative to a local receive timestamp basis chosen near the start of
+// the connection. If a timestamp is remote, it is assumed to be relative to
+// some fixed clock by the peer.
 //
 // Internally, QuicReceiveTime is a QuicTimeDelta; the class enforces an
 // invariant that the time delta has to be non-negative.

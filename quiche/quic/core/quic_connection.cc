@@ -266,8 +266,6 @@ QuicConnection::QuicConnection(
                          ? kDefaultServerMaxPacketSize
                          : kDefaultMaxPacketSize);
   uber_received_packet_manager_.set_max_ack_ranges(255);
-  uber_received_packet_manager_.set_receive_timestamp_basis(
-      framer_.creation_time());
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 supported_versions.size() == 1);
   InstallInitialCrypters(default_path_.server_connection_id);
