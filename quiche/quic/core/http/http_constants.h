@@ -43,6 +43,8 @@ enum Http3AndQpackSettingsIdentifiers : uint64_t {
   // draft-ietf-webtrans-http3
   SETTINGS_WEBTRANS_DRAFT00 = 0x2b603742,
   SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07 = 0xc671706a,
+  // draft-ietf-webtrans-http3-17.
+  SETTINGS_WT_ENABLED_DRAFT17 = 0x20b8933b,
   // draft-ietf-httpbis-h3-websockets
   SETTINGS_ENABLE_CONNECT_PROTOCOL = 0x08,
   SETTINGS_ENABLE_METADATA = 0x4d44,

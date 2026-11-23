@@ -689,6 +689,15 @@ enum class QuicHttpQpackErrorCode {
   DECODER_STREAM_ERROR = 0x202
 };
 
+// Wire values for WebTransport over HTTP/3 errors.
+// https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3
+enum class QuicWebTransportHttp3ErrorCode : uint64_t {
+  WT_ALPN_ERROR = 0x0817b3dd,
+  WT_SESSION_GONE = 0x170d7b68,
+  WT_REQUIREMENTS_NOT_MET = 0x212c0d48,
+  WT_BUFFERED_STREAM_REJECTED = 0x3994bd84,
+};
+
 // Represents a reason for resetting a stream in both gQUIC and IETF error code
 // space.  Both error codes have to be present.
 class QUICHE_EXPORT QuicResetStreamError {
@@ -701,6 +710,7 @@ class QUICHE_EXPORT QuicResetStreamError {
   static QuicResetStreamError FromIetf(uint64_t code);
   static QuicResetStreamError FromIetf(QuicHttp3ErrorCode code);
   static QuicResetStreamError FromIetf(QuicHttpQpackErrorCode code);
+  static QuicResetStreamError FromIetf(QuicWebTransportHttp3ErrorCode code);
   // Constructs a QuicResetStreamError with no error.
   static QuicResetStreamError NoError() {
     return FromInternal(QUIC_STREAM_NO_ERROR);

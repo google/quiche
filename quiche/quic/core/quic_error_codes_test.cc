@@ -139,6 +139,25 @@ TEST_F(QuicRstErrorCodesTest,
   }
 }
 
+TEST_F(QuicRstErrorCodesTest, WebTransportHttp3ErrorCodes) {
+  EXPECT_EQ(QuicResetStreamError::FromIetf(
+                QuicWebTransportHttp3ErrorCode::WT_ALPN_ERROR)
+                .ietf_application_code(),
+            0x0817b3ddu);
+  EXPECT_EQ(QuicResetStreamError::FromIetf(
+                QuicWebTransportHttp3ErrorCode::WT_SESSION_GONE)
+                .ietf_application_code(),
+            0x170d7b68u);
+  EXPECT_EQ(QuicResetStreamError::FromIetf(
+                QuicWebTransportHttp3ErrorCode::WT_REQUIREMENTS_NOT_MET)
+                .ietf_application_code(),
+            0x212c0d48u);
+  EXPECT_EQ(QuicResetStreamError::FromIetf(
+                QuicWebTransportHttp3ErrorCode::WT_BUFFERED_STREAM_REJECTED)
+                .ietf_application_code(),
+            0x3994bd84u);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -1016,6 +1016,12 @@ QuicResetStreamError QuicResetStreamError::FromIetf(
   return FromIetf(static_cast<uint64_t>(code));
 }
 
+// static
+QuicResetStreamError QuicResetStreamError::FromIetf(
+    QuicWebTransportHttp3ErrorCode code) {
+  return FromIetf(static_cast<uint64_t>(code));
+}
+
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
 
 }  // namespace quic
