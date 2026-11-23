@@ -171,9 +171,12 @@ class QUICHE_EXPORT ChunkedObliviousHttpClient {
 
   // Buffers the response checkpoint.
   void BufferResponseCheckpoint(absl::string_view response_checkpoint) {
-    if (response_buffer_ != response_checkpoint) {
-      response_buffer_.assign(response_checkpoint);
+    // If the checkpoint is already the whole buffer, there is nothing to copy.
+    if (response_checkpoint.data() == response_buffer_.data() &&
+        response_checkpoint.size() == response_buffer_.size()) {
+      return;
     }
+    response_buffer_.assign(response_checkpoint);
   }
 
   absl::StatusOr<std::string> EncryptRequestChunkImpl(

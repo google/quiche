@@ -277,9 +277,12 @@ void UpdateChunkedDecodingCheckpoint(const QuicheDataReader& reader,
 // Buffers the checkpoint.
 void BufferChunkedDecodingCheckpoint(absl::string_view checkpoint,
                                      std::string& buffer) {
-  if (buffer != checkpoint) {
-    buffer.assign(checkpoint);
+  // If the checkpoint is already the whole buffer, there is nothing to copy.
+  if (checkpoint.data() == buffer.data() &&
+      checkpoint.size() == buffer.size()) {
+    return;
   }
+  buffer.assign(checkpoint);
 }
 
 // Decodes the fields in the reader. Calls the field_handler for each field

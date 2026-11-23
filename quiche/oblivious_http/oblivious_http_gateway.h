@@ -167,9 +167,12 @@ class QUICHE_EXPORT ChunkedObliviousHttpGateway {
   }
   // Buffers the request checkpoint.
   void BufferRequestCheckpoint() {
-    if (request_buffer_ != request_checkpoint_view_) {
-      request_buffer_ = std::string(request_checkpoint_view_);
+    // If the checkpoint is already the whole buffer, there is nothing to copy.
+    if (request_checkpoint_view_.data() == request_buffer_.data() &&
+        request_checkpoint_view_.size() == request_buffer_.size()) {
+      return;
     }
+    request_buffer_ = std::string(request_checkpoint_view_);
   }
   absl::StatusOr<std::string> EncryptResponseChunk(
       absl::string_view plaintext_payload, bool is_final_chunk);
