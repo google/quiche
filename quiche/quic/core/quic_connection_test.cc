@@ -2644,82 +2644,6 @@ TEST_P(QuicConnectionTest,
       "tracked packets");
 }
 
-TEST_P(QuicConnectionTest,
-       TwoUnvalidatedPeerIpMigrationsInARowThenValidationFailureAtServer) {
-  set_perspective(Perspective::IS_SERVER);
-  if (!version().IsIetfQuic()) {
-    return;
-  }
-  QuicConnectionPeer::SetUnifyPeerAddressAndPathValidation(&connection_, true);
-  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
-  SetClientConnectionId(TestConnectionId(1));
-  connection_.CreateConnectionIdManager();
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
-  connection_.NeuterUnencryptedPackets();
-  EXPECT_CALL(visitor_, GetHandshakeState())
-      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
-  QuicConnectionPeer::SetAddressValidated(&connection_);
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-
-  if (!connection_.connection_id().IsEmpty()) {
-    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
-        .WillOnce(Return(TestConnectionId(456)));
-  }
-  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(Return(true));
-  EXPECT_CALL(visitor_, SendNewConnectionId(_));
-  connection_.OnHandshakeComplete();
-
-  QuicFrames frames1;
-  frames1.push_back(QuicFrame(frame1_));
-  ProcessFramesPacketWithAddresses(frames1, kSelfAddress, kPeerAddress,
-                                   ENCRYPTION_FORWARD_SECURE);
-  EXPECT_EQ(kPeerAddress, connection_.peer_address());
-  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
-
-  // 1st unvalidated peer IP migration (IPv6 -> IPv4).
-  const QuicSocketAddress kNewPeerAddress1(QuicIpAddress::Loopback4(),
-                                           /*port=*/23456);
-  EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE)).Times(1);
-  EXPECT_CALL(*send_algorithm_, OnConnectionMigration()).Times(0);
-  ProcessFramesPacketWithAddresses(
-      {QuicFrame(QuicPingFrame()), QuicFrame(QuicPaddingFrame())}, kSelfAddress,
-      kNewPeerAddress1, ENCRYPTION_FORWARD_SECURE);
-  EXPECT_EQ(kNewPeerAddress1, connection_.peer_address());
-  EXPECT_EQ(kNewPeerAddress1, connection_.effective_peer_address());
-  EXPECT_TRUE(connection_.HasPendingPathValidation());
-
-  // 2nd unvalidated peer IP migration before the 1st finishes validating.
-  QuicIpAddress host2;
-  host2.FromString("192.0.2.1");
-  const QuicSocketAddress kNewPeerAddress2(host2, /*port=*/34567);
-  EXPECT_CALL(visitor_, OnConnectionMigration(IPV4_TO_IPV4_CHANGE)).Times(1);
-  ProcessFramesPacketWithAddresses(
-      {QuicFrame(QuicPingFrame()), QuicFrame(QuicPaddingFrame())}, kSelfAddress,
-      kNewPeerAddress2, ENCRYPTION_FORWARD_SECURE);
-  EXPECT_EQ(kNewPeerAddress2, connection_.peer_address());
-  EXPECT_EQ(kNewPeerAddress2, connection_.effective_peer_address());
-  EXPECT_TRUE(connection_.HasPendingPathValidation());
-
-  // Reverse path validation on kNewPeerAddress2 times out.
-  for (size_t i = 0; i <= QuicPathValidator::kMaxRetryTimes; ++i) {
-    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
-    static_cast<TestAlarmFactory::TestAlarm*>(
-        QuicPathValidatorPeer::retry_timer(
-            QuicConnectionPeer::path_validator(&connection_)))
-        ->Fire();
-  }
-  EXPECT_EQ(NO_CHANGE, connection_.active_effective_peer_migration_type());
-  // Both peer_address() and effective_peer_address() should revert to the last
-  // validated address (kPeerAddress), not the unvalidated kNewPeerAddress1.
-  EXPECT_EQ(kPeerAddress, connection_.peer_address());
-  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
-  // Packets must be sent to the validated address as well.
-  EXPECT_EQ(kPeerAddress,
-            QuicConnectionPeer::GetPacketCreator(&connection_)->peer_address());
-  EXPECT_TRUE(QuicConnectionPeer::GetDefaultPath(&connection_)->validated);
-}
-
 TEST_P(QuicConnectionTest, ReceivePathProbeWithNoAddressChangeAtServer) {
   if (!version().IsIetfQuic()) {
     return;
@@ -7408,8 +7332,6 @@ TEST_P(QuicConnectionTest, OnPacketHeaderDebugVisitor) {
   header.packet_number = QuicPacketNumber(1);
   header.form = IETF_QUIC_LONG_HEADER_PACKET;
 
-  // OnPacketHeader() is normally called while processing a received packet.
-  QuicConnectionPeer::SetLastPacketSourceAddress(&connection_, kPeerAddress);
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
   EXPECT_CALL(debug_visitor, OnPacketHeader(Ref(header), _, _)).Times(1);
@@ -7422,8 +7344,6 @@ TEST_P(QuicConnectionTest, OnPacketHeaderReturnValue) {
   QuicPacketHeader header;
   header.packet_number = QuicPacketNumber(1);
   header.form = IETF_QUIC_LONG_HEADER_PACKET;
-  // OnPacketHeader() is normally called while processing a received packet.
-  QuicConnectionPeer::SetLastPacketSourceAddress(&connection_, kPeerAddress);
   EXPECT_TRUE(connection_.OnPacketHeader(header));
 
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(1);

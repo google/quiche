@@ -910,12 +910,7 @@ class QUICHE_EXPORT QuicConnection
   const QuicSocketAddress& self_address() const {
     return default_path_.self_address;
   }
-  const QuicSocketAddress& peer_address() const {
-    if (unify_peer_address_and_path_validation_) {
-      return default_path_.peer_address;
-    }
-    return direct_peer_address_;
-  }
+  const QuicSocketAddress& peer_address() const { return direct_peer_address_; }
   // Returns the peer address of the current default path (may be unvalidated).
   const QuicSocketAddress& effective_peer_address() const {
     return default_path_.peer_address;
@@ -1910,8 +1905,6 @@ class QUICHE_EXPORT QuicConnection
 
   // Set default_path_ to the new_path_state and update the connection IDs in
   // packet creator accordingly.
-  // TODO(ianswett): Update comment to reflect updating packet creator's peer
-  // address when deprecating --quic_unify_peer_address_and_path_validation.
   void SetDefaultPathState(PathState new_path_state);
 
   // Returns true if header contains valid server connection ID.
@@ -2126,8 +2119,6 @@ class QUICHE_EXPORT QuicConnection
                         const QuicSocketAddress& effective_peer_address);
 
   // Update both connection's and packet creator's peer address.
-  // TODO(ianswett): Update comment to reflect updating default_path_'s peer
-  // address when deprecating --quic_unify_peer_address_and_path_validation.
   void UpdatePeerAddress(QuicSocketAddress peer_address);
 
   // Send PING at encryption level.
@@ -2643,8 +2634,6 @@ class QUICHE_EXPORT QuicConnection
   // Set by the client-only DAOP connection option.
   bool allow_deferring_ack_only_packets_ : 1 = false;
   bool defer_ack_only_packets_ : 1 = false;
-  bool unify_peer_address_and_path_validation_ : 1 =
-      GetQuicReloadableFlag(quic_unify_peer_address_and_path_validation);
 };
 
 }  // namespace quic

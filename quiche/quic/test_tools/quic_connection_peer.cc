@@ -90,20 +90,6 @@ void QuicConnectionPeer::SetPeerAddress(QuicConnection* connection,
 void QuicConnectionPeer::SetDirectPeerAddress(
     QuicConnection* connection, const QuicSocketAddress& direct_peer_address) {
   connection->direct_peer_address_ = direct_peer_address;
-  if (connection->unify_peer_address_and_path_validation_) {
-    connection->default_path_.peer_address = direct_peer_address;
-  }
-}
-
-// static
-void QuicConnectionPeer::SetUnifyPeerAddressAndPathValidation(
-    QuicConnection* connection, bool value) {
-  connection->unify_peer_address_and_path_validation_ = value;
-  if (value && !connection->default_path_.peer_address.IsInitialized()) {
-    // Match the constructor, which initializes the default path's peer address
-    // when the flag is enabled.
-    connection->default_path_.peer_address = connection->direct_peer_address_;
-  }
 }
 
 // static
@@ -426,12 +412,6 @@ void QuicConnectionPeer::SendPing(QuicConnection* connection) {
 void QuicConnectionPeer::SetLastPacketDestinationAddress(
     QuicConnection* connection, const QuicSocketAddress& address) {
   connection->last_received_packet_info_.destination_address = address;
-}
-
-// static
-void QuicConnectionPeer::SetLastPacketSourceAddress(
-    QuicConnection* connection, const QuicSocketAddress& address) {
-  connection->last_received_packet_info_.source_address = address;
 }
 
 // static
