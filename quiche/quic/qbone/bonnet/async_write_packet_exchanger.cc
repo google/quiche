@@ -235,13 +235,15 @@ AsyncWritePacketExchanger::AsyncWritePacketExchanger(
     size_t mtu, KernelInterface* absl_nonnull kernel,
     Visitor* absl_nonnull visitor, int64_t max_buffer_size_bytes,
     int64_t max_result_buffer_size_bytes,
-    absl_nonnull std::unique_ptr<SiloExecutor> silo_executor)
+    absl_nonnull std::unique_ptr<SiloExecutor> silo_executor,
+    const TunDevicePacketExchanger::Options& exchanger_options)
     : max_buffer_size_bytes_(max_buffer_size_bytes),
       max_result_buffer_size_bytes_(max_result_buffer_size_bytes),
       silo_executor_(std::move(silo_executor)),
       visitor_(*visitor),
       intermediate_visitor_(std::make_unique<IntermediateVisitor>(this)),
-      thread_local_exchanger_(mtu, kernel, intermediate_visitor_.get()) {}
+      thread_local_exchanger_(mtu, kernel, intermediate_visitor_.get(),
+                              exchanger_options) {}
 
 AsyncWritePacketExchanger::~AsyncWritePacketExchanger() {
   QUICHE_DCHECK(silo_executor_->IsOnSiloThread());

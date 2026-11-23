@@ -58,7 +58,8 @@ class AsyncWritePacketExchanger : public QboneClientPacketExchanger {
       KernelInterface* absl_nonnull kernel ABSL_ATTRIBUTE_LIFETIME_BOUND,
       Visitor* absl_nonnull visitor ABSL_ATTRIBUTE_LIFETIME_BOUND,
       int64_t max_buffer_size_bytes, int64_t max_result_buffer_size_bytes,
-      absl_nonnull std::unique_ptr<SiloExecutor> silo_executor);
+      absl_nonnull std::unique_ptr<SiloExecutor> silo_executor,
+      const TunDevicePacketExchanger::Options& exchanger_options = {});
 
   ~AsyncWritePacketExchanger() override;
 

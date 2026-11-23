@@ -26,9 +26,20 @@ namespace quic {
 // the same thread and all reads occur on the same thread.
 class TunDevicePacketExchanger : public QboneClientPacketExchanger {
  public:
+  struct Options {
+    // Whether the TUN device was opened with IFF_VNET_HDR. If so, every packet
+    // written to it and every packet read from it starts with a
+    // virtio_net_hdr.
+    bool vnet_hdr = false;
+  };
+
   TunDevicePacketExchanger(size_t mtu, KernelInterface* absl_nonnull kernel,
                            QboneClientPacketExchanger::Visitor* absl_nonnull
                                visitor ABSL_ATTRIBUTE_LIFETIME_BOUND);
+  TunDevicePacketExchanger(size_t mtu, KernelInterface* absl_nonnull kernel,
+                           QboneClientPacketExchanger::Visitor* absl_nonnull
+                               visitor ABSL_ATTRIBUTE_LIFETIME_BOUND,
+                           const Options& options);
 
   ~TunDevicePacketExchanger() override;
 
@@ -62,6 +73,7 @@ class TunDevicePacketExchanger : public QboneClientPacketExchanger {
 
   KernelInterface* kernel_;
   QboneClientPacketExchanger::Visitor& visitor_;
+  const Options options_;
 
   std::vector<std::byte> read_buffer_;
 

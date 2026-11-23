@@ -28,6 +28,7 @@
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/bonnet/tun_device.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
+#include "quiche/quic/qbone/platform/virtio_net_header.h"
 #include "quiche/quic/qbone/qbone_constants.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -161,16 +162,17 @@ TEST_F(AsyncWritePacketExchangerTest, WritePacket) {
 
   std::string packet = "fake packet";
 
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
       .WillOnce([this, &packet](int /*fd*/, const struct iovec* iov,
                                 int /*iovcnt*/) -> ssize_t {
         ValidateOffThread();
-        EXPECT_EQ(iov[0].iov_base, nullptr);
-        EXPECT_EQ(iov[0].iov_len, 0);
-        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[1].iov_base),
-                                    iov[1].iov_len),
+        EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+        EXPECT_EQ(iov[1].iov_base, nullptr);
+        EXPECT_EQ(iov[1].iov_len, 0);
+        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[2].iov_base),
+                                    iov[2].iov_len),
                   packet);
-        EXPECT_EQ(iov[1].iov_len, packet.size());
+        EXPECT_EQ(iov[2].iov_len, packet.size());
         return packet.size();
       });
   exchanger_->WritePacketToNetwork(absl::MakeConstSpan(
@@ -195,16 +197,17 @@ TEST_F(AsyncWritePacketExchangerTest, WritePacketError) {
 
   std::string packet = "fake packet";
 
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
       .WillOnce([this, &packet](int /*fd*/, const struct iovec* iov,
                                 int /*iovcnt*/) -> ssize_t {
         ValidateOffThread();
-        EXPECT_EQ(iov[0].iov_base, nullptr);
-        EXPECT_EQ(iov[0].iov_len, 0);
-        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[1].iov_base),
-                                    iov[1].iov_len),
+        EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+        EXPECT_EQ(iov[1].iov_base, nullptr);
+        EXPECT_EQ(iov[1].iov_len, 0);
+        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[2].iov_base),
+                                    iov[2].iov_len),
                   packet);
-        EXPECT_EQ(iov[1].iov_len, packet.size());
+        EXPECT_EQ(iov[2].iov_len, packet.size());
         errno = EAGAIN;
         return -1;
       });
@@ -230,16 +233,17 @@ TEST_F(AsyncWritePacketExchangerTest, RestartExchanger) {
 
   std::string packet = "fake packet";
 
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
       .WillOnce([this, &packet](int /*fd*/, const struct iovec* iov,
                                 int /*iovcnt*/) -> ssize_t {
         ValidateOffThread();
-        EXPECT_EQ(iov[0].iov_base, nullptr);
-        EXPECT_EQ(iov[0].iov_len, 0);
-        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[1].iov_base),
-                                    iov[1].iov_len),
+        EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+        EXPECT_EQ(iov[1].iov_base, nullptr);
+        EXPECT_EQ(iov[1].iov_len, 0);
+        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[2].iov_base),
+                                    iov[2].iov_len),
                   packet);
-        EXPECT_EQ(iov[1].iov_len, packet.size());
+        EXPECT_EQ(iov[2].iov_len, packet.size());
         return packet.size();
       });
 
@@ -265,13 +269,14 @@ TEST_F(AsyncWritePacketExchangerTest, ReadPacket) {
   exchanger_->Start(kReadFd, kWriteFd, /*exchanger=*/nullptr);
 
   std::string packet = "fake_packet";
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce(
           [this, packet](int /*fd*/, const struct iovec* iov, int /*iovcnt*/) {
             ValidateOnMainThread();
-            EXPECT_EQ(iov[0].iov_len, 0);
-            EXPECT_EQ(iov[1].iov_len, kMtu);
-            ::memcpy(iov[1].iov_base, packet.data(), packet.size());
+            EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+            EXPECT_EQ(iov[1].iov_len, 0);
+            EXPECT_EQ(iov[2].iov_len, kMtu);
+            ::memcpy(iov[2].iov_base, packet.data(), packet.size());
             return packet.size();
           });
   EXPECT_CALL(
@@ -288,7 +293,7 @@ TEST_F(AsyncWritePacketExchangerTest, ReadPacket) {
 TEST_F(AsyncWritePacketExchangerTest, ReadPacketError) {
   exchanger_->Start(kReadFd, kWriteFd, /*exchanger=*/nullptr);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce(
           [this](int /*fd*/, const struct iovec* /*iov*/, int /*iovcnt*/) {
             ValidateOnMainThread();
@@ -304,7 +309,7 @@ TEST_F(AsyncWritePacketExchangerTest, ReadPacketError) {
 TEST_F(AsyncWritePacketExchangerTest, ReadPacketBlocked) {
   exchanger_->Start(kReadFd, kWriteFd, /*exchanger=*/nullptr);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce(
           [this](int /*fd*/, const struct iovec* /*iov*/, int /*iovcnt*/) {
             ValidateOnMainThread();
@@ -340,6 +345,58 @@ TEST_F(AsyncWritePacketExchangerTest, WriteBufferFull) {
   exchanger_->Stop();
 }
 
+// The options reach the exchanger that reads and writes on the TUN device:
+// with `vnet_hdr`, both reads and writes have the virtio-net header.
+TEST_F(AsyncWritePacketExchangerTest, VnetHdrReadAndWrite) {
+  auto executor = std::make_unique<TestExecutor>();
+  executor_ = executor.get();
+  exchanger_ = std::make_unique<AsyncWritePacketExchanger>(
+      kMtu, &mock_kernel_, &mock_visitor_, kMaxBufferSizeBytes,
+      kMaxResultsBufferSizeBytes, std::move(executor),
+      TunDevicePacketExchanger::Options{.vnet_hdr = true});
+  exchanger_->Start(kReadFd, kWriteFd, /*exchanger=*/nullptr);
+
+  std::string packet = "fake packet";
+
+  // Reads happen on the calling thread. The read has an iovec for the header
+  // (3 instead of 2), and the client gets the packet without it.
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
+      .WillOnce(
+          [this, &packet](int /*fd*/, const struct iovec* iov, int /*iovcnt*/) {
+            ValidateOnMainThread();
+            EXPECT_EQ(iov[0].iov_len, sizeof(virtio_net_hdr));
+            memset(iov[0].iov_base, 0, iov[0].iov_len);
+            memcpy(iov[2].iov_base, packet.data(), packet.size());
+            return sizeof(virtio_net_hdr) + packet.size();
+          });
+  EXPECT_CALL(mock_visitor_, OnRead(IsOkAndHolds(SizeIs(1))));
+  EXPECT_EQ(exchanger_->OnReadFromNetworkReady(/*max_packets_to_read=*/1), 1);
+
+  // Writes happen on the write thread. The write puts the header first, then
+  // the packet.
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
+      .WillOnce([this, &packet](int /*fd*/, const struct iovec* iov,
+                                int /*iovcnt*/) -> ssize_t {
+        ValidateOffThread();
+        EXPECT_EQ(iov[0].iov_len, sizeof(virtio_net_hdr));
+        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[2].iov_base),
+                                    iov[2].iov_len),
+                  packet);
+        return sizeof(virtio_net_hdr) + packet.size();
+      });
+  exchanger_->WritePacketToNetwork(absl::MakeConstSpan(
+      reinterpret_cast<const std::byte*>(packet.data()), packet.size()));
+
+  // The write result comes back to the calling thread.
+  executor_->WaitForCallback();
+  EXPECT_TRUE(Mock::VerifyAndClear(&mock_visitor_));
+
+  EXPECT_CALL(mock_visitor_, OnWrite(IsOkAndHolds(SizeIs(1))));
+  executor_->RunCallbacks();
+
+  exchanger_->Stop();
+}
+
 TEST_F(AsyncWritePacketExchangerTest, WriteResultBufferFull) {
   auto executor = std::make_unique<TestExecutor>();
   executor_ = executor.get();
@@ -352,16 +409,17 @@ TEST_F(AsyncWritePacketExchangerTest, WriteResultBufferFull) {
 
   std::string packet = "fake packet";  // size 11
 
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
       .WillOnce([this, &packet](int /*fd*/, const struct iovec* iov,
                                 int /*iovcnt*/) -> ssize_t {
         ValidateOffThread();
-        EXPECT_EQ(iov[0].iov_base, nullptr);
-        EXPECT_EQ(iov[0].iov_len, 0);
-        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[1].iov_base),
-                                    iov[1].iov_len),
+        EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+        EXPECT_EQ(iov[1].iov_base, nullptr);
+        EXPECT_EQ(iov[1].iov_len, 0);
+        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[2].iov_base),
+                                    iov[2].iov_len),
                   packet);
-        EXPECT_EQ(iov[1].iov_len, packet.size());
+        EXPECT_EQ(iov[2].iov_len, packet.size());
         return packet.size();
       });
   exchanger_->WritePacketToNetwork(absl::MakeConstSpan(
@@ -382,16 +440,17 @@ TEST_F(AsyncWritePacketExchangerTest, StopWithPendingWrites) {
   exchanger_->Start(kReadFd, kWriteFd, /*exchanger=*/nullptr);
 
   std::string packet = "fake packet";
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
       .WillOnce([this, &packet](int /*fd*/, const struct iovec* iov,
                                 int /*iovcnt*/) -> ssize_t {
         ValidateOffThread();
-        EXPECT_EQ(iov[0].iov_base, nullptr);
-        EXPECT_EQ(iov[0].iov_len, 0);
-        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[1].iov_base),
-                                    iov[1].iov_len),
+        EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+        EXPECT_EQ(iov[1].iov_base, nullptr);
+        EXPECT_EQ(iov[1].iov_len, 0);
+        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[2].iov_base),
+                                    iov[2].iov_len),
                   packet);
-        EXPECT_EQ(iov[1].iov_len, packet.size());
+        EXPECT_EQ(iov[2].iov_len, packet.size());
         return packet.size();
       });
 
@@ -451,22 +510,23 @@ TEST_F(AsyncWritePacketExchangerTest, ReadNeighborSolicitationPacket) {
   ethhdr eth_hdr{};
   eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([this, l3_packet, eth_hdr](int /*fd*/, const struct iovec* iov,
                                            int /*iovcnt*/) {
         ValidateOnMainThread();
-        EXPECT_EQ(iov[0].iov_len, ETH_HLEN);
-        ::memcpy(iov[0].iov_base, &eth_hdr, ETH_HLEN);
-        EXPECT_EQ(iov[1].iov_len, kMtu);
-        ::memcpy(iov[1].iov_base, l3_packet.data(), l3_packet.size());
+        EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+        EXPECT_EQ(iov[1].iov_len, ETH_HLEN);
+        ::memcpy(iov[1].iov_base, &eth_hdr, ETH_HLEN);
+        EXPECT_EQ(iov[2].iov_len, kMtu);
+        ::memcpy(iov[2].iov_base, l3_packet.data(), l3_packet.size());
         return ETH_HLEN + l3_packet.size();
       });
 
   // Expect neighbor solicitation response to be written out asynchronously.
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
       .WillOnce([this](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
         ValidateOffThread();
-        return iov[0].iov_len + iov[1].iov_len;
+        return iov[1].iov_len + iov[2].iov_len;
       });
 
   EXPECT_EQ(exchanger_->OnReadFromNetworkReady(/*max_packets_to_read=*/1), 1);
@@ -519,14 +579,15 @@ TEST_F(AsyncWritePacketExchangerTest,
   ethhdr eth_hdr{};
   eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([this, l3_packet, eth_hdr](int /*fd*/, const struct iovec* iov,
                                            int /*iovcnt*/) {
         ValidateOnMainThread();
-        EXPECT_EQ(iov[0].iov_len, ETH_HLEN);
-        ::memcpy(iov[0].iov_base, &eth_hdr, ETH_HLEN);
-        EXPECT_EQ(iov[1].iov_len, kMtu);
-        ::memcpy(iov[1].iov_base, l3_packet.data(), l3_packet.size());
+        EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+        EXPECT_EQ(iov[1].iov_len, ETH_HLEN);
+        ::memcpy(iov[1].iov_base, &eth_hdr, ETH_HLEN);
+        EXPECT_EQ(iov[2].iov_len, kMtu);
+        ::memcpy(iov[2].iov_base, l3_packet.data(), l3_packet.size());
         return ETH_HLEN + l3_packet.size();
       });
 

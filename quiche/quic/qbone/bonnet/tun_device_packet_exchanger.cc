@@ -32,6 +32,7 @@
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
+#include "quiche/quic/qbone/platform/virtio_net_header.h"
 #include "quiche/quic/qbone/qbone_constants.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
@@ -41,8 +42,14 @@ namespace quic {
 TunDevicePacketExchanger::TunDevicePacketExchanger(
     size_t mtu, KernelInterface* absl_nonnull kernel,
     Visitor* absl_nonnull visitor)
+    : TunDevicePacketExchanger(mtu, kernel, visitor, Options()) {}
+
+TunDevicePacketExchanger::TunDevicePacketExchanger(
+    size_t mtu, KernelInterface* absl_nonnull kernel,
+    Visitor* absl_nonnull visitor, const Options& options)
     : kernel_(kernel),
       visitor_(*visitor),
+      options_(options),
       // Reading on a TUN device returns a packet at a time. If the packet is
       // longer than the buffer, it's truncated.
       read_buffer_(mtu) {}
@@ -123,11 +130,16 @@ void TunDevicePacketExchanger::WritePacketToNetwork(
     return;
   }
 
-  struct iovec iov[2];
-  iov[0].iov_base = is_tap_ ? &eth_hdr_ : nullptr;
-  iov[0].iov_len = is_tap_ ? ETH_HLEN : 0;
-  iov[1].iov_base = const_cast<std::byte*>(packet.data());
-  iov[1].iov_len = packet.size();
+  // An all-zero header tells the kernel that the packet needs nothing more
+  // done to it: it is a single segment and its checksum is filled in.
+  virtio_net_hdr vnet_hdr{};
+  struct iovec iov[3];
+  iov[0].iov_base = options_.vnet_hdr ? &vnet_hdr : nullptr;
+  iov[0].iov_len = options_.vnet_hdr ? sizeof(vnet_hdr) : 0;
+  iov[1].iov_base = is_tap_ ? &eth_hdr_ : nullptr;
+  iov[1].iov_len = is_tap_ ? ETH_HLEN : 0;
+  iov[2].iov_base = const_cast<std::byte*>(packet.data());
+  iov[2].iov_len = packet.size();
 
   absl::Status status = absl::OkStatus();
   absl::Time start = absl::Now();
@@ -154,12 +166,15 @@ bool TunDevicePacketExchanger::ReadAndExchangeSinglePacket(
   // TODO(ericorth): Consider allocating these buffers once and reusing rather
   // than repeating for each packet.
   ethhdr eth_header;
-  struct iovec iov[2];
+  virtio_net_hdr vnet_hdr{};
+  struct iovec iov[3];
 
-  iov[0].iov_base = is_tap_ ? &eth_header : nullptr;
-  iov[0].iov_len = is_tap_ ? ETH_HLEN : 0;
-  iov[1].iov_base = read_buffer_.data();
-  iov[1].iov_len = read_buffer_.size();
+  iov[0].iov_base = options_.vnet_hdr ? &vnet_hdr : nullptr;
+  iov[0].iov_len = options_.vnet_hdr ? sizeof(vnet_hdr) : 0;
+  iov[1].iov_base = is_tap_ ? &eth_header : nullptr;
+  iov[1].iov_len = is_tap_ ? ETH_HLEN : 0;
+  iov[2].iov_base = read_buffer_.data();
+  iov[2].iov_len = read_buffer_.size();
 
   absl::Status status = absl::OkStatus();
   absl::Time start = absl::Now();
@@ -189,10 +204,31 @@ bool TunDevicePacketExchanger::ReadAndExchangeSinglePacket(
     return false;  // Assume no more packets after any socket read error.
   }
 
-  int l3_packet_size = is_tap_ ? result - ETH_HLEN : result;
+  int l3_packet_size = result;
+  if (options_.vnet_hdr) {
+    l3_packet_size -= static_cast<int>(sizeof(vnet_hdr));
+  }
+  if (is_tap_) {
+    l3_packet_size -= ETH_HLEN;
+  }
   if (l3_packet_size <= 0 || l3_packet_size > read_buffer_.size()) {
     absl::Status error =
         absl::InternalError(absl::StrCat("Invalid packet size."));
+    QUIC_LOG_EVERY_N_SEC(ERROR, 60) << "Packet read failed: " << error;
+    visitor_.OnRead(std::move(error));
+    return true;  // Invalid packet does not mean there are no more packets.
+  }
+  if (options_.vnet_hdr &&
+      (vnet_hdr.gso_type != VIRTIO_NET_HDR_GSO_NONE ||
+       (vnet_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) != 0)) {
+    // The kernel only leaves the checksum or the segmentation of a packet to
+    // the reader of a TUN device that asked for it with TUNSETOFFLOAD, which
+    // nothing here does. Such a packet would be invalid as it is.
+    absl::Status error = absl::InternalError(absl::StrCat(
+        "Packet needs an offload that the TUN device does not have. "
+        "virtio-net header flags: ",
+        static_cast<int>(vnet_hdr.flags),
+        ", GSO type: ", static_cast<int>(vnet_hdr.gso_type)));
     QUIC_LOG_EVERY_N_SEC(ERROR, 60) << "Packet read failed: " << error;
     visitor_.OnRead(std::move(error));
     return true;  // Invalid packet does not mean there are no more packets.

@@ -23,6 +23,7 @@
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/bonnet/tun_device.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
+#include "quiche/quic/qbone/platform/virtio_net_header.h"
 #include "quiche/quic/qbone/qbone_constants.h"
 #include "quiche/common/quiche_endian.h"
 
@@ -38,6 +39,7 @@ using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
 using ::quiche::QuicheEndian;
 using ::testing::_;
+using ::testing::Each;
 using ::testing::ElementsAre;
 using ::testing::ElementsAreArray;
 using ::testing::Field;
@@ -63,13 +65,14 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketError) {
   exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet = "fake packet";
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
-        EXPECT_EQ(iov[0].iov_base, nullptr);
-        EXPECT_EQ(iov[0].iov_len, 0);
-        EXPECT_THAT(reinterpret_cast<const char*>(iov[1].iov_base),
+        EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+        EXPECT_EQ(iov[1].iov_base, nullptr);
+        EXPECT_EQ(iov[1].iov_len, 0);
+        EXPECT_THAT(reinterpret_cast<const char*>(iov[2].iov_base),
                     testing::StrEq("fake packet"));
-        EXPECT_EQ(iov[1].iov_len, 11);
+        EXPECT_EQ(iov[2].iov_len, 11);
         errno = ECOMM;
         return -1;
       });
@@ -88,14 +91,15 @@ TEST_F(TunDevicePacketExchangerTest, RestartExchanger) {
   exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet = "fake packet";
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
       .WillOnce(
           [&packet](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
-            EXPECT_EQ(iov[0].iov_base, nullptr);
-            EXPECT_EQ(iov[0].iov_len, 0);
-            EXPECT_THAT(reinterpret_cast<const char*>(iov[1].iov_base),
+            EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+            EXPECT_EQ(iov[1].iov_base, nullptr);
+            EXPECT_EQ(iov[1].iov_len, 0);
+            EXPECT_THAT(reinterpret_cast<const char*>(iov[2].iov_base),
                         StrEq(packet));
-            EXPECT_EQ(iov[1].iov_len, packet.size());
+            EXPECT_EQ(iov[2].iov_len, packet.size());
             return packet.size();
           });
 
@@ -116,13 +120,14 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketBlocked) {
   exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet = "fake packet";
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
-        EXPECT_EQ(iov[0].iov_base, nullptr);
-        EXPECT_EQ(iov[0].iov_len, 0);
-        EXPECT_THAT(reinterpret_cast<const char*>(iov[1].iov_base),
+        EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+        EXPECT_EQ(iov[1].iov_base, nullptr);
+        EXPECT_EQ(iov[1].iov_len, 0);
+        EXPECT_THAT(reinterpret_cast<const char*>(iov[2].iov_base),
                     testing::StrEq("fake packet"));
-        EXPECT_EQ(iov[1].iov_len, 11);
+        EXPECT_EQ(iov[2].iov_len, 11);
         errno = EAGAIN;
         return -1;
       });
@@ -138,14 +143,15 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketSuccessfulWrite) {
   exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet = "fake packet";
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
       .WillOnce(
           [&packet](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
-            EXPECT_EQ(iov[0].iov_base, nullptr);
-            EXPECT_EQ(iov[0].iov_len, 0);
-            EXPECT_THAT(reinterpret_cast<const char*>(iov[1].iov_base),
+            EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+            EXPECT_EQ(iov[1].iov_base, nullptr);
+            EXPECT_EQ(iov[1].iov_len, 0);
+            EXPECT_THAT(reinterpret_cast<const char*>(iov[2].iov_base),
                         StrEq(packet));
-            EXPECT_EQ(iov[1].iov_len, packet.size());
+            EXPECT_EQ(iov[2].iov_len, packet.size());
             return packet.size();
           });
 
@@ -172,14 +178,15 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
 
   std::string packet = "fake packet";
 
-  // iov[0] should contain the Ethernet header populated by InitializeEthHdr
-  EXPECT_CALL(mock_kernel, writev(kWriteFd, _, 2))
+  // iov[1] should contain the Ethernet header populated by InitializeEthHdr
+  EXPECT_CALL(mock_kernel, writev(kWriteFd, _, 3))
       .WillOnce([&packet](int fd, const struct iovec* iov,
                           int iovcnt) -> ssize_t {
-        EXPECT_NE(iov[0].iov_base, nullptr);
-        EXPECT_EQ(iov[0].iov_len, ETH_HLEN);
+        EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+        EXPECT_NE(iov[1].iov_base, nullptr);
+        EXPECT_EQ(iov[1].iov_len, ETH_HLEN);
 
-        const char* first_buffer = static_cast<const char*>(iov[0].iov_base);
+        const char* first_buffer = static_cast<const char*>(iov[1].iov_base);
         EXPECT_EQ(absl::string_view(first_buffer, ETH_ALEN),
                   absl::string_view("\x00\x11\x22\x33\x44\x55", ETH_ALEN));
         EXPECT_EQ(absl::string_view(first_buffer + ETH_ALEN, ETH_ALEN),
@@ -189,8 +196,8 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
         memcpy(&proto, first_buffer + 2 * ETH_ALEN, 2);
         EXPECT_EQ(proto, QuicheEndian::HostToNet16(ETH_P_IPV6));
 
-        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[1].iov_base),
-                                    iov[1].iov_len),
+        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[2].iov_base),
+                                    iov[2].iov_len),
                   "fake packet");
         return ETH_HLEN + packet.length();
       });
@@ -211,7 +218,7 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
 TEST_F(TunDevicePacketExchangerTest, ReadPacketError) {
   exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
         errno = ECOMM;
         return -1;
@@ -225,7 +232,7 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketError) {
 TEST_F(TunDevicePacketExchangerTest, ReadPacketBlocked) {
   exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
         errno = EAGAIN;
         return -1;
@@ -240,11 +247,12 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketSuccessfulRead) {
   exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet = "fake_packet";
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([packet](int fd, const struct iovec* iov, int iovcnt) {
-        EXPECT_EQ(iov[0].iov_len, 0);
-        EXPECT_EQ(iov[1].iov_len, kMtu);
-        memcpy(iov[1].iov_base, packet.data(), packet.size());
+        EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+        EXPECT_EQ(iov[1].iov_len, 0);
+        EXPECT_EQ(iov[2].iov_len, kMtu);
+        memcpy(iov[2].iov_base, packet.data(), packet.size());
         return packet.size();
       });
   EXPECT_CALL(
@@ -264,13 +272,13 @@ TEST_F(TunDevicePacketExchangerTest, MultipleReadsMoreAvailableThanMax) {
   std::string packet1 = "fake_packet_1";
   std::string packet2 = "fake_packet_2";
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([packet1](int fd, const struct iovec* iov, int iovcnt) {
-        memcpy(iov[1].iov_base, packet1.data(), packet1.size());
+        memcpy(iov[2].iov_base, packet1.data(), packet1.size());
         return packet1.size();
       })
       .WillOnce([packet2](int fd, const struct iovec* iov, int iovcnt) {
-        memcpy(iov[1].iov_base, packet2.data(), packet2.size());
+        memcpy(iov[2].iov_base, packet2.data(), packet2.size());
         return packet2.size();
       });
 
@@ -297,9 +305,9 @@ TEST_F(TunDevicePacketExchangerTest, MultipleReadsBlockedBeforeMax) {
 
   std::string packet1 = "fake_packet_1";
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([packet1](int fd, const struct iovec* iov, int iovcnt) {
-        memcpy(iov[1].iov_base, packet1.data(), packet1.size());
+        memcpy(iov[2].iov_base, packet1.data(), packet1.size());
         return packet1.size();
       })
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
@@ -328,12 +336,12 @@ TEST_F(TunDevicePacketExchangerTest, MultiReadInvalidSizeHuge) {
 
   std::string valid_packet = "valid_packet";
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
         return kMtu + 1;  // Invalid size
       })
       .WillOnce([valid_packet](int fd, const struct iovec* iov, int iovcnt) {
-        memcpy(iov[1].iov_base, valid_packet.data(), valid_packet.size());
+        memcpy(iov[2].iov_base, valid_packet.data(), valid_packet.size());
         return valid_packet.size();
       });
 
@@ -357,7 +365,7 @@ TEST_F(TunDevicePacketExchangerTest,
        ReadPacketBlockedOnFirstWithMaxMoreThanOne) {
   exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
         errno = EAGAIN;
         return -1;
@@ -397,13 +405,14 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
   ethhdr eth_hdr{};
   eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce(
           [eth_hdr, l3_packet](int fd, const struct iovec* iov, int iovcnt) {
-            EXPECT_EQ(iov[0].iov_len, ETH_HLEN);
-            EXPECT_EQ(iov[1].iov_len, kMtu);
-            memcpy(iov[0].iov_base, &eth_hdr, ETH_HLEN);
-            memcpy(iov[1].iov_base, l3_packet.data(), l3_packet.size());
+            EXPECT_EQ(iov[0].iov_len, 0);  // No virtio-net header.
+            EXPECT_EQ(iov[1].iov_len, ETH_HLEN);
+            EXPECT_EQ(iov[2].iov_len, kMtu);
+            memcpy(iov[1].iov_base, &eth_hdr, ETH_HLEN);
+            memcpy(iov[2].iov_base, l3_packet.data(), l3_packet.size());
             return ETH_HLEN + l3_packet.size();
           });
 
@@ -425,9 +434,9 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
   ethhdr eth_hdr{};
   eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_ARP);  // Non-IPv6
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([eth_hdr](int fd, const struct iovec* iov, int iovcnt) {
-        memcpy(iov[0].iov_base, &eth_hdr, ETH_HLEN);
+        memcpy(iov[1].iov_base, &eth_hdr, ETH_HLEN);
         return ETH_HLEN + 10;  // Read some bytes
       });
 
@@ -461,11 +470,11 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
   ethhdr eth_hdr{};
   eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce(
           [eth_hdr, l3_packet](int fd, const struct iovec* iov, int iovcnt) {
-            memcpy(iov[0].iov_base, &eth_hdr, ETH_HLEN);
-            memcpy(iov[1].iov_base, l3_packet.data(), l3_packet.size());
+            memcpy(iov[1].iov_base, &eth_hdr, ETH_HLEN);
+            memcpy(iov[2].iov_base, l3_packet.data(), l3_packet.size());
             return ETH_HLEN + l3_packet.size();
           });
 
@@ -507,18 +516,18 @@ TEST_F(TunDevicePacketExchangerTapTest,
   ethhdr eth_hdr{};
   eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce(
           [eth_hdr, l3_packet](int fd, const struct iovec* iov, int iovcnt) {
-            memcpy(iov[0].iov_base, &eth_hdr, ETH_HLEN);
-            memcpy(iov[1].iov_base, l3_packet.data(), l3_packet.size());
+            memcpy(iov[1].iov_base, &eth_hdr, ETH_HLEN);
+            memcpy(iov[2].iov_base, l3_packet.data(), l3_packet.size());
             return ETH_HLEN + l3_packet.size();
           });
 
   // Expect neighbor solicitation response to be written out.
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
-        return iov[0].iov_len + iov[1].iov_len;
+        return iov[1].iov_len + iov[2].iov_len;
       });
   EXPECT_CALL(mock_visitor_, OnWrite(IsOkAndHolds(SizeIs(1))));
 
@@ -545,14 +554,14 @@ TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidSizeShort) {
   ethhdr valid_eth_hdr{};
   valid_eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
         return ETH_HLEN - 1;  // Invalid size (too short to contain L3 packet)
       })
       .WillOnce([valid_eth_hdr, valid_l3_packet](
                     int fd, const struct iovec* iov, int iovcnt) {
-        memcpy(iov[0].iov_base, &valid_eth_hdr, ETH_HLEN);
-        memcpy(iov[1].iov_base, valid_l3_packet.data(), valid_l3_packet.size());
+        memcpy(iov[1].iov_base, &valid_eth_hdr, ETH_HLEN);
+        memcpy(iov[2].iov_base, valid_l3_packet.data(), valid_l3_packet.size());
         return ETH_HLEN + valid_l3_packet.size();
       });
 
@@ -591,15 +600,15 @@ TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidL2) {
   ethhdr valid_eth_hdr{};
   valid_eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
 
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
       .WillOnce([invalid_eth_hdr](int fd, const struct iovec* iov, int iovcnt) {
-        memcpy(iov[0].iov_base, &invalid_eth_hdr, ETH_HLEN);
+        memcpy(iov[1].iov_base, &invalid_eth_hdr, ETH_HLEN);
         return ETH_HLEN + 10;
       })
       .WillOnce([valid_eth_hdr, valid_l3_packet](
                     int fd, const struct iovec* iov, int iovcnt) {
-        memcpy(iov[0].iov_base, &valid_eth_hdr, ETH_HLEN);
-        memcpy(iov[1].iov_base, valid_l3_packet.data(), valid_l3_packet.size());
+        memcpy(iov[1].iov_base, &valid_eth_hdr, ETH_HLEN);
+        memcpy(iov[2].iov_base, valid_l3_packet.data(), valid_l3_packet.size());
         return ETH_HLEN + valid_l3_packet.size();
       });
 
@@ -618,6 +627,170 @@ TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidL2) {
   EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2), 2);
 
   exchanger_.Stop();
+}
+
+// With the virtio-net header on, each packet read or written is preceded by a
+// virtio_net_hdr in an iovec of its own.
+class TunDevicePacketExchangerVnetHdrTest : public QuicTest {
+ protected:
+  TunDevicePacketExchangerVnetHdrTest()
+      : exchanger_(kMtu, &mock_kernel_, &mock_visitor_, {.vnet_hdr = true}) {}
+
+  ~TunDevicePacketExchangerVnetHdrTest() override { exchanger_.Stop(); }
+
+  // Expects one read of `packet`, preceded by `vnet_hdr`.
+  void ExpectRead(const virtio_net_hdr& vnet_hdr, const std::string& packet) {
+    EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
+        .WillOnce(
+            [vnet_hdr, packet](int fd, const struct iovec* iov, int iovcnt) {
+              EXPECT_EQ(iov[0].iov_len, sizeof(virtio_net_hdr));
+              EXPECT_EQ(iov[1].iov_len, 0);
+              EXPECT_EQ(iov[2].iov_len, kMtu);
+              memcpy(iov[0].iov_base, &vnet_hdr, sizeof(vnet_hdr));
+              memcpy(iov[2].iov_base, packet.data(), packet.size());
+              return sizeof(vnet_hdr) + packet.size();
+            });
+  }
+
+  StrictMock<MockKernel> mock_kernel_;
+  StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor_;
+  TunDevicePacketExchanger exchanger_;
+  StrictMock<MockQboneClientPacketExchanger> delegate_exchanger_;
+};
+
+TEST_F(TunDevicePacketExchangerVnetHdrTest, WritePacket) {
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
+
+  std::string packet = "fake packet";
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
+      .WillOnce([&packet](int fd, const struct iovec* iov,
+                          int iovcnt) -> ssize_t {
+        // A header of zeros: the packet is a single, complete segment.
+        EXPECT_EQ(iov[0].iov_len, sizeof(virtio_net_hdr));
+        EXPECT_THAT(
+            absl::MakeConstSpan(static_cast<const uint8_t*>(iov[0].iov_base),
+                                iov[0].iov_len),
+            Each(0));
+        EXPECT_EQ(iov[1].iov_len, 0);
+        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[2].iov_base),
+                                    iov[2].iov_len),
+                  packet);
+        return sizeof(virtio_net_hdr) + packet.size();
+      });
+
+  EXPECT_CALL(
+      mock_visitor_,
+      OnWrite(IsOkAndHolds(ElementsAre(Field(
+          &QboneClientPacketExchanger::WriteResult::packet,
+          ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
+                           packet.size()))))));
+  exchanger_.WritePacketToNetwork(absl::MakeConstSpan(
+      reinterpret_cast<std::byte*>(packet.data()), packet.size()));
+}
+
+TEST_F(TunDevicePacketExchangerVnetHdrTest, TapWritePacket) {
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_,
+                   CreateTapEthHdr(kTestMac));
+
+  std::string packet = "fake packet";
+  // The virtio-net header goes before the Ethernet header.
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 3))
+      .WillOnce([&packet](int fd, const struct iovec* iov,
+                          int iovcnt) -> ssize_t {
+        EXPECT_EQ(iov[0].iov_len, sizeof(virtio_net_hdr));
+        EXPECT_EQ(iov[1].iov_len, ETH_HLEN);
+        EXPECT_EQ(memcmp(iov[1].iov_base, kTestMac, ETH_ALEN), 0);
+        EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[2].iov_base),
+                                    iov[2].iov_len),
+                  packet);
+        return sizeof(virtio_net_hdr) + ETH_HLEN + packet.size();
+      });
+
+  EXPECT_CALL(mock_visitor_, OnWrite(IsOkAndHolds(SizeIs(1))));
+  exchanger_.WritePacketToNetwork(absl::MakeConstSpan(
+      reinterpret_cast<std::byte*>(packet.data()), packet.size()));
+}
+
+TEST_F(TunDevicePacketExchangerVnetHdrTest, ReadPacket) {
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
+
+  std::string packet = "fake_packet";
+  ExpectRead(virtio_net_hdr{}, packet);
+  EXPECT_CALL(
+      mock_visitor_,
+      OnRead(IsOkAndHolds(ElementsAre(Field(
+          &QboneClientPacketExchanger::ReadResult::packet,
+          ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
+                           packet.size()))))));
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1), 1);
+}
+
+TEST_F(TunDevicePacketExchangerVnetHdrTest, TapReadPacket) {
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_,
+                   CreateTapEthHdr(kTestMac));
+
+  ip6_hdr ip_hdr{};
+  ip_hdr.ip6_vfc = 0x60;  // Version 6
+  ip_hdr.ip6_nxt = 59;    // No next header
+  std::string l3_packet =
+      std::string(reinterpret_cast<char*>(&ip_hdr), sizeof(ip_hdr)) + "hello";
+
+  ethhdr eth_hdr{};
+  eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
+
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
+      .WillOnce(
+          [eth_hdr, l3_packet](int fd, const struct iovec* iov, int iovcnt) {
+            EXPECT_EQ(iov[0].iov_len, sizeof(virtio_net_hdr));
+            EXPECT_EQ(iov[1].iov_len, ETH_HLEN);
+            memset(iov[0].iov_base, 0, iov[0].iov_len);
+            memcpy(iov[1].iov_base, &eth_hdr, ETH_HLEN);
+            memcpy(iov[2].iov_base, l3_packet.data(), l3_packet.size());
+            return sizeof(virtio_net_hdr) + ETH_HLEN + l3_packet.size();
+          });
+
+  EXPECT_CALL(
+      mock_visitor_,
+      OnRead(IsOkAndHolds(ElementsAre(Field(
+          &QboneClientPacketExchanger::ReadResult::packet,
+          ElementsAreArray(reinterpret_cast<const std::byte*>(l3_packet.data()),
+                           l3_packet.size()))))));
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1), 1);
+}
+
+// A read that returns no more than the header holds no packet.
+TEST_F(TunDevicePacketExchangerVnetHdrTest, ReadWithoutPacket) {
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
+
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 3))
+      .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
+        return sizeof(virtio_net_hdr);
+      });
+  EXPECT_CALL(mock_visitor_, OnRead(StatusIs(absl::StatusCode::kInternal)));
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1), 1);
+}
+
+// The kernel must not leave checksums or segmentation to the exchanger, which
+// never asks for either. Such a packet is dropped, and the next one is read.
+TEST_F(TunDevicePacketExchangerVnetHdrTest, ReadPacketsThatNeedOffloads) {
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
+
+  std::string packet = "fake_packet";
+  testing::InSequence sequence;
+  ExpectRead(virtio_net_hdr{.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM,
+                            .csum_start = 40,
+                            .csum_offset = 16},
+             packet);
+  EXPECT_CALL(mock_visitor_, OnRead(StatusIs(absl::StatusCode::kInternal)));
+  ExpectRead(
+      virtio_net_hdr{
+          .gso_type = VIRTIO_NET_HDR_GSO_TCPV6, .hdr_len = 60, .gso_size = 4},
+      packet);
+  EXPECT_CALL(mock_visitor_, OnRead(StatusIs(absl::StatusCode::kInternal)));
+  ExpectRead(virtio_net_hdr{}, packet);
+  EXPECT_CALL(mock_visitor_, OnRead(IsOkAndHolds(SizeIs(1))));
+
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/3), 3);
 }
 
 }  // namespace
