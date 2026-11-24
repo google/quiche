@@ -19382,6 +19382,269 @@ TEST_P(QuicConnectionTest,
   EXPECT_EQ(kSelfAddress, connection_.self_address());
 }
 
+TEST_P(QuicConnectionTest,
+       CrossFamilyClientProbeAndRespondToServerReversePathChallenge) {
+  if (!GetParam().version.IsIetfQuic()) {
+    return;
+  }
+  // PathProbeTestInit establishes the initial connection over the default IPv6
+  // addresses (kSelfAddress and kPeerAddress).
+  PathProbeTestInit(Perspective::IS_CLIENT);
+
+  const QuicSocketAddress kIpv4SelfAddress(QuicIpAddress::Loopback4(),
+                                           /*port=*/kTestPort + 1);
+  const QuicSocketAddress kIpv4ServerAddress(QuicIpAddress::Loopback4(),
+                                             /*port=*/443);
+  connection_.AddKnownServerAddress(kIpv4ServerAddress);
+  TestPacketWriter ipv4_writer(version(), &clock_, Perspective::IS_CLIENT);
+  bool success = false;
+  QuicPathFrameBuffer client_challenge;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce([&]() {
+        ASSERT_EQ(1u, ipv4_writer.path_challenge_frames().size());
+        client_challenge =
+            ipv4_writer.path_challenge_frames().front().data_buffer;
+        EXPECT_EQ(TestConnectionId(1234),
+                  ipv4_writer.last_packet_header().destination_connection_id);
+        EXPECT_EQ(kIpv4ServerAddress, ipv4_writer.last_write_peer_address());
+        EXPECT_EQ(kIpv4SelfAddress.host(),
+                  ipv4_writer.last_write_source_address());
+      });
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kIpv4SelfAddress, kIpv4ServerAddress, &ipv4_writer),
+      std::make_unique<TestValidationResultDelegate>(
+          &connection_, kIpv4SelfAddress, kIpv4ServerAddress, &success),
+      PathValidationReason::kConnectionMigration);
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
+      &connection_, kIpv4SelfAddress, kIpv4ServerAddress));
+
+  // Server sends a standalone reverse PATH_CHALLENGE before PATH_RESPONSE.
+  QuicPathFrameBuffer server_challenge_1{0, 1, 2, 3, 4, 5, 6, 7};
+  QuicFrames standalone_challenge_frames;
+  standalone_challenge_frames.push_back(
+      QuicFrame(QuicPathChallengeFrame(0, server_challenge_1)));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce([&]() {
+        ASSERT_FALSE(ipv4_writer.path_response_frames().empty());
+        EXPECT_EQ(
+            0, memcmp(&server_challenge_1,
+                      &(ipv4_writer.path_response_frames().front().data_buffer),
+                      sizeof(server_challenge_1)));
+        EXPECT_EQ(TestConnectionId(1234),
+                  ipv4_writer.last_packet_header().destination_connection_id);
+        EXPECT_EQ(kIpv4ServerAddress, ipv4_writer.last_write_peer_address());
+        EXPECT_EQ(kIpv4SelfAddress.host(),
+                  ipv4_writer.last_write_source_address());
+      });
+  ProcessFramesPacketWithAddresses(standalone_challenge_frames,
+                                   kIpv4SelfAddress, kIpv4ServerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(success);
+
+  // A PATH_CHALLENGE arriving on the default IPv6 socket while the IPv4 probe
+  // is still pending continues to respond on the default IPv6 path.
+  QuicPathFrameBuffer default_path_challenge{8, 9, 10, 11, 12, 13, 14, 15};
+  QuicFrames default_challenge_frames;
+  default_challenge_frames.push_back(
+      QuicFrame(QuicPathChallengeFrame(0, default_path_challenge)));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce([&]() {
+        ASSERT_FALSE(writer_->path_response_frames().empty());
+        EXPECT_EQ(0,
+                  memcmp(&default_path_challenge,
+                         &(writer_->path_response_frames().front().data_buffer),
+                         sizeof(default_path_challenge)));
+        EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
+        EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
+      });
+  ProcessFramesPacketWithAddresses(default_challenge_frames, kSelfAddress,
+                                   kPeerAddress, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(success);
+
+  // Server sends a bundled reverse PATH_CHALLENGE + PATH_RESPONSE.
+  QuicPathFrameBuffer server_challenge_2{7, 6, 5, 4, 3, 2, 1, 0};
+  QuicFrames bundled_frames;
+  bundled_frames.push_back(
+      QuicFrame(QuicPathChallengeFrame(0, server_challenge_2)));
+  bundled_frames.push_back(
+      QuicFrame(QuicPathResponseFrame(99, client_challenge)));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce([&]() {
+        ASSERT_FALSE(ipv4_writer.path_response_frames().empty());
+        EXPECT_EQ(
+            0, memcmp(&server_challenge_2,
+                      &(ipv4_writer.path_response_frames().front().data_buffer),
+                      sizeof(server_challenge_2)));
+        EXPECT_EQ(TestConnectionId(1234),
+                  ipv4_writer.last_packet_header().destination_connection_id);
+        EXPECT_EQ(kIpv4ServerAddress, ipv4_writer.last_write_peer_address());
+        EXPECT_EQ(kIpv4SelfAddress.host(),
+                  ipv4_writer.last_write_source_address());
+      });
+  ProcessFramesPacketWithAddresses(bundled_frames, kIpv4SelfAddress,
+                                   kIpv4ServerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+  EXPECT_TRUE(success);
+}
+
+TEST_P(QuicConnectionTest,
+       CrossFamilyClientProbeBundledPathResponseBeforePathChallenge) {
+  class MigratingValidationResultDelegate
+      : public QuicPathValidator::ResultDelegate {
+   public:
+    MigratingValidationResultDelegate(QuicConnection* connection,
+                                      bool* migrated)
+        : connection_(connection), migrated_(migrated) {}
+
+    void OnPathValidationSuccess(
+        std::unique_ptr<QuicPathValidationContext> context,
+        QuicTime /*start_time*/) override {
+      EXPECT_TRUE(connection_->MigratePath(
+          context->self_address(), context->peer_address(),
+          context->WriterToUse(), context->ShouldConnectionOwnWriter()));
+      *migrated_ = true;
+    }
+
+    void OnPathValidationFailure(
+        std::unique_ptr<QuicPathValidationContext> context) override {
+      connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/false,
+                                                   *context);
+      *migrated_ = false;
+    }
+
+   private:
+    QuicConnection* connection_;
+    bool* migrated_;
+  };
+
+  if (!GetParam().version.IsIetfQuic()) {
+    return;
+  }
+  // PathProbeTestInit establishes the initial connection over the default IPv6
+  // addresses (kSelfAddress and kPeerAddress).
+  PathProbeTestInit(Perspective::IS_CLIENT);
+
+  const QuicSocketAddress kIpv4SelfAddress(QuicIpAddress::Loopback4(),
+                                           /*port=*/kTestPort + 1);
+  const QuicSocketAddress kIpv4ServerAddress(QuicIpAddress::Loopback4(),
+                                             /*port=*/443);
+  connection_.AddKnownServerAddress(kIpv4ServerAddress);
+  TestPacketWriter ipv4_writer(version(), &clock_, Perspective::IS_CLIENT);
+  bool migrated = false;
+  QuicPathFrameBuffer client_challenge;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce([&]() {
+        ASSERT_EQ(1u, ipv4_writer.path_challenge_frames().size());
+        client_challenge =
+            ipv4_writer.path_challenge_frames().front().data_buffer;
+      })
+      .WillRepeatedly(DoDefault());
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kIpv4SelfAddress, kIpv4ServerAddress, &ipv4_writer),
+      std::make_unique<MigratingValidationResultDelegate>(&connection_,
+                                                          &migrated),
+      PathValidationReason::kConnectionMigration);
+
+  const size_t default_writes_before_bundle = writer_->packets_write_attempts();
+
+  // Server bundles PATH_RESPONSE before reverse PATH_CHALLENGE in the same
+  // packet. Processing PATH_RESPONSE first migrates default_path_ to IPv4 and
+  // resets path_validator_, so the trailing PATH_CHALLENGE still responds on
+  // the newly migrated IPv4 path.
+  QuicPathFrameBuffer server_challenge{7, 6, 5, 4, 3, 2, 1, 0};
+  QuicFrames bundled_frames;
+  bundled_frames.push_back(
+      QuicFrame(QuicPathResponseFrame(99, client_challenge)));
+  bundled_frames.push_back(
+      QuicFrame(QuicPathChallengeFrame(0, server_challenge)));
+  ProcessFramesPacketWithAddresses(bundled_frames, kIpv4SelfAddress,
+                                   kIpv4ServerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+
+  EXPECT_TRUE(migrated);
+  EXPECT_FALSE(connection_.HasPendingPathValidation());
+  EXPECT_EQ(kIpv4SelfAddress, connection_.self_address());
+  EXPECT_EQ(kIpv4ServerAddress, connection_.peer_address());
+  EXPECT_EQ(default_writes_before_bundle, writer_->packets_write_attempts());
+  ASSERT_EQ(1u, ipv4_writer.path_response_frames().size());
+  EXPECT_EQ(0, memcmp(&server_challenge,
+                      &(ipv4_writer.path_response_frames().front().data_buffer),
+                      sizeof(server_challenge)));
+  EXPECT_EQ(TestConnectionId(1234),
+            ipv4_writer.last_packet_header().destination_connection_id);
+  EXPECT_EQ(kIpv4ServerAddress, ipv4_writer.last_write_peer_address());
+  EXPECT_EQ(kIpv4SelfAddress.host(), ipv4_writer.last_write_source_address());
+}
+
+TEST_P(QuicConnectionTest,
+       CrossFamilyClientProbeReverseChallengeFromOriginalServerAddress) {
+  if (!GetParam().version.IsIetfQuic()) {
+    return;
+  }
+  // PathProbeTestInit establishes the initial connection over the default IPv6
+  // addresses (kSelfAddress and kPeerAddress).
+  PathProbeTestInit(Perspective::IS_CLIENT);
+
+  const QuicSocketAddress kIpv4SelfAddress(QuicIpAddress::Loopback4(),
+                                           /*port=*/kTestPort + 1);
+  const QuicSocketAddress kIpv4ServerAddress(QuicIpAddress::Loopback4(),
+                                             /*port=*/443);
+  connection_.AddKnownServerAddress(kIpv4ServerAddress);
+  TestPacketWriter ipv4_writer(version(), &clock_, Perspective::IS_CLIENT);
+  bool success = false;
+  QuicPathFrameBuffer client_challenge;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce([&]() {
+        ASSERT_EQ(1u, ipv4_writer.path_challenge_frames().size());
+        client_challenge =
+            ipv4_writer.path_challenge_frames().front().data_buffer;
+      })
+      .WillRepeatedly(DoDefault());
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kIpv4SelfAddress, kIpv4ServerAddress, &ipv4_writer),
+      std::make_unique<TestValidationResultDelegate>(
+          &connection_, kIpv4SelfAddress, kIpv4ServerAddress, &success),
+      PathValidationReason::kServerPreferredAddressMigration);
+
+  // During an initial cross-address probe (default_path_.peer_address !=
+  // alternative_path_.peer_address), a server doing half-way migration sends
+  // its reverse PATH_CHALLENGE from the original server address (kPeerAddress)
+  // to the probing socket (kIpv4SelfAddress). The client responds to the probed
+  // peer address (kIpv4ServerAddress), not kPeerAddress.
+  QuicPathFrameBuffer server_challenge{0, 1, 2, 3, 4, 5, 6, 7};
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicPathChallengeFrame(0, server_challenge)));
+  frames.push_back(QuicFrame(QuicPathResponseFrame(99, client_challenge)));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce([&]() {
+        ASSERT_FALSE(ipv4_writer.path_response_frames().empty());
+        EXPECT_EQ(
+            0, memcmp(&server_challenge,
+                      &(ipv4_writer.path_response_frames().front().data_buffer),
+                      sizeof(server_challenge)));
+        EXPECT_EQ(TestConnectionId(1234),
+                  ipv4_writer.last_packet_header().destination_connection_id);
+        EXPECT_EQ(kIpv4ServerAddress, ipv4_writer.last_write_peer_address());
+        EXPECT_EQ(kIpv4SelfAddress.host(),
+                  ipv4_writer.last_write_source_address());
+      })
+      .WillRepeatedly(DoDefault());
+  ProcessFramesPacketWithAddresses(frames, kIpv4SelfAddress, kPeerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+  EXPECT_TRUE(success);
+  EXPECT_EQ(2u, ipv4_writer.packets_write_attempts());
+}
+
 TEST_P(QuicConnectionTest, EcnCodepointsRejected) {
   for (QuicEcnCodepoint ecn : {ECN_NOT_ECT, ECN_ECT0, ECN_ECT1, ECN_CE}) {
     if (ecn == ECN_ECT0) {

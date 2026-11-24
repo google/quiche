@@ -1915,16 +1915,25 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
   }
   // On the server side, send response to the source address of the current
   // incoming packet according to RFC9000.
-  // On the client side, send response to the default peer address which
-  // should be on an existing path with a pre-assigned a destination CID.
-  const QuicSocketAddress effective_peer_address_to_respond =
-      perspective_ == Perspective::IS_CLIENT
-          ? effective_peer_address()
-          : last_received_packet_info_.source_address;
-  const QuicSocketAddress direct_peer_address_to_respond =
-      perspective_ == Perspective::IS_CLIENT
-          ? peer_address()
-          : last_received_packet_info_.source_address;
+  QuicSocketAddress effective_peer_address_to_respond =
+      last_received_packet_info_.source_address;
+  QuicSocketAddress direct_peer_address_to_respond =
+      last_received_packet_info_.source_address;
+  // On the client side, respond on the probed path when the packet arrives on
+  // the active probe socket, or to the default peer address otherwise.
+  if (perspective_ == Perspective::IS_CLIENT) {
+    if (path_validator_.HasPendingPathValidation() &&
+        path_validator_.GetContext()->self_address() ==
+            last_received_packet_info_.destination_address) {
+      effective_peer_address_to_respond =
+          path_validator_.GetContext()->peer_address();
+      direct_peer_address_to_respond =
+          path_validator_.GetContext()->peer_address();
+    } else {
+      effective_peer_address_to_respond = effective_peer_address();
+      direct_peer_address_to_respond = peer_address();
+    }
+  }
   QuicConnectionId client_cid, server_cid;
   FindOnPathConnectionIds(last_received_packet_info_.destination_address,
                           effective_peer_address_to_respond, &client_cid,
