@@ -2,6 +2,7 @@
 
 #include <array>
 #include <bitset>
+#include <cstdint>
 #include <string>
 
 #include "absl/strings/ascii.h"
@@ -26,12 +27,6 @@ constexpr absl::string_view kHttp2HeaderNameAllowedChars =
     "!#$%&'*+-.0123456789"
     "^_`abcdefghijklmnopqrstuvwxyz|~";
 
-constexpr absl::string_view kHttp2HeaderValueAllowedChars =
-    "\t "
-    "!\"#$%&'()*+,-./"
-    "0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`"
-    "abcdefghijklmnopqrstuvwxyz{|}~";
-
 constexpr absl::string_view kHttp2StatusValueAllowedChars = "0123456789";
 
 constexpr absl::string_view kValidAuthorityChars =
@@ -53,14 +48,6 @@ constexpr CharMap BuildValidCharMap(absl::string_view valid_chars) {
   for (char c : valid_chars) {
     // An array index must be a nonnegative integer, hence the cast to uint8_t.
     map[static_cast<uint8_t>(c)] = true;
-  }
-  return map;
-}
-constexpr CharMap AllowObsText(CharMap map) {
-  // Characters above 0x80 are allowed in header field values as `obs-text` in
-  // RFC 7230.
-  for (uint8_t c = 0xff; c >= 0x80; --c) {
-    map[c] = true;
   }
   return map;
 }
@@ -254,13 +241,20 @@ bool HeaderValidator::IsValidHeaderName(absl::string_view name) {
 
 bool HeaderValidator::IsValidHeaderValue(absl::string_view value,
                                          ObsTextOption option) {
-  static constexpr CharMap valid_chars =
-      BuildValidCharMap(kHttp2HeaderValueAllowedChars);
-  static constexpr CharMap valid_chars_with_obs_text =
-      AllowObsText(BuildValidCharMap(kHttp2HeaderValueAllowedChars));
-  return AllCharsInMap(value, option == ObsTextOption::kAllow
-                                  ? valid_chars_with_obs_text
-                                  : valid_chars);
+  // Using bitwise `&=` without early exit and keeping `valid` local to each
+  // branch lets compilers auto-vectorize both loops as SIMD reductions.
+  if (option == ObsTextOption::kAllow) {
+    bool valid = true;
+    for (const uint8_t c : value) {
+      valid &= IsValidHeaderValueChar(c, ObsTextOption::kAllow);
+    }
+    return valid;
+  }
+  bool valid = true;
+  for (const uint8_t c : value) {
+    valid &= IsValidHeaderValueChar(c, ObsTextOption::kDisallow);
+  }
+  return valid;
 }
 
 bool HeaderValidator::IsValidAuthority(absl::string_view authority) {

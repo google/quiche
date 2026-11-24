@@ -2,6 +2,7 @@
 #define QUICHE_HTTP2_ADAPTER_HEADER_VALIDATOR_H_
 
 #include <bitset>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -35,6 +36,35 @@ class QUICHE_EXPORT HeaderValidator : public HeaderValidatorBase {
   // RFC 9113 Section 8.2.1.
   static bool IsValidHeaderValue(absl::string_view value,
                                  ObsTextOption ops_text_option);
+
+  // Returns whether a single byte `c` is valid in a header value according to
+  // RFC 9110 Section 5.5 and RFC 9113 Section 8.2.1:
+  //   0x00-0x08 : invalid (control chars)
+  //   0x09      : valid   (HTAB '\t')
+  //   0x0a-0x1f : invalid (control chars)
+  //   0x20-0x7e : valid   (SP ' ' through '~')
+  //   0x7f      : invalid (DEL)
+  //   0x80-0xff : valid only when `obs_text_option == ObsTextOption::kAllow`
+  //
+  // Equivalent to checking membership in:
+  //   constexpr absl::string_view kHttp2HeaderValueAllowedChars =
+  //       "\t "
+  //       "!\"#$%&'()*+,-./"
+  //       "0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`"
+  //       "abcdefghijklmnopqrstuvwxyz{|}~";
+  // (plus bytes 0x80-0xff when ObsTextOption::kAllow is set).
+  //
+  // HTAB (0x09) sits isolated inside the 0x00-0x1f control range. XORing with
+  // 0x16 (0x09 ^ 0x1f) moves HTAB right next to SP (0x20) at 0x1f, keeps every
+  // other control byte below 0x1f, and leaves the top 3 bits of >= 0x20 bytes
+  // non-zero. That turns `c == '\t' || c >= 0x20` into `(c ^ 0x16) >= 0x1f`.
+  // Bitwise `&` preserves branch-free vectorization.
+  static constexpr bool IsValidHeaderValueChar(uint8_t c,
+                                               ObsTextOption obs_text_option) {
+    return obs_text_option == ObsTextOption::kAllow
+               ? static_cast<bool>(((c ^ 0x16) >= 0x1f) & (c != 0x7f))
+               : static_cast<bool>(((c ^ 0x16) >= 0x1f) & (c < 0x7f));
+  }
 
   // Returns whether `authority` is valid according to RFC 3986 Section 3.2.
   static bool IsValidAuthority(absl::string_view authority);

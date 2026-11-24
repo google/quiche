@@ -1,11 +1,14 @@
 #include "quiche/http2/adapter/header_validator.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -130,6 +133,42 @@ TEST(HeaderValidatorTest, ValueHasInvalidChar) {
                                                     ObsTextOption::kAllow));
     EXPECT_EQ(HeaderValidator::HEADER_OK,
               v.ValidateSingleHeader("name", obs_text_value));
+  }
+}
+
+TEST(HeaderValidatorTest, IsValidHeaderValueAllBytes) {
+  constexpr absl::string_view kHttp2HeaderValueAllowedChars =
+      "\t "
+      "!\"#$%&'()*+,-./"
+      "0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`"
+      "abcdefghijklmnopqrstuvwxyz{|}~";
+  for (int c = 0; c < 256; ++c) {
+    const bool expected_no_obstext =
+        absl::StrContains(kHttp2HeaderValueAllowedChars, static_cast<char>(c));
+    const bool expected_with_obstext = expected_no_obstext || c >= 0x80;
+    EXPECT_EQ(HeaderValidator::IsValidHeaderValueChar(static_cast<uint8_t>(c),
+                                                      ObsTextOption::kDisallow),
+              expected_no_obstext)
+        << "byte " << c;
+    EXPECT_EQ(HeaderValidator::IsValidHeaderValueChar(static_cast<uint8_t>(c),
+                                                      ObsTextOption::kAllow),
+              expected_with_obstext)
+        << "byte " << c;
+    // Exercise both vectorized chunks and scalar remainders across lengths.
+    for (const size_t size : {1, 5, 12, 16, 32, 40, 67}) {
+      for (const size_t position : {size_t{0}, size / 2, size - 1}) {
+        std::string value(size, 'v');
+        value[position] = static_cast<char>(c);
+        EXPECT_EQ(HeaderValidator::IsValidHeaderValue(value,
+                                                      ObsTextOption::kDisallow),
+                  expected_no_obstext)
+            << "byte " << c << " at " << position << " of " << size;
+        EXPECT_EQ(
+            HeaderValidator::IsValidHeaderValue(value, ObsTextOption::kAllow),
+            expected_with_obstext)
+            << "byte " << c << " at " << position << " of " << size;
+      }
+    }
   }
 }
 
