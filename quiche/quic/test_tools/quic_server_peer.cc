@@ -5,6 +5,7 @@
 #include "quiche/quic/test_tools/quic_server_peer.h"
 
 #include "absl/memory/memory.h"
+#include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/core/quic_packet_reader.h"
 #include "quiche/quic/tools/quic_server.h"
@@ -17,6 +18,11 @@ bool QuicServerPeer::SetSmallSocket(QuicServer* server) {
   int size = 1024 * 10;
   return setsockopt(*server->fd_, SOL_SOCKET, SO_RCVBUF,
                     reinterpret_cast<char*>(&size), sizeof(size)) != -1;
+}
+
+// static
+QuicConfig* QuicServerPeer::GetConfig(QuicServer* server) {
+  return &server->config_;
 }
 
 // static

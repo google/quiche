@@ -597,42 +597,35 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     copt.push_back(kPLE1);
     client_config_.SetConnectionOptionsToSend(copt);
 
+    if (use_preferred_address_) {
+      SetQuicReloadableFlag(quic_use_received_client_addresses_cache, true);
+      const QuicIpAddress preferred_host = TestLoopback(2);
+      if (preferred_host == server_address_.host()) {
+        ADD_FAILURE() << "Preferred address and server address have the same "
+                         "host "
+                      << server_address_.host();
+        return false;
+      }
+      server_preferred_address_ = QuicSocketAddress(preferred_host, /*port=*/0);
+      // Listen on Any with an ephemeral port so the kernel picks a port free
+      // across all local addresses, avoiding a bind conflict when rebinding
+      // from a specific loopback IP to Any.
+      server_listening_address_ =
+          QuicSocketAddress(preferred_host.IsIPv4() ? QuicIpAddress::Any4()
+                                                    : QuicIpAddress::Any6(),
+                            /*port=*/0);
+    }
+
     // Start the server first, because CreateQuicClient() attempts
     // to connect to the server.
     StartServer();
+    if (!server_thread_) {
+      return false;
+    }
 
-    if (use_preferred_address_) {
-      SetQuicReloadableFlag(quic_use_received_client_addresses_cache, true);
-      // At this point, the server has an ephemeral port to listen on. Restart
-      // the server with the preferred address.
-      StopServer();
-      // server_address_ now contains the random listening port.
-      server_preferred_address_ =
-          QuicSocketAddress(TestLoopback(2), server_address_.port());
-      if (server_preferred_address_ == server_address_) {
-        ADD_FAILURE() << "Preferred address and server address are the same "
-                      << server_address_;
-        return false;
-      }
-      // Send server preferred address and let server listen on Any.
-      if (server_preferred_address_.host().IsIPv4()) {
-        server_listening_address_ =
-            QuicSocketAddress(QuicIpAddress::Any4(), server_address_.port());
-        server_config_.SetIPv4AlternateServerAddressToSend(
-            server_preferred_address_);
-      } else {
-        server_listening_address_ =
-            QuicSocketAddress(QuicIpAddress::Any6(), server_address_.port());
-        server_config_.SetIPv6AlternateServerAddressToSend(
-            server_preferred_address_);
-      }
-      // Server restarts.
-      server_writer_ = new PacketDroppingTestWriter();
-      StartServer();
-
-      if (!GetQuicFlag(quic_always_support_server_preferred_address)) {
-        client_config_.SetConnectionOptionsToSend(QuicTagVector{kSPAD});
-      }
+    if (use_preferred_address_ &&
+        !GetQuicFlag(quic_always_support_server_preferred_address)) {
+      client_config_.SetConnectionOptionsToSend(QuicTagVector{kSPAD});
     }
 
     if (!connect_to_server_on_initialize_) {
@@ -718,8 +711,35 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       server_thread_->server()->SetPreSharedKey(pre_shared_key_server_);
     }
     server_thread_->Initialize();
-    server_address_ =
-        QuicSocketAddress(server_address_.host(), server_thread_->GetPort());
+    const int port = server_thread_->GetPort();
+    if (port == 0) {
+      // Reset server_thread_ before failing so TearDown() does not Join() an
+      // unstarted thread.
+      server_thread_.reset();
+      delete server_writer_;
+      server_writer_ = nullptr;
+      FAIL() << "Server failed to bind to " << server_listening_address;
+    }
+    server_address_ = QuicSocketAddress(server_address_.host(), port);
+    if (server_listening_address_.has_value()) {
+      server_listening_address_ =
+          QuicSocketAddress(server_listening_address_->host(), port);
+    }
+    if (use_preferred_address_) {
+      server_preferred_address_ =
+          QuicSocketAddress(server_preferred_address_.host(), port);
+      if (server_preferred_address_.host().IsIPv4()) {
+        server_config_.SetIPv4AlternateServerAddressToSend(
+            server_preferred_address_);
+        QuicServerPeer::GetConfig(server_thread_->server())
+            ->SetIPv4AlternateServerAddressToSend(server_preferred_address_);
+      } else {
+        server_config_.SetIPv6AlternateServerAddressToSend(
+            server_preferred_address_);
+        QuicServerPeer::GetConfig(server_thread_->server())
+            ->SetIPv6AlternateServerAddressToSend(server_preferred_address_);
+      }
+    }
     QuicDispatcher* dispatcher =
         QuicServerPeer::GetDispatcher(server_thread_->server());
     ASSERT_TRUE(dispatcher != nullptr);
@@ -744,23 +764,28 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (server_thread_) {
       server_thread_->Quit();
       server_thread_->Join();
+      server_thread_.reset();
     }
     if (will_restart) {
       // server_address_ now contains the random listening port. Since many
       // tests will attempt to re-bind the socket, claim it so that the kernel
       // doesn't give away the ephemeral port.
+      const QuicSocketAddress server_listening_address =
+          server_listening_address_.has_value() ? *server_listening_address_
+                                                : server_address_;
       QuicUdpSocketApi socket_api;
       fd_ = socket_api.Create(
-          server_address_.host().AddressFamilyToInt(),
+          server_listening_address.host().AddressFamilyToInt(),
           /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
           /*send_buffer_size =*/kDefaultSocketReceiveBuffer);
       if (fd_ == kQuicInvalidSocketFd) {
         QUIC_LOG(ERROR) << "CreateSocket() failed: " << strerror(errno);
         return;
       }
-      int rc = socket_api.Bind(fd_, server_address_);
-      if (rc < 0) {
+      if (!socket_api.Bind(fd_, server_listening_address)) {
         QUIC_LOG(ERROR) << "Bind failed: " << strerror(errno);
+        socket_api.Destroy(fd_);
+        fd_ = kQuicInvalidSocketFd;
         return;
       }
     }

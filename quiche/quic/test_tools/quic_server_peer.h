@@ -7,9 +7,10 @@
 
 namespace quic {
 
+class QuicConfig;
 class QuicDispatcher;
-class QuicServer;
 class QuicPacketReader;
+class QuicServer;
 
 namespace test {
 
@@ -18,6 +19,7 @@ class QuicServerPeer {
   QuicServerPeer() = delete;
 
   static bool SetSmallSocket(QuicServer* server);
+  static QuicConfig* GetConfig(QuicServer* server);
   static QuicDispatcher* GetDispatcher(QuicServer* server);
   static void SetReader(QuicServer* server, QuicPacketReader* reader);
 };
