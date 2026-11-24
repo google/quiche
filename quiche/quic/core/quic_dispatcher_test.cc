@@ -610,8 +610,17 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     ProcessFirstFlight(version, client_address, connection_id);
   }
 
+  // Sends a multi-packet TLS ClientHello and verifies that all packets are
+  // delivered to the new session. If |send_sdao| is true, the client sends the
+  // SDAO connection option, and the dispatcher is expected to allow deferring
+  // ACK-only packets on the new connection if
+  // quic_defer_ack_only_packets_for_queued_packets is enabled. If |buffer_chlo|
+  // is true, the completed ClientHello is buffered and delivered via
+  // ProcessBufferedChlos().
   void TestTlsMultiPacketClientHello(bool add_reordering,
-                                     bool long_connection_id);
+                                     bool long_connection_id,
+                                     bool send_sdao = false,
+                                     bool buffer_chlo = false);
 
   void TestVersionNegotiationForUnknownVersionInvalidShortInitialConnectionId(
       const QuicConnectionId& server_connection_id,
@@ -760,7 +769,8 @@ TEST_P(QuicDispatcherTestAllVersions, VariableServerConnectionIdLength) {
 }
 
 void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
-    bool add_reordering, bool long_connection_id) {
+    bool add_reordering, bool long_connection_id, bool send_sdao,
+    bool buffer_chlo) {
   if (!version_.IsIetfQuic()) {
     return;
   }
@@ -789,6 +799,9 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
   std::string kCustomParameterValue(2000, '-');
   client_config.custom_transport_parameters_to_send()[kCustomParameterId] =
       kCustomParameterValue;
+  if (send_sdao) {
+    client_config.SetConnectionOptionsToSend({kSDAO});
+  }
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
       GetFirstFlightOfPackets(version_, client_config, original_connection_id,
                               EmptyQuicConnectionId(),
@@ -807,7 +820,15 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
   EXPECT_EQ(dispatcher_->NumSessions(), 0u)
       << "No session should be created before the rest of the CHLO arrives.";
 
-  // Processing the last packet should create the new session.
+  if (buffer_chlo) {
+    dispatcher_->ProcessBufferedChlos(0);
+    ProcessReceivedPacket(std::move(packets.back()), client_address, version_,
+                          original_connection_id);
+    EXPECT_EQ(dispatcher_->NumSessions(), 0u);
+  }
+
+  // Processing the last packet (or draining buffered CHLOs) should create the
+  // new session.
   EXPECT_CALL(
       *dispatcher_,
       CreateQuicSession(new_connection_id, _, client_address,
@@ -820,14 +841,58 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
               ProcessUdpPacket(_, _, _))
       .Times(packets.size());
 
-  ProcessReceivedPacket(std::move(packets.back()), client_address, version_,
-                        original_connection_id);
+  if (buffer_chlo) {
+    dispatcher_->ProcessBufferedChlos(1);
+  } else {
+    ProcessReceivedPacket(std::move(packets.back()), client_address, version_,
+                          original_connection_id);
+  }
   EXPECT_EQ(dispatcher_->NumSessions(), 1u);
+  // SDAO is not detected for versions using the legacy transport parameters TLS
+  // extension (draft-29), because TlsChloExtractor only reads the RFC one.
+  const bool expect_defer_ack_only_packets =
+      send_sdao && !version_.UsesLegacyTlsExtension() &&
+      GetQuicReloadableFlag(quic_defer_ack_only_packets_for_queued_packets);
+  EXPECT_EQ(QuicConnectionPeer::GetAllowDeferringAckOnlyPackets(
+                session1_->connection()),
+            expect_defer_ack_only_packets);
 }
 
 TEST_P(QuicDispatcherTestAllVersions, TlsMultiPacketClientHello) {
   TestTlsMultiPacketClientHello(/*add_reordering=*/false,
                                 /*long_connection_id=*/false);
+}
+
+TEST_P(QuicDispatcherTestAllVersions, TlsMultiPacketClientHelloWithSdao) {
+  SetQuicReloadableFlag(quic_defer_ack_only_packets_for_queued_packets, true);
+  TestTlsMultiPacketClientHello(/*add_reordering=*/false,
+                                /*long_connection_id=*/false,
+                                /*send_sdao=*/true);
+}
+
+TEST_P(QuicDispatcherTestAllVersions,
+       TlsMultiPacketClientHelloBufferedWithSdao) {
+  SetQuicReloadableFlag(quic_defer_ack_only_packets_for_queued_packets, true);
+  TestTlsMultiPacketClientHello(/*add_reordering=*/false,
+                                /*long_connection_id=*/false,
+                                /*send_sdao=*/true,
+                                /*buffer_chlo=*/true);
+}
+
+TEST_P(QuicDispatcherTestAllVersions,
+       TlsMultiPacketClientHelloWithSdaoWithoutDeferAckOnlyPacketsFlag) {
+  SetQuicReloadableFlag(quic_defer_ack_only_packets_for_queued_packets, false);
+  TestTlsMultiPacketClientHello(/*add_reordering=*/false,
+                                /*long_connection_id=*/false,
+                                /*send_sdao=*/true);
+}
+
+TEST_P(QuicDispatcherTestAllVersions,
+       TlsMultiPacketClientHelloWithDeferAckOnlyPacketsFlagWithoutSdao) {
+  SetQuicReloadableFlag(quic_defer_ack_only_packets_for_queued_packets, true);
+  TestTlsMultiPacketClientHello(/*add_reordering=*/false,
+                                /*long_connection_id=*/false,
+                                /*send_sdao=*/false);
 }
 
 TEST_P(QuicDispatcherTestAllVersions, TlsMultiPacketClientHelloWithReordering) {

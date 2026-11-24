@@ -330,6 +330,9 @@ DEFINE_STATIC_QUIC_TAG(NCMR);  // Do not attempt connection
 DEFINE_STATIC_QUIC_TAG(DFER);  // Do not defer sending.
 DEFINE_STATIC_QUIC_TAG(CDFR);  // Defer sending on client.
 DEFINE_STATIC_QUIC_TAG(DAOP);  // Defer sending ACK-only packets on client.
+DEFINE_STATIC_QUIC_TAG(SDAO);  // Defer sending ACK-only packets on server
+                               // while delivering queued packets to a new
+                               // session.
 
 // Pacing options.
 DEFINE_STATIC_QUIC_TAG(NPCO);  // No pacing offload.

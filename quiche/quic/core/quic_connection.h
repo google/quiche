@@ -1065,6 +1065,11 @@ class QUICHE_EXPORT QuicConnection
     can_truncate_connection_ids_ = can;
   }
 
+  // Allows ScopedAckDeferrer to defer ACK-only packets on this connection.
+  void set_allow_deferring_ack_only_packets(bool allow) {
+    allow_deferring_ack_only_packets_ = allow;
+  }
+
   // Returns the underlying sent packet manager.
   const QuicSentPacketManager& sent_packet_manager() const {
     return sent_packet_manager_;
@@ -2640,7 +2645,8 @@ class QUICHE_EXPORT QuicConnection
   bool fix_mtu_discovery_ : 1 = GetQuicReloadableFlag(quic_fix_mtu_discovery);
   bool send_acks_after_on_can_write_ : 1 = false;
   bool coalesce_ping_with_last_packet_ : 1 = false;
-  // Set by the client-only DAOP connection option.
+  // Set by the client-only DAOP connection option, or by QuicDispatcher on the
+  // server when the client sends the SDAO connection option.
   bool allow_deferring_ack_only_packets_ : 1 = false;
   bool defer_ack_only_packets_ : 1 = false;
   bool unify_peer_address_and_path_validation_ : 1 =

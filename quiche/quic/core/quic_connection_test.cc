@@ -21667,6 +21667,68 @@ TEST_P(QuicConnectionTest, ScopedAckDeferrerIgnoredOnServerForClientOption) {
   EXPECT_EQ(2u, writer_->packets_write_attempts());
 }
 
+TEST_P(QuicConnectionTest,
+       BatchProcessInitialPacketsWithScopedAckDeferrerBundlesSingleInitialAck) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_send_acks_after_on_can_write, true);
+  set_perspective(Perspective::IS_SERVER);
+  // QuicDispatcher allows deferring ACK-only packets when the client sends
+  // SDAO.
+  connection_.set_allow_deferring_ack_only_packets(true);
+  QuicConfig config;
+  config.SetInitialReceivedConnectionOptions({kSAOW});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  QuicConnectionPeer::SetAddressValidated(&connection_);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+
+  // Simulate QuicDispatcher delivering a 2-packet ClientHello under a
+  // ScopedAckDeferrer. QuicDispatcher delivers the packet that completes the
+  // ClientHello before the buffered packets, so:
+  // - Packet 2 (the second fragment) is processed first and queues an INITIAL
+  //   ACK, but the ClientHello is not complete yet.
+  // - Packet 1 completes the ClientHello, causing the server to buffer INITIAL
+  //   CRYPTO (ServerHello) and install HANDSHAKE keys.
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).WillOnce(Return()).WillOnce([this]() {
+    connection_.SendCryptoDataWithString("shlo", 0, ENCRYPTION_INITIAL);
+    connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                             std::make_unique<TaggingEncrypter>(0x02));
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  });
+  EXPECT_CALL(visitor_, OnCanWrite()).WillRepeatedly([this]() {
+    QuicConnection::ScopedEncryptionLevelContext context(&connection_,
+                                                         ENCRYPTION_INITIAL);
+    notifier_.OnCanWrite();
+  });
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(AnyNumber());
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+
+  {
+    QuicConnection::ScopedAckDeferrer ack_deferrer(&connection_);
+    ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
+    // No standalone INITIAL ACK packet should be flushed after packet 2.
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+    ForceWillingAndAbleToWriteOnceForDeferSending();
+    ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  }
+  if (connection_.GetSendAlarm()->IsSet()) {
+    connection_.GetSendAlarm()->Fire();
+  }
+
+  // The INITIAL ACK for packets [1..2] is bundled with the INITIAL CRYPTO
+  // frame in a single INITIAL packet rather than sent as a separate ACK-only
+  // packet.
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_EQ(QuicPacketNumber(2), LargestAcked(writer_->ack_frames()[0]));
+  EXPECT_TRUE(writer_->ack_frames()[0].packets.Contains(QuicPacketNumber(1)));
+  EXPECT_EQ(1u, writer_->crypto_frames().size());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

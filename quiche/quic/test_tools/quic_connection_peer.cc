@@ -695,6 +695,12 @@ void QuicConnectionPeer::SetAllowDeferringAckOnlyPackets(
 }
 
 // static
+bool QuicConnectionPeer::GetAllowDeferringAckOnlyPackets(
+    QuicConnection* connection) {
+  return connection->allow_deferring_ack_only_packets_;
+}
+
+// static
 QuicConnection::ReceivedPacketInfo&
 QuicConnectionPeer::GetLastReceivedPacketInfo(QuicConnection* connection) {
   return connection->last_received_packet_info_;

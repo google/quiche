@@ -285,6 +285,8 @@ class QuicConnectionPeer {
   static void SetAllowDeferringAckOnlyPackets(QuicConnection* connection,
                                               bool allow);
 
+  static bool GetAllowDeferringAckOnlyPackets(QuicConnection* connection);
+
   static QuicConnection::ReceivedPacketInfo& GetLastReceivedPacketInfo(
       QuicConnection* connection);
 

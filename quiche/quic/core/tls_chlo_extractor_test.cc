@@ -359,6 +359,13 @@ TEST_P(TlsChloExtractorTest, MoveAssignmentAfterExtraction) {
 
   EXPECT_EQ(other_extractor.state(), expected_state);
   ValidateChloDetails(&other_extractor);
+  if (GetQuicReloadableFlag(quic_defer_ack_only_packets_for_queued_packets) &&
+      (version_ == ParsedQuicVersion::RFCv1() ||
+       version_ == ParsedQuicVersion::RFCv2())) {
+    EXPECT_FALSE(other_extractor.transport_params().empty());
+  } else {
+    EXPECT_TRUE(other_extractor.transport_params().empty());
+  }
 }
 
 TEST_P(TlsChloExtractorTest, MoveAssignmentBetweenPackets) {

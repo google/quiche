@@ -156,6 +156,11 @@ TlsChloExtractor& TlsChloExtractor::operator=(TlsChloExtractor&& other) {
   cert_compression_algos_ = std::move(other.cert_compression_algos_);
   alpns_ = std::move(other.alpns_);
   server_name_ = std::move(other.server_name_);
+  if (GetQuicReloadableFlag(quic_defer_ack_only_packets_for_queued_packets)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_defer_ack_only_packets_for_queued_packets,
+                                 1, 2);
+    transport_params_ = std::move(other.transport_params_);
+  }
   client_hello_bytes_ = std::move(other.client_hello_bytes_);
   return *this;
 }

@@ -25,11 +25,13 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/chlo_extractor.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
+#include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
@@ -51,6 +53,7 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
+#include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_time_wait_list_manager.h"
 #include "quiche/quic/core/quic_types.h"
@@ -81,6 +84,28 @@ namespace {
 
 // Minimal INITIAL packet length sent by clients is 1200.
 const QuicPacketLength kMinClientInitialPacketLength = 1200;
+
+// Returns true if quic_defer_ack_only_packets_for_queued_packets is enabled and
+// the client sent the SDAO connection option in |transport_params|.
+bool ShouldDeferAckOnlyPackets(const ParsedQuicVersion& version,
+                               absl::Span<const uint8_t> transport_params) {
+  if (!GetQuicReloadableFlag(quic_defer_ack_only_packets_for_queued_packets) ||
+      transport_params.empty()) {
+    return false;
+  }
+  TransportParameters params;
+  std::string error_details;
+  if (!ParseTransportParameters(
+          version, Perspective::IS_CLIENT, transport_params.data(),
+          transport_params.size(), &params, &error_details) ||
+      !params.google_connection_options.has_value() ||
+      !ContainsQuicTag(*params.google_connection_options, kSDAO)) {
+    return false;
+  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_defer_ack_only_packets_for_queued_packets,
+                               2, 2);
+  return true;
+}
 
 // An alarm that informs the QuicDispatcher to delete old sessions.
 class DeleteSessionsAlarm : public QuicAlarm::DelegateWithoutContext {
@@ -1185,6 +1210,11 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
     if (session_ptr != nullptr) {
       OnNewSessionCreated(*session_ptr, packet_list.creation_time,
                           /*entire_chlo_buffered=*/true);
+      if (ShouldDeferAckOnlyPackets(
+              packet_list.version,
+              packet_list.tls_chlo_extractor.transport_params())) {
+        session_ptr->connection()->set_allow_deferring_ack_only_packets(true);
+      }
       DeliverPacketsToSession(packets, session_ptr.get());
     }
   }
@@ -1265,6 +1295,15 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
   }
   OnNewSessionCreated(*session_ptr, packet_list.creation_time,
                       /*entire_chlo_buffered=*/false);
+  // If the client sent SDAO, defer ACK-only packets until the current packet
+  // and all queued packets have been processed, so pending ACKs are bundled
+  // with the ServerHello instead of being sent in standalone packets.
+  if (ShouldDeferAckOnlyPackets(
+          packet_info->version,
+          packet_list.tls_chlo_extractor.transport_params())) {
+    session_ptr->connection()->set_allow_deferring_ack_only_packets(true);
+  }
+  QuicConnection::ScopedAckDeferrer ack_deferrer(session_ptr->connection());
   // Process the current packet first, then deliver queued-up packets.
   // Note that multi-packet CHLOs, if received in packet number order, will
   // not be delivered in the same order. This needs to be fixed.
@@ -1287,6 +1326,7 @@ const ParsedQuicVersionVector& QuicDispatcher::GetSupportedVersions() {
 
 void QuicDispatcher::DeliverPacketsToSession(
     const std::list<BufferedPacket>& packets, QuicSession* session) {
+  QuicConnection::ScopedAckDeferrer ack_deferrer(session->connection());
   for (const BufferedPacket& packet : packets) {
     session->ProcessUdpPacket(packet.self_address, packet.peer_address,
                               *(packet.packet));
