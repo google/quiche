@@ -12,6 +12,7 @@
 
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
@@ -138,6 +139,18 @@ class QUICHE_EXPORT QuicUdpPacketInfo {
   QuicWallTime receive_timestamp() const {
     QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::RECV_TIMESTAMP));
     return receive_timestamp_;
+  }
+
+  // Returns the kernel receive timestamp if present, or QuicTime::Zero()
+  // otherwise. Note that this timestamp comes from the OS kernel clock and may
+  // not share an epoch with a connection's QuicClock.
+  QuicTime GetReceiveTimestamp() const {
+    if (HasValue(QuicUdpPacketInfoBit::RECV_TIMESTAMP)) {
+      return QuicTime::Zero() +
+             QuicTime::Delta::FromMicroseconds(
+                 static_cast<int64_t>(receive_timestamp_.ToUNIXMicroseconds()));
+    }
+    return QuicTime::Zero();
   }
 
   void SetReceiveTimestamp(QuicWallTime receive_timestamp) {

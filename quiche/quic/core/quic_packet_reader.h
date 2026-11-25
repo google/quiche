@@ -50,8 +50,9 @@ class QUICHE_EXPORT QuicPacketReader {
   // packets available on the socket.
   // Populates |packets_dropped| if it is non-null and the socket is configured
   // to track dropped packets and some packets are read.
-  // If the socket has timestamping enabled, the per packet timestamps will be
-  // passed to the processor. Otherwise, |clock| will be used.
+  // Uses |clock| for each packet's receipt_time. If the socket has receive
+  // timestamping enabled, also populates each packet's
+  // kernel_receive_timestamp().
   virtual bool ReadAndDispatchPackets(int fd, int port, const QuicClock& clock,
                                       ProcessPacketInterface* processor,
                                       QuicPacketCount* packets_dropped);

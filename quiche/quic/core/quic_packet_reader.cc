@@ -163,7 +163,8 @@ void QuicPacketReader::DispatchPacket(
       result.packet_buffer.buffer, result.packet_buffer.buffer_len, now,
       /*owns_buffer=*/false, ttl, has_ttl, headers, headers_length,
       /*owns_header_buffer=*/false, result.packet_info.ecn_codepoint(),
-      result.packet_info.GetTos(), flow_label);
+      result.packet_info.GetTos(), flow_label,
+      result.packet_info.GetReceiveTimestamp());
   QuicSocketAddress self_address(self_ip, port);
   processor->ProcessPacket(self_address, peer_address, packet);
 }

@@ -319,7 +319,8 @@ class QUICHE_EXPORT QuicReceivedPacket : public QuicEncryptedPacket {
                      bool owns_buffer, int ttl, bool ttl_valid,
                      char* packet_headers, size_t headers_length,
                      bool owns_header_buffer, QuicEcnCodepoint ecn_codepoint,
-                     std::optional<uint8_t> tos, uint32_t ipv6_flow_label);
+                     std::optional<uint8_t> tos, uint32_t ipv6_flow_label,
+                     QuicTime kernel_receive_timestamp = QuicTime::Zero());
   ~QuicReceivedPacket();
   QuicReceivedPacket(const QuicReceivedPacket&) = delete;
   QuicReceivedPacket& operator=(const QuicReceivedPacket&) = delete;
@@ -346,6 +347,14 @@ class QUICHE_EXPORT QuicReceivedPacket : public QuicEncryptedPacket {
   // Returns the IPv6 flow label in host byte order if present, or 0 otherwise.
   uint32_t ipv6_flow_label() const { return ipv6_flow_label_; }
 
+  // Returns the kernel receive timestamp for this packet, or QuicTime::Zero()
+  // if the underlying socket/reader did not provide one. Note that this
+  // timestamp comes from the OS kernel clock and may not share an epoch with
+  // receipt_time() or the connection's QuicClock.
+  QuicTime kernel_receive_timestamp() const {
+    return kernel_receive_timestamp_;
+  }
+
   // By default, gtest prints the raw bytes of an object. The bool data
   // member (in the base class QuicData) causes this object to have padding
   // bytes, which causes the default gtest object printer to read
@@ -370,6 +379,9 @@ class QUICHE_EXPORT QuicReceivedPacket : public QuicEncryptedPacket {
   QuicEcnCodepoint ecn_codepoint_;
   // IPv6 flow label.
   uint32_t ipv6_flow_label_;
+  // Kernel-provided receive timestamp, or QuicTime::Zero() if unavailable from
+  // the socket/reader. May come from a different clock than receipt_time_.
+  const QuicTime kernel_receive_timestamp_;
 };
 
 // SerializedPacket contains information of a serialized(encrypted) packet.

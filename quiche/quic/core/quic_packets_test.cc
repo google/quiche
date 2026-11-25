@@ -165,6 +165,37 @@ TEST_F(QuicPacketsTest, ExplicitFlowLabel) {
   EXPECT_EQ(42, packet.ipv6_flow_label());
 }
 
+// Verifies that kernel_receive_timestamp defaults to Zero() (uninitialized),
+// can be provided to the constructor, and is preserved by Clone() both with
+// and without headers.
+TEST_F(QuicPacketsTest, KernelReceiveTimestampAndClone) {
+  const QuicTime timestamp =
+      QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(123456789);
+
+  QuicReceivedPacket default_packet("foo", 3, QuicTime::Zero());
+  EXPECT_EQ(default_packet.kernel_receive_timestamp(), QuicTime::Zero());
+  EXPECT_FALSE(default_packet.kernel_receive_timestamp().IsInitialized());
+  EXPECT_EQ(default_packet.Clone()->kernel_receive_timestamp(),
+            QuicTime::Zero());
+
+  QuicReceivedPacket without_headers(
+      "foo", 3, QuicTime::Zero(), /*owns_buffer=*/false, /*ttl=*/0,
+      /*ttl_valid=*/true, /*packet_headers=*/nullptr, /*headers_length=*/0,
+      /*owns_header_buffer=*/false, QuicEcnCodepoint::ECN_ECT1,
+      /*tos=*/std::nullopt, /*ipv6_flow_label=*/0, timestamp);
+  EXPECT_EQ(without_headers.kernel_receive_timestamp(), timestamp);
+  EXPECT_EQ(without_headers.Clone()->kernel_receive_timestamp(), timestamp);
+
+  char header[4] = "bar";
+  QuicReceivedPacket with_headers(
+      "foo", 3, QuicTime::Zero(), /*owns_buffer=*/false, /*ttl=*/0,
+      /*ttl_valid=*/true, header, sizeof(header) - 1,
+      /*owns_header_buffer=*/false, QuicEcnCodepoint::ECN_ECT1,
+      /*tos=*/std::nullopt, /*ipv6_flow_label=*/0, timestamp);
+  EXPECT_EQ(with_headers.kernel_receive_timestamp(), timestamp);
+  EXPECT_EQ(with_headers.Clone()->kernel_receive_timestamp(), timestamp);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

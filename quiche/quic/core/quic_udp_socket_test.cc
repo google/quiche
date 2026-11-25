@@ -13,6 +13,7 @@
 #include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/socket.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -185,12 +186,17 @@ TEST_F(QuicUdpSocketTest, ForEachGroSegmentSlicesExactMultipleTrain) {
   result.ok = true;
   result.packet_buffer = {payload.data(), payload.size()};
   result.packet_info.set_gso_size(5);
+  const QuicTime train_timestamp =
+      QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(987654321);
+  result.packet_info.SetReceiveTimestamp(
+      QuicWallTime::FromUNIXMicroseconds(987654321));
 
   std::vector<std::string> segments;
   size_t count = socket_api.ForEachGroSegment(
       result, [&](const QuicUdpSocketApi::ReadPacketResult& slice) {
         EXPECT_TRUE(slice.packet_info.HasValue(QuicUdpPacketInfoBit::IS_GRO));
         EXPECT_EQ(slice.packet_info.gso_size(), 5u);
+        EXPECT_EQ(slice.packet_info.GetReceiveTimestamp(), train_timestamp);
         segments.emplace_back(slice.packet_buffer.buffer,
                               slice.packet_buffer.buffer_len);
       });
@@ -253,6 +259,22 @@ TEST_F(QuicUdpSocketTest, ForEachGroSegmentSkipsFailedResult) {
       });
   EXPECT_EQ(count, 0u);
   EXPECT_FALSE(called);
+}
+
+// Verifies GetReceiveTimestamp() returns Zero() (uninitialized) when unset or
+// zero, and converts a non-zero QuicWallTime to QuicTime.
+TEST_F(QuicUdpSocketTest, GetReceiveTimestamp) {
+  QuicUdpPacketInfo packet_info;
+  EXPECT_EQ(packet_info.GetReceiveTimestamp(), QuicTime::Zero());
+  EXPECT_FALSE(packet_info.GetReceiveTimestamp().IsInitialized());
+
+  packet_info.SetReceiveTimestamp(QuicWallTime::Zero());
+  EXPECT_EQ(packet_info.GetReceiveTimestamp(), QuicTime::Zero());
+  EXPECT_FALSE(packet_info.GetReceiveTimestamp().IsInitialized());
+
+  packet_info.SetReceiveTimestamp(QuicWallTime::FromUNIXMicroseconds(123456));
+  EXPECT_EQ(packet_info.GetReceiveTimestamp(),
+            QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(123456));
 }
 
 }  // namespace

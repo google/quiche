@@ -47,13 +47,15 @@ class RecordingProcessor : public ProcessPacketInterface {
     QuicSocketAddress self_address;
     QuicSocketAddress peer_address;
     std::string payload;
+    QuicTime kernel_receive_timestamp = QuicTime::Zero();
   };
 
   void ProcessPacket(const QuicSocketAddress& self_address,
                      const QuicSocketAddress& peer_address,
                      const QuicReceivedPacket& packet) override {
     packets_.push_back({self_address, peer_address,
-                        std::string(packet.data(), packet.length())});
+                        std::string(packet.data(), packet.length()),
+                        packet.kernel_receive_timestamp()});
   }
 
   const std::vector<Packet>& packets() const { return packets_; }
@@ -171,6 +173,33 @@ TEST_F(QuicPacketReaderTest, DispatchesEachDatagram) {
 
   EXPECT_THAT(processor_.payloads(), ElementsAre("a", "bb", "ccc"));
   ExpectPacketAddresses();
+  for (const RecordingProcessor::Packet& packet : processor_.packets()) {
+    EXPECT_FALSE(packet.kernel_receive_timestamp.IsInitialized());
+  }
+}
+
+// Verifies that QuicPacketReader populates kernel_receive_timestamp on
+// dispatched packets when receive timestamping is enabled on the socket.
+TEST_F(QuicPacketReaderTest, PopulatesKernelReceiveTimestampWhenEnabled) {
+  if (!socket_api_.EnableReceiveTimestamp(reader_fd_)) {
+    GTEST_SKIP() << "Kernel receive timestamps are not supported.";
+  }
+
+  QuicPacketReader reader;
+  ASSERT_TRUE(Send("a"));
+  ASSERT_TRUE(Send("bb"));
+  ASSERT_TRUE(Send("ccc"));
+  ReadPackets(reader, 3);
+
+  EXPECT_THAT(processor_.payloads(), ElementsAre("a", "bb", "ccc"));
+  ExpectPacketAddresses();
+  // 1577836800 is the UNIX timestamp in seconds for 2020-01-01.
+  const QuicTime jan_2020 =
+      QuicTime::Zero() + QuicTime::Delta::FromSeconds(1577836800);
+  for (const RecordingProcessor::Packet& packet : processor_.packets()) {
+    EXPECT_TRUE(packet.kernel_receive_timestamp.IsInitialized());
+    EXPECT_GT(packet.kernel_receive_timestamp, jan_2020);
+  }
 }
 
 // A GRO reader dispatches datagrams that are not GRO trains as they are, for
@@ -186,6 +215,9 @@ TEST_F(QuicPacketReaderTest, GroReaderDispatchesEachDatagram) {
 
   EXPECT_THAT(processor_.payloads(), ElementsAre("a", "bb", "ccc"));
   ExpectPacketAddresses();
+  for (const RecordingProcessor::Packet& packet : processor_.packets()) {
+    EXPECT_FALSE(packet.kernel_receive_timestamp.IsInitialized());
+  }
 }
 
 #if defined(__linux__)
@@ -223,13 +255,26 @@ TEST_F(QuicPacketReaderTest, GroReaderDispatchesEachPacketInGroTrain) {
   EXPECT_EQ(result.packet_info.gso_size(), static_cast<size_t>(segment_size));
   EXPECT_EQ(result.packet_buffer.buffer_len, train.size());
 
-  // Now read the train with the GRO-enabled reader.
+  // Now read the train with the GRO-enabled reader and verify that enabling
+  // receive timestamps propagates the train's timestamp to every segment.
+  const bool timestamps_enabled =
+      socket_api_.EnableReceiveTimestamp(reader_fd_);
   QuicPacketReader reader({.enable_gro = true});
   ASSERT_TRUE(Send(train));
   ReadPackets(reader, packets.size());
 
   EXPECT_EQ(processor_.payloads(), packets);
   ExpectPacketAddresses();
+  if (timestamps_enabled) {
+    ASSERT_FALSE(processor_.packets().empty());
+    ASSERT_TRUE(
+        processor_.packets()[0].kernel_receive_timestamp.IsInitialized());
+    const QuicTime train_timestamp =
+        processor_.packets()[0].kernel_receive_timestamp;
+    for (const RecordingProcessor::Packet& packet : processor_.packets()) {
+      EXPECT_EQ(packet.kernel_receive_timestamp, train_timestamp);
+    }
+  }
 }
 #endif  // defined(__linux__)
 
