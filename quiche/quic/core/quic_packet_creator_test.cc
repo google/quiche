@@ -1313,6 +1313,8 @@ TEST_P(QuicPacketCreatorTest, SerializeLargePacketNumberConnectionClosePacket) {
       creator_.SerializeLargePacketNumberConnectionClosePacket(
           QuicPacketNumber(1), QUIC_CLIENT_LOST_NETWORK_ACCESS,
           "QuicPacketCreatorTest"));
+  EXPECT_EQ(encrypted->packet_number,
+            QuicPacketNumber(1 + (UINT64_C(1) << 31) + 1));
 
   InSequence s;
   EXPECT_CALL(framer_visitor_, OnPacket());

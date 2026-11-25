@@ -1081,7 +1081,7 @@ QuicPacketCreator::SerializeLargePacketNumberConnectionClosePacket(
       (largest_acked_packet.IsInitialized()
            ? largest_acked_packet
            : framer_->first_sending_packet_number()) +
-      (1L << 31));
+      (UINT64_C(1) << 31));
   ScopedPacketContextSwitcher switcher(largest_packet_number,
                                        PACKET_4BYTE_PACKET_NUMBER,
                                        ENCRYPTION_FORWARD_SECURE, &packet_);
