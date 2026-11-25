@@ -266,32 +266,42 @@ TEST(AbidingObjectPoolTest, DeallocateNullptrIsNoOp) {
 }
 
 TEST(AbidingObjectPoolTest, MultiSlabBucketedChurnAndCompaction) {
-  // 27 slots/slab (> 16 buckets), exercising quantized bucket transitions
-  // across many slabs (40-byte Slab header + 27 * 8-byte slots = 256 bytes).
+  // Exercise quantized bucket transitions (> 16 buckets) across many slabs.
+  // Determine slots per slab dynamically because sizeof(Slab) depends on
+  // pointer width (e.g., 27 slots/slab on 64-bit, 29 on 32-bit).
   constexpr size_t kSlabSize = 256;
+  constexpr size_t kNumSlabs = 100;
   AbidingObjectPool<int64_t, kSlabSize> pool;
 
-  constexpr size_t kNumObjects = 27 * 100;
   std::vector<AbidingObjectPool<int64_t, kSlabSize>::Ptr<int64_t>> objects;
-  objects.reserve(kNumObjects);
-  for (size_t i = 0; i < kNumObjects; ++i) {
+  // Allocate one object to materialize the first slab so total_capacity()
+  // reports the per-slab slot count (total_capacity() is 0 while empty).
+  objects.push_back(pool.Create(static_cast<int64_t>(0)));
+  ASSERT_EQ(pool.allocated_slabs(), 1u);
+  const size_t slots_per_slab = pool.total_capacity();
+  // Confirm slots_per_slab exceeds the 16-bucket cap so occupancy is quantized.
+  ASSERT_GT(slots_per_slab, 16u);
+
+  const size_t num_objects = slots_per_slab * kNumSlabs;
+  objects.reserve(num_objects);
+  for (size_t i = 1; i < num_objects; ++i) {
     objects.push_back(pool.Create(static_cast<int64_t>(i)));
   }
-  EXPECT_EQ(pool.allocated_slabs(), 100u);
+  EXPECT_EQ(pool.allocated_slabs(), kNumSlabs);
   EXPECT_EQ(pool.num_free_slots(), 0u);
 
   // Deallocate half the objects in a strided pattern across all slabs.
-  for (size_t i = 0; i < kNumObjects; i += 2) {
+  for (size_t i = 0; i < num_objects; i += 2) {
     objects[i].reset();
   }
-  EXPECT_EQ(pool.num_free_slots(), kNumObjects / 2);
+  EXPECT_EQ(pool.num_free_slots(), num_objects / 2);
 
   // Reallocate half as many objects; they should fill higher-occupancy buckets
   // without allocating new slabs.
-  for (size_t i = 0; i < kNumObjects / 2; i += 2) {
+  for (size_t i = 0; i < num_objects / 2; i += 2) {
     objects[i] = pool.Create(static_cast<int64_t>(i));
   }
-  EXPECT_LE(pool.allocated_slabs(), 100u);
+  EXPECT_LE(pool.allocated_slabs(), kNumSlabs);
 
   // Free everything and verify compaction back to 1 spare slab.
   objects.clear();
