@@ -242,7 +242,7 @@ bool HasInvalidPathChar(absl::string_view value) {
   static constexpr std::array<bool, 256> invalidCharTable =
       buildInvalidPathCharLookupTable();
   for (const char c : value) {
-    if (invalidCharTable[c]) {
+    if (invalidCharTable[static_cast<uint8_t>(c)]) {
       return true;
     }
   }
@@ -253,7 +253,7 @@ bool HasInvalidQueryChar(absl::string_view value) {
   static constexpr std::array<bool, 256> invalidCharTable =
       buildInvalidQueryCharLookupTable();
   for (const char c : value) {
-    if (invalidCharTable[c]) {
+    if (invalidCharTable[static_cast<uint8_t>(c)]) {
       return true;
     }
   }
