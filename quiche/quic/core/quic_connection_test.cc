@@ -2550,6 +2550,9 @@ TEST_P(QuicConnectionTest,
   EXPECT_CALL(visitor_, OnConnectionMigration(_)).Times(AnyNumber());
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   EXPECT_CALL(visitor_, MaybeSendAddressToken()).Times(AnyNumber());
+  EXPECT_CALL(connection_, OnSerializedPacket(_)).Times(AnyNumber());
+  EXPECT_CALL(*loss_algorithm_, OnMinRttAvailable()).Times(AnyNumber());
+  EXPECT_CALL(random_generator_, RandBytes(_, _)).Times(AnyNumber());
   QuicConnectionPeer::SetAddressValidated(&connection_);
 
   QuicConnectionId server_cid0 = connection_.connection_id();
@@ -2638,10 +2641,9 @@ TEST_P(QuicConnectionTest,
   EXPECT_EQ(connection_.sent_packet_manager().GetSendAlgorithm(),
             unfixed_send_algorithm);
   connection_.SendStreamDataWithString(1, "a", stream_offset++, NO_FIN);
-  EXPECT_QUIC_BUG(
-      connection_.SendStreamDataWithString(1, "a", stream_offset++, NO_FIN),
-      "BandwidthSampler in-flight packet map has exceeded maximum number of "
-      "tracked packets");
+  // In OSS, BandwidthSampler::OnPacketSent downgrades the tracked-packet
+  // overflow QUIC_BUG to QUIC_LOG_EVERY_N_SEC(WARNING, 600).
+  connection_.SendStreamDataWithString(1, "a", stream_offset++, NO_FIN);
 }
 
 TEST_P(QuicConnectionTest,

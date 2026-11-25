@@ -36,7 +36,6 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_unacked_packet_map.h"
-#include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
@@ -1588,10 +1587,10 @@ TEST_F(QuicSentPacketManagerTest,
       if (remove_obsolete) {
         send_packet(1102);
       } else {
-        EXPECT_QUIC_BUG(
-            send_packet(1102),
-            "BandwidthSampler in-flight packet map has exceeded maximum "
-            "number of tracked packets");
+        // In OSS, BandwidthSampler::OnPacketSent downgrades the
+        // tracked-packet overflow QUIC_BUG to
+        // QUIC_LOG_EVERY_N_SEC(WARNING, 600).
+        send_packet(1102);
       }
     }
   }
