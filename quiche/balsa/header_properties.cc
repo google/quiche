@@ -241,8 +241,8 @@ bool HasInvalidHeaderChars(absl::string_view value) {
 bool HasInvalidPathChar(absl::string_view value) {
   static constexpr std::array<bool, 256> invalidCharTable =
       buildInvalidPathCharLookupTable();
-  for (const uint8_t c : value) {
-    if (invalidCharTable[c]) {
+  for (const char c : value) {
+    if (invalidCharTable[static_cast<uint8_t>(c)]) {
       return true;
     }
   }
@@ -252,8 +252,8 @@ bool HasInvalidPathChar(absl::string_view value) {
 bool HasInvalidQueryChar(absl::string_view value) {
   static constexpr std::array<bool, 256> invalidCharTable =
       buildInvalidQueryCharLookupTable();
-  for (const uint8_t c : value) {
-    if (invalidCharTable[c]) {
+  for (const char c : value) {
+    if (invalidCharTable[static_cast<uint8_t>(c)]) {
       return true;
     }
   }
