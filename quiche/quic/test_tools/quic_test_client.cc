@@ -223,9 +223,7 @@ MockableQuicClient::MockableQuicClient(
           std::make_unique<MockableQuicClientDefaultNetworkHelper>(event_loop,
                                                                    this),
           std::make_unique<RecordingProofVerifier>(std::move(proof_verifier)),
-          std::move(session_cache)),
-      override_client_connection_id_(EmptyQuicConnectionId()),
-      client_connection_id_overridden_(false) {}
+          std::move(session_cache)) {}
 
 MockableQuicClient::~MockableQuicClient() {
   if (connected()) {
@@ -245,27 +243,11 @@ MockableQuicClient::mockable_network_helper() const {
       default_network_helper());
 }
 
-QuicConnectionId MockableQuicClient::GetClientConnectionId() {
-  if (client_connection_id_overridden_) {
-    return override_client_connection_id_;
-  }
-  if (override_client_connection_id_length_ >= 0) {
-    return QuicUtils::CreateRandomConnectionId(
-        override_client_connection_id_length_);
-  }
-  return QuicDefaultClient::GetClientConnectionId();
-}
-
 std::unique_ptr<QuicMigrationHelper>
 MockableQuicClient::CreateQuicMigrationHelper() {
   auto migration_helper = std::make_unique<QuicTestMigrationHelper>(*this);
   migration_helper_ = migration_helper.get();
   return migration_helper;
-}
-
-void MockableQuicClient::UseClientConnectionIdLength(
-    int client_connection_id_length) {
-  override_client_connection_id_length_ = client_connection_id_length;
 }
 
 void MockableQuicClient::UseWriter(QuicPacketWriterWrapper* writer) {
@@ -785,7 +767,7 @@ void QuicTestClient::UseConnectionIdLength(
 void QuicTestClient::UseClientConnectionIdLength(
     uint8_t client_connection_id_length) {
   QUICHE_DCHECK(!connected());
-  client_->UseClientConnectionIdLength(client_connection_id_length);
+  client_->set_client_connection_id_length(client_connection_id_length);
 }
 
 bool QuicTestClient::MigrateSocket(const QuicIpAddress& new_host) {
